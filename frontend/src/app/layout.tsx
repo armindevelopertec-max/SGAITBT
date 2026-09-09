@@ -6,7 +6,7 @@ import './globals.css';
 export const metadata: Metadata = {
   title: 'SGA ITBT | Sistema de Gestión Académica',
   description:
-    'Sistema de Gestión Académica del Instituto Tecnológico Boliviana de Tecnología',
+    'Sistema de Gestión Académica del Instituto Tecnológico "Boliviana de Tecnología"',
 };
 
 export default function RootLayout({

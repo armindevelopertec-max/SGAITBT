@@ -28,9 +28,10 @@ export async function runSeed() {
   const existingInstitution = await institutionRepo.findOne({
     where: { slug: 'itbt' },
   });
-  if (!existingInstitution) {
-    await institutionRepo.save({
-      name: 'Instituto Tecnológico Boliviana de Tecnología',
+  let institution = existingInstitution;
+  if (!institution) {
+    institution = await institutionRepo.save({
+      name: 'Instituto Tecnológico "Boliviana de Tecnología"',
       slug: 'itbt',
       code: 'ITBT-2026',
       description: 'Institución de formación tecnológica superior',
@@ -88,7 +89,7 @@ export async function runSeed() {
       console.log(`⏭️  Carrera ${careerData.code} ya existía`);
       continue;
     }
-    await careerRepo.save(careerData);
+    await careerRepo.save({ ...careerData, institution });
     console.log(`✅ Carrera creada: ${careerData.name}`);
   }
 

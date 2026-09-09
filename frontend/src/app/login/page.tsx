@@ -32,7 +32,7 @@ export default function LoginPage() {
     <div className="login-page">
       <div className="login-left">
         <div className="brand">
-          <div className="sidebar-logo">SGA</div>
+          <img src="/logo.jpeg" alt="Logo ITBT" className="brand-logo" />
           <div>
             <div style={{ fontWeight: 700, fontSize: 15 }}>SGA ITBT</div>
             <div style={{ fontSize: 12, color: '#a5b4fc' }}>
@@ -43,7 +43,7 @@ export default function LoginPage() {
 
         <div>
           <h2>
-            Gestión académica integral para el Instituto Tecnológico Boliviana de Tecnología
+            Gestión académica integral para el Instituto Tecnológico &quot;Boliviana de Tecnología&quot;
           </h2>
           <p>
             Administra estudiantes, matrículas, calificaciones, asistencia, reportes y

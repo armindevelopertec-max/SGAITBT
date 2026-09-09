@@ -28,9 +28,9 @@ export function AppSidebar() {
   return (
     <aside className="sidebar">
       <div className="sidebar-brand">
-        <div className="sidebar-logo">SGA</div>
+        <img src="/logo.jpeg" alt="Logo ITBT" className="sidebar-logo-img" />
         <div>
-          <h1>Instituto Boliviana de Tecnología</h1>
+          <h1>Instituto Tecnológico &quot;Boliviana de Tecnología&quot;</h1>
           <p>Sistema de Gestión Académica</p>
         </div>
       </div>

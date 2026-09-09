@@ -1,6 +1,6 @@
 # SGA · Sistema de Gestión Académica
 
-Sistema de Gestión Académica para el **Instituto Tecnológico Boliviana de Tecnología**.
+Sistema de Gestión Académica para el **Instituto Tecnológico "Boliviana de Tecnología"**.
 
 ## Stack
 

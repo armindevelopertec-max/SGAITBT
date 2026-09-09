@@ -107,6 +107,19 @@ npm run seed || warn "El seed falló (¿la BD ya estaba inicializada?). Se conti
 printf '\n'
 
 # ---------- 6. Servidores ----------
+# Liberar puertos de servidores previos que quedaron en ejecución
+if command_exists fuser; then
+  for port in "$BACKEND_PORT" "$FRONTEND_PORT"; do
+    if fuser "$port"/tcp >/dev/null 2>&1; then
+      warn "Puerto $port ocupado, liberándolo..."
+      fuser -k "$port"/tcp >/dev/null 2>&1 || true
+      sleep 2
+    fi
+  done
+else
+  warn "fuser no disponible; no se pudo liberar puertos ocupados"
+fi
+
 PIDS=()
 cleanup() {
   info "Deteniendo servidores..."
@@ -123,15 +136,15 @@ start_server() {
   PIDS+=("$!")
 }
 
-START_BACKEND="${START_BACKEND:-npm run start:dev}"
+START_BACKEND="${START_BACKEND:-PORT=$BACKEND_PORT npm run start:dev}"
 start_server backend "$BACKEND_DIR" "$START_BACKEND"
-START_FRONTEND="${START_FRONTEND:-npm run dev}"
+START_FRONTEND="${START_FRONTEND:-npm run dev -- -p $FRONTEND_PORT}"
 start_server frontend "$FRONTEND_DIR" "$START_FRONTEND"
 
 sleep 6
 
 warn ""
-warn "Instituto Tecnológico Boliviana de Tecnología"
+warn "Instituto Tecnológico \"Boliviana de Tecnología\""
 info  "  Frontend:        http://localhost:$FRONTEND_PORT"
 info  "  API backend:     http://localhost:$BACKEND_PORT/api"
 info  "  Consola MinIO:   http://localhost:${MINIO_CONSOLE_PORT:-9001}"

@@ -23,7 +23,7 @@ async function bootstrap() {
 
   const config = new DocumentBuilder()
     .setTitle('SGA ITBT API')
-    .setDescription('Sistema de Gestión Académica - Instituto Tecnológico Boliviana de Tecnología')
+    .setDescription('Sistema de Gestión Académica - Instituto Tecnológico "Boliviana de Tecnología"')
     .setVersion('1.0')
     .addBearerAuth()
     .build();

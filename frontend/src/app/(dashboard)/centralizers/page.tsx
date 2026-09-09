@@ -91,7 +91,7 @@ export default function CentralizersPage() {
         >
           <div style={{ textAlign: 'center', marginBottom: 24 }}>
             <h2 style={{ fontSize: 18, fontWeight: 800, textTransform: 'uppercase' }}>
-              Instituto Tecnológico Boliviana de Tecnología
+              Instituto Tecnológico &quot;Boliviana de Tecnología&quot;
             </h2>
             <h3 style={{ fontSize: 14, fontWeight: 700, marginTop: 6, textTransform: 'uppercase' }}>
               {documentTitle}

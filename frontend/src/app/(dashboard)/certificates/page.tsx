@@ -114,7 +114,7 @@ export default function CertificatesPage() {
         <div className="card" id="certificate-document" style={{ padding: 48, background: '#fff', border: '2px solid var(--border)', maxWidth: 820, margin: '0 auto' }}>
           <div style={{ textAlign: 'center', marginBottom: 20 }}>
             <h2 style={{ fontSize: 17, fontWeight: 800, textTransform: 'uppercase', letterSpacing: 0.02 }}>
-              Instituto Tecnológico Boliviana de Tecnología
+              Instituto Tecnológico &quot;Boliviana de Tecnología&quot;
             </h2>
             <div style={{ fontSize: 12.5, color: 'var(--text-muted)' }}>
               Sistema de Gestión Académica · {today}
