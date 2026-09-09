@@ -1,0 +1,74 @@
+interface IconProps {
+  name: string;
+  size?: number;
+  className?: string;
+}
+
+export function Icon({ name, size = 18, className }: IconProps) {
+  const icons: Record<string, React.ReactNode> = {
+    dashboard: (
+      <path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z" />
+    ),
+    institution: (
+      <path d="M12 3 1 9l4 2.18v6L12 21l7-3.82v-6L21 9l-9-6zM5 12.83l2 .9 3-1.64-2-.9-3 .9zM9 15.73l-2-.95v3.14l2 .95V15.73zm4 3.27-3 1.64-1-.55v-3.2l4 2.1v2.01zm0-2.2-4-2.11v-3.2l4 2.11v3.2zm2-5.45 3 1.64-4 2.2v3.2l1-.55V16l3 1.64-1 .55v3.19l4-2.18v-6l-6-3.29v2.77zM8 6.83l3.19 1.75-3.19 1.75-3.2-1.75L8 6.83z" />
+    ),
+    career: (
+      <path d="M12 2 2 6l10 4 10-4-10-4zM2 10l10 4 10-4-10-4-10 4zM2 14l10 4 10-4v4l-10 4-10-4v-4z" />
+    ),
+    calendar: (
+      <path d="M19 4h-1V2h-2v2H8V2H6v2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2zm0 16H5V10h14v10zM5 8V6h14v2H5z" />
+    ),
+    students: (
+      <path d="M16 11a3 3 0 1 0-3-3 3 3 0 0 0 3 3zm-8 0a3 3 0 1 0-3-3 3 3 0 0 0 3 3zm8 1c-2.33 0-7 1.17-7 3.5V18h14v-2.5c0-2.33-4.67-3.5-7-3.5zM8 12c-2.33 0-8 1.17-8 3.5V18h7v-2.5c0-1.3.53-2.9 1.94-3.91A10.28 10.28 0 0 0 8 12z" />
+    ),
+    deposit: (
+      <path d="M16 13h2V4h-2v9zm-4 0h2V4h-2v9zm-4 0h2V4H8v9zM4 20h16v-2H4v2zM18.36 2H5.64A.63.63 0 0 0 5 2.63V16h14V2.63A.63.63 0 0 0 18.36 2z" />
+    ),
+    enrollment: (
+      <path d="M12 1 3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm5.7 9.95-1.4 1.4-5.6 5.6-2.4-2.4-1.4-1.4 3.8-3.8 4.6-4.6 3.8 3.8zM12 21c-3.1-1.66-5-4.92-5-7.87V7l5-2.22L17 7v6.13c0 2.95-1.9 6.21-5 7.87z" />
+    ),
+    users: (
+      <path d="M16 11a3 3 0 1 0-3-3 3 3 0 0 0 3 3zm-8 0a3 3 0 1 0-3-3 3 3 0 0 0 3 3zm8 1c-2.67 0-8 1.34-8 4v3h16v-3c0-2.66-5.33-4-8-4zM8 12c-2.67 0-8 1.34-8 4v3h7v-3c0-1.3.53-2.9 1.94-3.91A10.28 10.28 0 0 0 8 12z" />
+    ),
+    subjects: (
+      <path d="M4 4h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2zm0 4v2h16V8H4zm0 4v2h16v-2H4zm0 4v2h9v-2H4z" />
+    ),
+    assignment: (
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zm-1 7V3.5 9L18.5 9 13 4.06V9zM8 13h6v2H8v-2zm0 4h6v2H8v-2z" />
+    ),
+    attendance: (
+      <path d="M19 3h-1V1h-2v2H8V1H6v2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2zm0 16H5V9h14v10zM7 6a1 1 0 1 1 0-2 1 1 0 0 1 0 2zm10 0a1 1 0 1 1 0-2 1 1 0 0 1 0 2zM5 7h14v1H5V7z" />
+    ),
+    grades: (
+      <path d="M3 3h18v4l-2 1v13H5V8L3 7V3zm4 5v11h10V8H7zm4 2h2v9h-2v-9zm-4 9h2v-7H7v7z" />
+    ),
+    history: (
+      <path d="M13 3a9 9 0 0 0-9 9H1l4 4 4-4H6a7 7 0 1 1 1 5.5l-1.4 1.4A9 9 0 1 0 13 3zm-1 5v4l3 2 .6-1.2-2.4-1.6V8H12z" />
+    ),
+    reports: (
+      <path d="M3 3h2v16h14V9h2v12H1V3h2zm5 4H6V5h7v2H8zm6.5 3H14V8h3v4.5 0c0 .64-.29 1.2-.8 1.55l-1.5 1 .6 1.5 1.3-.86.2-.22.6 1.28-1.6 1.06-1.36 1.5c-.4.44-1 .7-1.66.7a2.25 2.25 0 0 1-2.1-1.5v-1.5c.4-1.1 1.3-2 2.2-2.6l2-1 .1-.72v-.61z" />
+    ),
+    centralizer: (
+      <path d="M18.36 20H5.64a.63.63 0 0 1-.64-.63V4.63A.63.63 0 0 1 5.64 4h12.72a.63.63 0 0 1 .64.63v14.74a.63.63 0 0 1-.64.63zM16 8H8v2h8V8zm0 3H8v2h8v-2zm0 3H11v2h5v-2z" />
+    ),
+    certificate: (
+      <path d="M20 13c0-3.5-2.6-6.4-6-6.9V4h-4v2.1c-3.4.5-6 3.4-6 6.9s2.6 6.4 6 6.9V22h4v-2.1c3.4-.5 6-3.4 6-6.9zm-8 2c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3z" />
+    ),
+    graduation: (
+      <path d="M12 3 1 8l11 5 9-4.09V17h2V8L12 3zM5 13.18v4L12 21l7-3.82v-4L12 17l-7-3.82z" />
+    ),
+  };
+
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width={size}
+      height={size}
+      fill="currentColor"
+      className={className}
+      aria-hidden="true"
+    >
+      {icons[name] ?? <path d="M4 4h16v16H4z" />}
+    </svg>
+  );
+}
