@@ -784,7 +784,7 @@ button {
 }
 .cred-card {
   width: 340px;
-  aspect-ratio: 85.6 / 53.98;
+  aspect-ratio: 85 / 55;
   border: 1px solid #333;
   border-radius: 6px;
   position: relative;

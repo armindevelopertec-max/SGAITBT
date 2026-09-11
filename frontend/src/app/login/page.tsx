@@ -32,7 +32,7 @@ export default function LoginPage() {
     <div className="login-page">
       <div className="login-left">
         <div className="brand">
-          <img src="/logo.jpeg" alt="Logo ITBT" className="brand-logo" />
+          <img src="/logo.png" alt="Logo ITBT" className="brand-logo" />
           <div>
             <div style={{ fontWeight: 700, fontSize: 15 }}>SGA ITBT</div>
             <div style={{ fontSize: 12, color: '#a5b4fc' }}>

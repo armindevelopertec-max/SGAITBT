@@ -1,4 +1,5 @@
 import { jsPDF } from 'jspdf';
+import { toPng } from 'html-to-image';
 import QRCode from 'qrcode';
 import { Enrollment, Institution } from '@/lib/types';
 
@@ -6,8 +7,8 @@ const INSTITUTION_SUFFIX = 'R.M. 1049/2023';
 const NAVY: [number, number, number] = [20, 33, 61];
 const CREAM: [number, number, number] = [250, 247, 241];
 const GOLD: [number, number, number] = [200, 158, 68];
-const CARD_W = 85.6;
-const CARD_H = 53.98;
+const CARD_W = 85;
+const CARD_H = 55;
 
 export interface CredentialData {
   enrollment: Enrollment;
@@ -61,7 +62,7 @@ export function formatDate(value?: string | Date): string {
   return d.toLocaleDateString('es-BO', { day: '2-digit', month: '2-digit', year: 'numeric' });
 }
 
-async function loadImageDataUrl(url?: string, fallback = '/logo.jpeg'): Promise<string | null> {
+async function loadImageDataUrl(url?: string, fallback = '/logo.png'): Promise<string | null> {
   try {
     const res = await fetch(url || fallback);
     if (!res.ok) return null;
@@ -317,4 +318,58 @@ export async function downloadEnrollmentCredential({ enrollment, institution }: 
   });
 
   doc.save(`Credencial-${enrollment.enrollmentNumber}.pdf`);
+}
+
+export interface CredentialDomData {
+  enrollment: Enrollment;
+  front: HTMLElement | null;
+  back: HTMLElement | null;
+}
+
+async function inlineImages(el: HTMLElement): Promise<void> {
+  const images = Array.from(el.querySelectorAll('img'));
+  await Promise.all(
+    images.map(async (img) => {
+      const src = img.getAttribute('src');
+      if (!src || src.startsWith('data:')) return;
+      try {
+        const dataUrl = await loadImageDataUrl(src);
+        if (dataUrl) img.setAttribute('src', dataUrl);
+      } catch {
+        /* se conserva la URL original */
+      }
+    })
+  );
+}
+
+async function captureCard(el: HTMLElement | null): Promise<string | null> {
+  if (!el) return null;
+  await inlineImages(el);
+  try {
+    return await toPng(el, {
+      pixelRatio: 4,
+      cacheBust: true,
+      width: el.offsetWidth,
+      height: el.offsetHeight,
+    });
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Genera el PDF de la credencial capturando la vista previa CSS (idéntico a pantalla).
+ * Devuelve `true` si la captura fue exitosa; si falla conviene usar
+ * `downloadEnrollmentCredential` (jsPDF) como respaldo.
+ */
+export async function downloadEnrollmentCredentialFromDom({ enrollment, front, back }: CredentialDomData): Promise<boolean> {
+  const [frontPng, backPng] = await Promise.all([captureCard(front), captureCard(back)]);
+  if (!frontPng || !backPng) return false;
+
+  const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: [CARD_W, CARD_H] });
+  doc.addImage(frontPng, 'PNG', 0, 0, CARD_W, CARD_H);
+  doc.addPage([CARD_W, CARD_H], 'landscape');
+  doc.addImage(backPng, 'PNG', 0, 0, CARD_W, CARD_H);
+  doc.save(`Credencial-${enrollment.enrollmentNumber}.pdf`);
+  return true;
 }

@@ -379,7 +379,7 @@ export async function generateInstitutionalDocument(data: CertificateData): Prom
     ASIGNACION: `BOLETA DE ASIGNACIÓN ${boletaPeriodLabel(student)}`,
   };
 
-  const logoUrl = await loadImageDataUrl(institution?.logoUrl);
+  const logoUrl = await loadImageDataUrl(institution?.logoUrl ?? '/logo.png');
   const qrUrl = docType === 'ASIGNACION' ? await buildQrDataUrl(student) : null;
 
   const orientation = docType === 'HISTORY' ? 'landscape' : 'portrait';

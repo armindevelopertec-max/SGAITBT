@@ -1,10 +1,11 @@
 'use client';
 
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type RefObject } from 'react';
 import { apiGet, apiPost, extractError } from '@/lib/api';
 import { Enrollment, Student, AcademicPeriod, Institution, Deposit } from '@/lib/types';
 import {
   downloadEnrollmentCredential,
+  downloadEnrollmentCredentialFromDom,
   buildQrDataUrl,
   fullSurname,
   fullSurnames,
@@ -27,10 +28,10 @@ const CREAM = '#faf7f1';
 function Row({ label, value, small, big, golden }: { label: string; value: string; small?: boolean; big?: boolean; golden?: boolean }) {
   return (
     <div>
-      <div style={{ fontSize: small ? 6 : 6.5, color: '#8a8a8a', textTransform: 'uppercase', letterSpacing: 0.5 }}>{label}</div>
+      <div style={{ fontSize: small ? 5.5 : 6, color: '#8a8a8a', textTransform: 'uppercase', letterSpacing: 0.5 }}>{label}</div>
       <div
         style={{
-          fontSize: big ? 15 : small ? 9.5 : 11.5,
+          fontSize: big ? 12.5 : small ? 8 : 9.5,
           fontWeight: 800,
           color: golden ? NAVY : '#141414',
           lineHeight: 1.2,
@@ -42,6 +43,22 @@ function Row({ label, value, small, big, golden }: { label: string; value: strin
   );
 }
 
+function splitInstName(name: string): string[] {
+  const words = name.trim().split(/\s+/).filter(Boolean);
+  if (words.length <= 1) return words.length ? words : [''];
+  const totalChars = words.join(' ').length;
+  const half = totalChars / 2;
+  const first: string[] = [];
+  let acc = 0;
+  for (const w of words) {
+    const next = acc + (first.length ? 1 : 0) + w.length;
+    if (first.length && next > half) break;
+    first.push(w);
+    acc = next;
+  }
+  return [first.join(' '), words.slice(first.length).join(' ')];
+}
+
 function LogoBox({ url, size = 30 }: { url?: string; size?: number }) {
   const [broken, setBroken] = useState(false);
   if (!url || broken) {
@@ -51,17 +68,16 @@ function LogoBox({ url, size = 30 }: { url?: string; size?: number }) {
           width: size,
           height: size,
           borderRadius: size / 2,
+          overflow: 'hidden',
+          flexShrink: 0,
           background: '#fff',
-          color: NAVY,
-          fontWeight: 800,
-          fontSize: size * 0.42,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          flexShrink: 0,
         }}
       >
-        I
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/logo.png" alt="Logo ITBT" onError={() => setBroken(false)} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
       </div>
     );
   }
@@ -114,10 +130,14 @@ function CredentialPreview({
   enrollment,
   institution,
   qr,
+  frontRef,
+  backRef,
 }: {
   enrollment: Enrollment;
   institution?: Institution;
   qr: string | null;
+  frontRef?: RefObject<HTMLDivElement | null>;
+  backRef?: RefObject<HTMLDivElement | null>;
 }) {
   const student = enrollment.student;
   const instName = institution?.name || 'Instituto Tecnológico \u201CBoliviana de Tecnología\u201D';
@@ -127,7 +147,8 @@ function CredentialPreview({
   const firstName = student?.firstName || '—';
   const careerName = enrollment.career?.name || '—';
   const fecha = formatDate(enrollment.enrollmentDate);
-  const band = { height: 50, background: NAVY, color: '#fff', display: 'flex', alignItems: 'center', gap: 10, padding: '0 12px' } as const;
+  const band = { height: 46, background: NAVY, color: '#fff', display: 'flex', alignItems: 'center', gap: 10, padding: '0 12px' } as const;
+  const instLines = splitInstName(instName.toUpperCase());
 
   const containerRef = useRef<HTMLDivElement>(null);
   const [zoom, setZoom] = useState(1.3);
@@ -155,14 +176,25 @@ function CredentialPreview({
 
       <div id="credential-document" className="flex" style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', alignItems: 'flex-start', gap: 24, zoom }}>
         {/* FRENTE */}
-        <div className="cred-card" style={{ background: CREAM }}>
+        <div className="cred-card" style={{ background: CREAM }} ref={frontRef}>
           <div style={band}>
             <LogoBox url={institution?.logoUrl} size={30} />
-            <div style={{ minWidth: 0, flex: 1, paddingRight: 96 }}>
-              <div style={{ fontSize: 10, fontWeight: 800, lineHeight: 1.15, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                {instName.toUpperCase()}
-              </div>
-              <div style={{ fontSize: 7.5, color: '#bcc2d6', fontWeight: 600, marginTop: 4 }}>CREDENCIAL DE MATRÍCULA · Gestión {year}</div>
+            <div style={{ minWidth: 0, flex: 1, paddingRight: 96, textAlign: 'center' }}>
+              {instLines.map((line, i) => (
+                <div
+                  key={i}
+                  style={{
+                    fontSize: i === instLines.length - 1 ? 9.5 : 9,
+                    fontWeight: 800,
+                    lineHeight: 1.15,
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                  }}
+                >
+                  {line}
+                </div>
+              ))}
             </div>
           </div>
           <div style={{ display: 'flex', gap: 14, padding: '10px 12px', flex: 1 }}>
@@ -187,20 +219,31 @@ function CredentialPreview({
               textAlign: 'center',
             }}
           >
-            <div style={{ fontSize: 7, fontWeight: 700, letterSpacing: 0.5 }}>GESTIÓN</div>
-            <div style={{ fontSize: 12, fontWeight: 800 }}>{periodName}</div>
+            <div style={{ fontSize: 6.5, fontWeight: 700, letterSpacing: 0.5 }}>GESTIÓN</div>
+            <div style={{ fontSize: 10.5, fontWeight: 800 }}>{periodName}</div>
           </div>
         </div>
 
         {/* PARTE POSTERIOR */}
-        <div className="cred-card" style={{ background: CREAM }}>
+        <div className="cred-card" style={{ background: CREAM }} ref={backRef}>
           <div style={band}>
             <LogoBox url={institution?.logoUrl} size={30} />
-            <div style={{ minWidth: 0, flex: 1 }}>
-              <div style={{ fontSize: 10, fontWeight: 800, lineHeight: 1.15, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                {instName.toUpperCase()}
-              </div>
-              <div style={{ fontSize: 7.5, color: '#bcc2d6', fontWeight: 600, marginTop: 4 }}>PARTE POSTERIOR</div>
+            <div style={{ minWidth: 0, flex: 1, textAlign: 'center' }}>
+              {instLines.map((line, i) => (
+                <div
+                  key={i}
+                  style={{
+                    fontSize: i === instLines.length - 1 ? 9.5 : 9,
+                    fontWeight: 800,
+                    lineHeight: 1.15,
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                  }}
+                >
+                  {line}
+                </div>
+              ))}
             </div>
           </div>
           <div style={{ display: 'flex', gap: 10, padding: '10px 12px', flex: 1 }}>
@@ -228,7 +271,7 @@ function CredentialPreview({
             </div>
           </div>
           <div className="cred-footer">
-            <div style={{ fontSize: 7, color: '#777' }}>{instName.toUpperCase()} · R.M. 1049/2023 · Gestión {year}</div>
+            <div style={{ fontSize: 5.5, color: '#777' }}>{instName.toUpperCase()} · R.M. 1049/2023 · Gestión {year}</div>
           </div>
         </div>
       </div>
@@ -262,6 +305,8 @@ export default function EnrollmentsPage() {
   const [enrollment, setEnrollment] = useState<Enrollment | null>(null);
   const [qr, setQr] = useState<string | null>(null);
   const [generating, setGenerating] = useState(false);
+  const frontRef = useRef<HTMLDivElement>(null);
+  const backRef = useRef<HTMLDivElement>(null);
 
   async function load() {
     setLoading(true);
@@ -345,7 +390,8 @@ export default function EnrollmentsPage() {
     if (!student) return;
     setGenerating(true);
     try {
-      if (!enrollment) {
+      let target = enrollment;
+      if (!target) {
         const created = await apiPost<Enrollment>('/enrollments/enroll-student', {
           studentId: student.id,
           academicPeriodId: periodId,
@@ -354,9 +400,16 @@ export default function EnrollmentsPage() {
         const full = await apiGet<Enrollment>(`/enrollments/${created.id}`);
         setEnrollment(full);
         setEnrollments((prev) => [full, ...prev]);
-        await downloadEnrollmentCredential({ enrollment: full, institution });
-      } else {
-        await downloadEnrollmentCredential({ enrollment, institution });
+        target = full;
+      }
+
+      const captured = await downloadEnrollmentCredentialFromDom({
+        enrollment: target,
+        front: frontRef.current,
+        back: backRef.current,
+      });
+      if (!captured) {
+        await downloadEnrollmentCredential({ enrollment: target, institution });
       }
     } catch (err) {
       setError(extractError(err));
@@ -448,6 +501,8 @@ export default function EnrollmentsPage() {
           enrollment={enrollment}
           institution={institution}
           qr={qr}
+          frontRef={frontRef}
+          backRef={backRef}
         />
       )}
     </div>

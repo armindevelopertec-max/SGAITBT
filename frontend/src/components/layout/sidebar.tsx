@@ -28,7 +28,7 @@ export function AppSidebar() {
   return (
     <aside className="sidebar">
       <div className="sidebar-brand">
-        <img src="/logo.jpeg" alt="Logo ITBT" className="sidebar-logo-img" />
+        <img src="/logo.png" alt="Logo ITBT" className="sidebar-logo-img" />
         <div>
           <h1>Instituto Tecnológico &quot;Boliviana de Tecnología&quot;</h1>
           <p>Sistema de Gestión Académica</p>
