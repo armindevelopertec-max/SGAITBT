@@ -18,8 +18,8 @@ export class AcademicPeriod extends BaseEntity {
   @Column({ name: 'period_name', type: 'varchar', length: 100 })
   periodName: string;
 
-  @Column({ name: 'semester', type: 'integer' })
-  semester: number;
+  @Column({ name: 'sequence', type: 'integer', default: 1 })
+  sequence: number;
 
   @Column({ name: 'start_date', type: 'date' })
   startDate: Date;

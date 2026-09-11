@@ -12,9 +12,11 @@ export class SubjectService {
   ) {}
 
   async create(createDto: CreateSubjectDto): Promise<Subject> {
-    const existing = await this.subjectRepository.findOne({ where: { code: createDto.code } });
+    const existing = await this.subjectRepository.findOne({
+      where: { code: createDto.code, careerId: createDto.careerId },
+    });
     if (existing) {
-      throw new ConflictException('Ya existe una materia con ese código');
+      throw new ConflictException('Ya existe una materia con ese código en la carrera');
     }
     const subject = this.subjectRepository.create(createDto);
     return this.subjectRepository.save(subject);

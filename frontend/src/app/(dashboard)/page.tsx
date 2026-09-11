@@ -5,9 +5,9 @@ import { useAuth } from '@/lib/auth';
 import { apiGet, extractError } from '@/lib/api';
 import { AdminDashboard } from '@/lib/types';
 import { PageHeader } from '@/components/ui/page-header';
+import { MICROLEGEND } from '@/lib/nav';
 import { Icon } from '@/components/ui/icons';
 import { LoadingState, ErrorState } from '@/components/ui/state';
-import { StatusBadge } from '@/components/ui/badge';
 
 interface Stat {
   label: string;
@@ -20,7 +20,6 @@ interface Stat {
 export default function DashboardPage() {
   const { user } = useAuth();
   const [data, setData] = useState<{ summary: AdminDashboard['summary'] } | null>(null);
-  const [students, setStudents] = useState<AdminDashboard['recentStudents']>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -37,7 +36,6 @@ export default function DashboardPage() {
     apiGet<AdminDashboard>(endpoint)
       .then((res) => {
         setData({ summary: res.summary });
-        if (res.recentStudents) setStudents(res.recentStudents);
       })
       .catch((err) => setError(extractError(err)))
       .finally(() => setLoading(false));
@@ -87,6 +85,34 @@ export default function DashboardPage() {
       ]
     : [];
 
+  const initials = user?.fullName
+    ?.split(' ')
+    .map((n) => n[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase();
+
+  const photo = user?.photoUrl;
+
+  const today = new Date();
+  const todayDate = today.toLocaleDateString('es-BO', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  });
+  const todayTime = today.toLocaleTimeString('es-BO', {
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+
+  const actions = data?.summary
+    ? [
+        `Gestionó ${data.summary.totalStudents} estudiantes en el sistema`,
+        `Procesó ${data.summary.enrollmentsThisYear} matrículas de la gestión`,
+        `Administró ${data.summary.activeSubjects} materias y ${data.summary.careers} carreras`,
+      ]
+    : [`Ingresó al sistema de gestión académica como ${MICROLEGEND[user?.role ?? ''] ?? user?.role}`];
+
   return (
     <div>
       <PageHeader
@@ -106,43 +132,43 @@ export default function DashboardPage() {
         ))}
       </div>
 
-      <div className="card">
-        <div className="card-header">
-          <div className="card-title">Estudiantes recientes</div>
+      <div className="operator-card">
+        <div className="card-title" style={{ textAlign: 'center' }}>
+          Operador del sistema
         </div>
-        <div className="table-wrap">
-          <table className="table">
-            <thead>
-              <tr>
-                <th>Código</th>
-                <th>Estudiante</th>
-                <th>CI</th>
-                <th>Carrera</th>
-                <th>Estado</th>
-              </tr>
-            </thead>
-            <tbody>
-              {students.length === 0 && (
-                <tr>
-                  <td colSpan={5}>
-                    <div className="empty-state">
-                      <div className="empty-state-icon">🗂️</div>
-                      Sin estudiantes registrados aún.
-                    </div>
-                  </td>
-                </tr>
-              )}
-              {students.map((s) => (
-                <tr key={s.id}>
-                  <td>{s.studentCode}</td>
-                  <td>{s.firstName} {s.lastName}</td>
-                  <td>{s.ci}</td>
-                  <td>{s.career?.name ?? '—'}</td>
-                  <td><StatusBadge value={s.status} /></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+
+        <div className="operator-avatar">
+          {photo ? (
+            <img
+              src={photo}
+              alt={user?.fullName}
+              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+            />
+          ) : (
+            initials
+          )}
+        </div>
+
+        <div className="operator-name">{user?.fullName}</div>
+        <div className="operator-role">
+          {MICROLEGEND[user?.role ?? ''] ?? user?.role}
+        </div>
+        <div className="text-muted text-sm">{user?.email}</div>
+
+        <div className="operator-section">
+          <div className="operator-label">Fecha de operación</div>
+          <div className="operator-value">
+            {todayDate} · {todayTime}
+          </div>
+        </div>
+
+        <div className="operator-section">
+          <div className="operator-label">¿Qué hizo?</div>
+          <ul className="operator-list">
+            {actions.map((a) => (
+              <li key={a}>{a}</li>
+            ))}
+          </ul>
         </div>
       </div>
     </div>

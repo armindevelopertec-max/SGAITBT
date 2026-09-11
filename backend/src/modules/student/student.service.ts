@@ -11,6 +11,7 @@ import { CreateStudentDto, UpdateStudentDto, StudentQueryDto } from './dto/stude
 import { Career } from '@modules/career/entities/career.entity';
 import { AcademicPeriod } from '@modules/academic-period/entities/academic-period.entity';
 import { AcademicStatus } from '@common/enums';
+import { UserService } from '@modules/user/user.service';
 
 @Injectable()
 export class StudentService {
@@ -21,6 +22,7 @@ export class StudentService {
     private readonly careerRepository: Repository<Career>,
     @InjectRepository(AcademicPeriod)
     private readonly periodRepository: Repository<AcademicPeriod>,
+    private readonly userService: UserService,
   ) {}
 
   async create(createDto: CreateStudentDto): Promise<Student> {
@@ -43,10 +45,19 @@ export class StudentService {
 
     const student = this.studentRepository.create({
       ...createDto,
+      ...this.deriveFullName(createDto),
       studentCode: await this.generateStudentCode(),
     });
 
-    return this.studentRepository.save(student);
+    const saved = await this.studentRepository.save(student);
+
+    const user = await this.userService.createStudentUser(saved.id);
+    const result = saved as Student & {
+      credentials?: { username: string; password: string };
+    };
+    result.credentials = { username: user.username, password: saved.ci };
+
+    return result;
   }
 
   async generateStudentCode(): Promise<string> {
@@ -123,7 +134,7 @@ export class StudentService {
       }
     }
 
-    Object.assign(student, updateDto);
+    Object.assign(student, updateDto, this.deriveFullName(updateDto));
     return this.studentRepository.save(student);
   }
 
@@ -180,5 +191,16 @@ export class StudentService {
       throw new NotFoundException('Estudiante no encontrado');
     }
     return student;
+  }
+
+  private deriveFullName(
+    data: { paternalSurname?: string; maternalSurname?: string; lastName?: string },
+  ): { lastName: string } {
+    const paternal = data.paternalSurname?.trim();
+    const maternal = data.maternalSurname?.trim();
+    if (paternal || maternal) {
+      return { lastName: [paternal, maternal].filter(Boolean).join(' ').trim() };
+    }
+    return { lastName: data.lastName?.trim() ?? '' };
   }
 }

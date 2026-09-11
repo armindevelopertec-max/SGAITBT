@@ -19,7 +19,7 @@ export class CreateDepositDto {
   depositNumber: string;
 
   @IsDateString()
-  depositDate: Date;
+  depositDate: string;
 
   @IsNumber()
   amount: number;
@@ -42,7 +42,7 @@ export class UpdateDepositDto {
 
   @IsOptional()
   @IsDateString()
-  depositDate?: Date;
+  depositDate?: string;
 
   @IsOptional()
   @IsNumber()

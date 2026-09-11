@@ -10,7 +10,10 @@ import { LoadingState, ErrorState } from '@/components/ui/state';
 
 const EMPTY = {
   firstName: '',
+  paternalSurname: '',
+  maternalSurname: '',
   lastName: '',
+  diplomaNumber: '',
   ci: '',
   ciExtension: '',
   birthDate: '',
@@ -63,7 +66,10 @@ export default function StudentsPage() {
     setEditing(s);
     setForm({
       firstName: s.firstName,
+      paternalSurname: s.paternalSurname ?? '',
+      maternalSurname: s.maternalSurname ?? '',
       lastName: s.lastName,
+      diplomaNumber: s.diplomaNumber ?? '',
       ci: s.ci,
       ciExtension: s.ciExtension ?? '',
       birthDate: s.birthDate,
@@ -79,8 +85,15 @@ export default function StudentsPage() {
 
   async function submit() {
     try {
-      if (editing) await apiPatch(`/students/${editing.id}`, form);
-      else await apiPost('/students', form);
+      const payload = {
+        ...form,
+        lastName:
+          form.paternalSurname.trim() || form.maternalSurname.trim()
+            ? [form.paternalSurname.trim(), form.maternalSurname.trim()].filter(Boolean).join(' ')
+            : form.lastName.trim(),
+      };
+      if (editing) await apiPatch(`/students/${editing.id}`, payload);
+      else await apiPost('/students', payload);
       setModalOpen(false);
       await load();
     } catch (err) {
@@ -214,8 +227,22 @@ export default function StudentsPage() {
             <input className="form-control" value={form.firstName} onChange={(e) => setForm({ ...form, firstName: e.target.value })} />
           </div>
           <div className="form-group">
-            <label className="form-label">Apellidos</label>
-            <input className="form-control" value={form.lastName} onChange={(e) => setForm({ ...form, lastName: e.target.value })} />
+            <label className="form-label">Apellido paterno</label>
+            <input className="form-control" value={form.paternalSurname} onChange={(e) => setForm({ ...form, paternalSurname: e.target.value })} />
+          </div>
+          <div className="form-group">
+            <label className="form-label">Apellido materno</label>
+            <input className="form-control" value={form.maternalSurname} onChange={(e) => setForm({ ...form, maternalSurname: e.target.value })} />
+          </div>
+          <div className="form-group">
+            <label className="form-label">Apellidos (automático)</label>
+            <input className="form-control" readOnly
+              value={[form.paternalSurname.trim(), form.maternalSurname.trim()].filter(Boolean).join(' ') || form.lastName}
+            />
+          </div>
+          <div className="form-group">
+            <label className="form-label">DIP. BACH.</label>
+            <input className="form-control" value={form.diplomaNumber} onChange={(e) => setForm({ ...form, diplomaNumber: e.target.value })} />
           </div>
           <div className="form-group">
             <label className="form-label">CI</label>

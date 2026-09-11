@@ -117,7 +117,7 @@ export class EnrollmentService {
       studentId: dto.studentId,
       careerId: student.career.id,
       academicPeriodId: dto.academicPeriodId,
-      enrollmentDate: new Date(),
+      enrollmentDate: new Date().toISOString(),
       semester,
     });
   }

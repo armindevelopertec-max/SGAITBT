@@ -34,4 +34,5 @@ export interface AuthUser {
   fullName: string;
   role: string;
   studentId?: string;
+  photoUrl?: string | null;
 }

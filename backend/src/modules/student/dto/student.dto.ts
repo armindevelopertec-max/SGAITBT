@@ -16,10 +16,25 @@ export class CreateStudentDto {
   @MaxLength(150)
   firstName: string;
 
+  @IsOptional()
+  @IsString()
+  @MaxLength(150)
+  paternalSurname?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(150)
+  maternalSurname?: string;
+
   @IsString()
   @IsNotEmpty()
   @MaxLength(150)
   lastName: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(30)
+  diplomaNumber?: string;
 
   @IsString()
   @IsNotEmpty()
@@ -32,7 +47,7 @@ export class CreateStudentDto {
   ciExtension?: string;
 
   @IsDateString()
-  birthDate: Date;
+  birthDate: string;
 
   @IsOptional()
   @IsEnum(Sex)
@@ -76,7 +91,22 @@ export class UpdateStudentDto {
   @IsOptional()
   @IsString()
   @MaxLength(150)
+  paternalSurname?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(150)
+  maternalSurname?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(150)
   lastName?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(30)
+  diplomaNumber?: string;
 
   @IsOptional()
   @IsString()

@@ -49,7 +49,7 @@ export class AttendanceService {
 
     const existing = await this.attendanceRepository.find({
       where: {
-        attendanceDate: createDto.attendanceDate,
+        attendanceDate: new Date(createDto.attendanceDate),
         assignmentId: createDto.assignmentId,
       },
     });

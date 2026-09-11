@@ -9,6 +9,21 @@ import {
   AcademicPeriodQueryDto,
 } from './dto/academic-period.dto';
 
+function toRoman(n: number): string {
+  const map: Array<[number, string]> = [
+    [10, 'X'], [9, 'IX'], [5, 'V'], [4, 'IV'], [1, 'I'],
+  ];
+  let result = '';
+  let value = n;
+  for (const [num, sym] of map) {
+    while (value >= num) {
+      result += sym;
+      value -= num;
+    }
+  }
+  return result || String(n);
+}
+
 @Injectable()
 export class AcademicPeriodService {
   constructor(
@@ -21,18 +36,29 @@ export class AcademicPeriodService {
       throw new BadRequestException('La fecha de fin debe ser posterior a la fecha de inicio');
     }
 
+    const year = createDto.year || String(new Date(createDto.startDate).getFullYear());
+
+    const count = await this.periodRepository.count({
+      where: { year, careerId: createDto.careerId },
+    });
+    const sequence = createDto.sequence || count + 1;
+
     const existing = await this.periodRepository.findOne({
-      where: {
-        year: createDto.year,
-        semester: createDto.semester,
-        careerId: createDto.careerId,
-      },
+      where: { year, careerId: createDto.careerId, sequence },
     });
     if (existing) {
-      throw new BadRequestException('Ya existe una gestión con ese periodo para la carrera');
+      throw new BadRequestException('Ya existe ese periodo para la carrera en el año indicado');
     }
 
-    const period = this.periodRepository.create(createDto);
+    const period = this.periodRepository.create({
+      careerId: createDto.careerId,
+      year,
+      sequence,
+      startDate: createDto.startDate,
+      endDate: createDto.endDate,
+      status: createDto.status,
+      periodName: createDto.periodName || `${year}/${toRoman(sequence)}`,
+    });
     return this.periodRepository.save(period);
   }
 
@@ -46,7 +72,7 @@ export class AcademicPeriodService {
     return this.periodRepository.find({
       where,
       relations: ['career'],
-      order: { year: 'DESC', semester: 'DESC' },
+      order: { year: 'DESC', sequence: 'ASC' },
     });
   }
 
@@ -68,13 +94,23 @@ export class AcademicPeriodService {
   async findOpenByCareer(careerId: string, year: string): Promise<AcademicPeriod[]> {
     return this.periodRepository.find({
       where: { careerId, year, status: PeriodStatus.OPEN },
-      order: { semester: 'ASC' },
+      order: { sequence: 'ASC' },
     });
   }
 
   async update(id: string, updateDto: UpdateAcademicPeriodDto): Promise<AcademicPeriod> {
     const period = await this.findStrict(id);
-    Object.assign(period, updateDto);
+
+    const year =
+      updateDto.year ??
+      (updateDto.startDate ? String(new Date(updateDto.startDate).getFullYear()) : undefined) ??
+      period.year;
+
+    if ((updateDto.year || updateDto.startDate) && !updateDto.periodName) {
+      updateDto.periodName = `${year}/${toRoman(updateDto.sequence || period.sequence)}`;
+    }
+
+    Object.assign(period, updateDto, updateDto.year || updateDto.startDate ? { year } : {});
     return this.periodRepository.save(period);
   }
 

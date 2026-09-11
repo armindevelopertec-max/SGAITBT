@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { apiGet, apiPatch, apiPost, extractError } from '@/lib/api';
 import { AcademicPeriod, Career } from '@/lib/types';
 import { PageHeader } from '@/components/ui/page-header';
@@ -9,13 +9,29 @@ import { StatusBadge } from '@/components/ui/badge';
 import { LoadingState, ErrorState } from '@/components/ui/state';
 
 const EMPTY = {
-  year: '2026',
-  periodName: '',
-  semester: 1,
+  careerId: '',
   startDate: '',
   endDate: '',
-  careerId: '',
 };
+
+function toRoman(n: number): string {
+  const map: Array<[number, string]> = [
+    [10, 'X'],
+    [9, 'IX'],
+    [5, 'V'],
+    [4, 'IV'],
+    [1, 'I'],
+  ];
+  let result = '';
+  let value = n;
+  for (const [num, sym] of map) {
+    while (value >= num) {
+      result += sym;
+      value -= num;
+    }
+  }
+  return result || String(n);
+}
 
 export default function AcademicPeriodsPage() {
   const [periods, setPeriods] = useState<AcademicPeriod[]>([]);
@@ -47,6 +63,8 @@ export default function AcademicPeriodsPage() {
     load();
   }, []);
 
+  const years = useMemo(() => Array.from(new Set(periods.map((p) => p.year))).sort().reverse(), [periods]);
+
   function openCreate() {
     setEditing(null);
     setForm({ ...EMPTY, careerId: careers[0]?.id ?? '' });
@@ -56,20 +74,18 @@ export default function AcademicPeriodsPage() {
   function openEdit(p: AcademicPeriod) {
     setEditing(p);
     setForm({
-      year: p.year,
-      periodName: p.periodName,
-      semester: p.semester,
+      careerId: p.careerId,
       startDate: p.startDate,
       endDate: p.endDate,
-      careerId: p.careerId,
     });
     setModalOpen(true);
   }
 
   async function submit() {
     try {
-      if (editing) await apiPatch(`/academic-periods/${editing.id}`, form);
-      else await apiPost('/academic-periods', form);
+      const payload = { careerId: form.careerId, startDate: form.startDate, endDate: form.endDate };
+      if (editing) await apiPatch(`/academic-periods/${editing.id}`, payload);
+      else await apiPost('/academic-periods', payload);
       setModalOpen(false);
       await load();
     } catch (err) {
@@ -86,10 +102,15 @@ export default function AcademicPeriodsPage() {
     }
   }
 
+  const previewYear = form.startDate ? String(new Date(form.startDate).getFullYear()) : '';
+  const previewSequence = previewYear
+    ? periods.filter((p) => p.careerId === form.careerId && p.year === previewYear && p.id !== editing?.id).length + 1
+    : 0;
+  const previewName = previewYear ? `${previewYear}/${toRoman(previewSequence)}` : '';
+  const preview = editing ? editing.periodName : previewName;
+
   const filtered = filter
-    ? periods.filter(
-        (p) => p.status === filter || p.year === filter || p.career?.name === filter,
-      )
+    ? periods.filter((p) => p.status === filter || p.year === filter || p.career?.name === filter)
     : periods;
 
   if (loading) return <LoadingState />;
@@ -116,6 +137,9 @@ export default function AcademicPeriodsPage() {
             {careers.map((c) => (
               <option key={c.id} value={c.name}>{c.name}</option>
             ))}
+            {years.map((y) => (
+              <option key={y} value={y}>Gestión {y}</option>
+            ))}
             <option value="OPEN">Abiertas</option>
             <option value="CLOSED">Cerradas</option>
           </select>
@@ -127,9 +151,7 @@ export default function AcademicPeriodsPage() {
           <table className="table">
             <thead>
               <tr>
-                <th>Gestión</th>
                 <th>Periodo</th>
-                <th>Semestre</th>
                 <th>Carrera</th>
                 <th>Inicio</th>
                 <th>Fin</th>
@@ -140,7 +162,7 @@ export default function AcademicPeriodsPage() {
             <tbody>
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={8}>
+                  <td colSpan={6}>
                     <div className="empty-state">
                       <div className="empty-state-icon">📅</div>
                       No hay periodos registrados.
@@ -150,9 +172,7 @@ export default function AcademicPeriodsPage() {
               )}
               {filtered.map((p) => (
                 <tr key={p.id}>
-                  <td><strong>{p.year}</strong></td>
-                  <td>{p.periodName}</td>
-                  <td>{p.semester}º</td>
+                  <td><strong>{p.periodName}</strong></td>
                   <td>{p.career?.name ?? '—'}</td>
                   <td>{p.startDate}</td>
                   <td>{p.endDate}</td>
@@ -174,7 +194,7 @@ export default function AcademicPeriodsPage() {
 
       <Modal
         open={modalOpen}
-        title={editing ? 'Editar periodo' : 'Nuevo periodo'}
+        title={editing ? `Editar periodo ${editing.periodName}` : 'Nuevo periodo'}
         onClose={() => setModalOpen(false)}
         footer={
           <>
@@ -183,24 +203,16 @@ export default function AcademicPeriodsPage() {
           </>
         }
       >
+        <p className="text-muted text-sm mb-3">
+          Solo debes indicar la carrera y las fechas de inicio y fin. El sistema calculará automáticamente el
+          periodo sucesivo: <strong>{preview}</strong>.
+        </p>
         <div className="form-grid">
           <div className="form-group">
             <label className="form-label">Carrera</label>
             <select className="select" value={form.careerId} onChange={(e) => setForm({ ...form, careerId: e.target.value })} disabled={!!editing}>
               {careers.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
-          </div>
-          <div className="form-group">
-            <label className="form-label">Gestión / Año</label>
-            <input className="form-control" maxLength={4} value={form.year} onChange={(e) => setForm({ ...form, year: e.target.value })} />
-          </div>
-          <div className="form-group">
-            <label className="form-label">Nombre del periodo</label>
-            <input className="form-control" value={form.periodName} onChange={(e) => setForm({ ...form, periodName: e.target.value })} placeholder="1er Semestre 2026" />
-          </div>
-          <div className="form-group">
-            <label className="form-label">Semestre</label>
-            <input className="form-control" type="number" min={1} value={form.semester} onChange={(e) => setForm({ ...form, semester: Number(e.target.value) })} />
           </div>
           <div className="form-group">
             <label className="form-label">Fecha de inicio</label>

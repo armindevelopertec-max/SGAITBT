@@ -20,8 +20,17 @@ export class Student extends BaseEntity {
   @Column({ type: 'varchar', length: 150 })
   firstName: string;
 
+  @Column({ name: 'paternal_surname', type: 'varchar', length: 150, nullable: true })
+  paternalSurname?: string;
+
+  @Column({ name: 'maternal_surname', type: 'varchar', length: 150, nullable: true })
+  maternalSurname?: string;
+
   @Column({ type: 'varchar', length: 150 })
   lastName: string;
+
+  @Column({ name: 'diploma_number', type: 'varchar', length: 30, nullable: true })
+  diplomaNumber?: string;
 
   @Column({ type: 'varchar', length: 30 })
   @Index('IDX_student_ci', { unique: true })

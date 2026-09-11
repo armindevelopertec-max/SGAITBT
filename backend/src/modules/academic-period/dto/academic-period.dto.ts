@@ -1,25 +1,27 @@
-import { IsDateString, IsEnum, IsInt, IsNotEmpty, IsOptional, IsString, MaxLength } from 'class-validator';
+import { IsDateString, IsEnum, IsInt, IsNotEmpty, IsOptional, IsString, MaxLength, Min } from 'class-validator';
 import { PeriodStatus } from '@common/enums';
 
 export class CreateAcademicPeriodDto {
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
   @MaxLength(4)
-  year: string;
+  year?: string;
 
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
   @MaxLength(100)
-  periodName: string;
+  periodName?: string;
 
+  @IsOptional()
   @IsInt()
-  semester: number;
+  @Min(1)
+  sequence?: number;
 
   @IsDateString()
-  startDate: Date;
+  startDate: string;
 
   @IsDateString()
-  endDate: Date;
+  endDate: string;
 
   @IsOptional()
   @IsEnum(PeriodStatus)
@@ -42,15 +44,16 @@ export class UpdateAcademicPeriodDto {
 
   @IsOptional()
   @IsInt()
-  semester?: number;
+  @Min(1)
+  sequence?: number;
 
   @IsOptional()
   @IsDateString()
-  startDate?: Date;
+  startDate?: string;
 
   @IsOptional()
   @IsDateString()
-  endDate?: Date;
+  endDate?: string;
 
   @IsOptional()
   @IsEnum(PeriodStatus)

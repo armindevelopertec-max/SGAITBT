@@ -31,6 +31,7 @@ export interface Career {
   numberOfLevels: number;
   state: 'ACTIVE' | 'INACTIVE';
   institutionId?: string;
+  studyPlan?: Record<string, unknown>;
   subjects?: Subject[];
 }
 
@@ -38,7 +39,7 @@ export interface AcademicPeriod {
   id: string;
   year: string;
   periodName: string;
-  semester: number;
+  sequence: number;
   startDate: string;
   endDate: string;
   status: PeriodStatus;
@@ -62,7 +63,10 @@ export interface Subject {
 export interface Student {
   id: string;
   firstName: string;
+  paternalSurname?: string;
+  maternalSurname?: string;
   lastName: string;
+  diplomaNumber?: string;
   ci: string;
   ciExtension?: string;
   birthDate: string;

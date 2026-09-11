@@ -75,6 +75,7 @@ export class AuthService {
         fullName: user.fullName,
         role: user.role,
         studentId: user.studentId,
+        photoUrl: user.student?.photoUrl ?? null,
         mustChangePassword: user.mustChangePassword,
       },
     };

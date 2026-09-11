@@ -87,7 +87,7 @@ export class UserService {
     }
 
     const defaultPassword = student.ci;
-    const username = this.buildUsername(student.firstName, student.lastName);
+    const username = student.ci;
 
     const passwordHash = await bcrypt.hash(defaultPassword, 10);
 
@@ -103,13 +103,6 @@ export class UserService {
     });
 
     return this.userRepository.save(user);
-  }
-
-  private buildUsername(firstName: string, lastName: string): string {
-    const base = `${firstName.toLowerCase().split(' ')[0]}.${lastName.toLowerCase().split(' ')[0]}`;
-    const cleaned = base.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-    const unique = Math.random().toString(36).slice(2, 6);
-    return `${cleaned}.${unique}`;
   }
 
   async findByUsername(username: string): Promise<User | null> {

@@ -21,7 +21,7 @@ export class CreateEnrollmentDto {
   academicPeriodId: string;
 
   @IsDateString()
-  enrollmentDate: Date;
+  enrollmentDate: string;
 
   @IsInt()
   semester: number;

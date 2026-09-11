@@ -27,7 +27,7 @@ export class CreateAttendanceDto {
   assignmentId: string;
 
   @IsDateString()
-  attendanceDate: Date;
+  attendanceDate: string;
 
   @IsArray()
   @ValidateNested({ each: true })

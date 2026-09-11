@@ -12,9 +12,9 @@ import { SubjectAssignment } from '@modules/subject-assignment/entities/subject-
 
 @Entity('subjects')
 @Index('IDX_subject_career_semester', ['careerId', 'semester'])
+@Index('IDX_subject_career_code', ['careerId', 'code'], { unique: true })
 export class Subject extends BaseEntity {
   @Column({ type: 'varchar', length: 30 })
-  @Index('IDX_subject_code', { unique: true })
   code: string;
 
   @Column({ type: 'varchar', length: 200 })

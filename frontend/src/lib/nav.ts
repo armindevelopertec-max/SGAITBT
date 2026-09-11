@@ -33,6 +33,12 @@ export const NAV_SECTIONS: NavSection[] = [
         roles: ['ADMIN', 'SECRETARY'],
       },
       {
+        label: 'Materias',
+        href: '/subjects',
+        icon: 'subjects',
+        roles: ['ADMIN', 'SECRETARY'],
+      },
+      {
         label: 'Gestión Académica',
         href: '/academic-periods',
         icon: 'calendar',
@@ -66,12 +72,6 @@ export const NAV_SECTIONS: NavSection[] = [
         href: '/users',
         icon: 'users',
         roles: ['ADMIN'],
-      },
-      {
-        label: 'Materias',
-        href: '/subjects',
-        icon: 'subjects',
-        roles: ['ADMIN', 'SECRETARY'],
       },
       {
         label: 'Asignación de Materias',

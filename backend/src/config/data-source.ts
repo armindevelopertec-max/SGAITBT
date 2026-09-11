@@ -2,6 +2,7 @@ import { DataSource, DataSourceOptions } from 'typeorm';
 import * as dotenv from 'dotenv';
 
 dotenv.config();
+dotenv.config({ path: '../.env', override: true });
 
 export const dataSourceOptions: DataSourceOptions = {
   type: 'postgres',

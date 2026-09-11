@@ -27,7 +27,17 @@ export function Topbar() {
       <div className="topbar-right">
         {user && (
           <div className="user-menu">
-            <div className="user-avatar">{initials}</div>
+            <div className="user-avatar">
+              {user.photoUrl ? (
+                <img
+                  src={user.photoUrl}
+                  alt={user.fullName}
+                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                />
+              ) : (
+                initials
+              )}
+            </div>
             <div>
               <div className="user-info-name">{user.fullName}</div>
               <div className="user-info-role">

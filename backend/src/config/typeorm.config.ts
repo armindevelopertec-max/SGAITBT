@@ -3,6 +3,7 @@ import 'reflect-metadata';
 import * as dotenv from 'dotenv';
 
 dotenv.config();
+dotenv.config({ path: '../.env', override: true });
 
 export const typeOrmConfig: TypeOrmModuleOptions = {
   type: 'postgres',
