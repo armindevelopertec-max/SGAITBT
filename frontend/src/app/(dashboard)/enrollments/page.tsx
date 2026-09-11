@@ -59,45 +59,11 @@ function splitInstName(name: string): string[] {
   return [first.join(' '), words.slice(first.length).join(' ')];
 }
 
-function LogoBox({ url, size = 30 }: { url?: string; size?: number }) {
-  const [broken, setBroken] = useState(false);
-  if (!url || broken) {
-    return (
-      <div
-        style={{
-          width: size,
-          height: size,
-          borderRadius: size / 2,
-          overflow: 'hidden',
-          flexShrink: 0,
-          background: '#fff',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
-      >
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/logo.png" alt="Logo ITBT" onError={() => setBroken(false)} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
-      </div>
-    );
-  }
+function LogoBox({ url, size = 50 }: { url?: string; size?: number }) {
+  const src = url && url.trim() ? url : '/logo.png';
   return (
-    <div
-      style={{
-        width: size,
-        height: size,
-        borderRadius: 4,
-        overflow: 'hidden',
-        flexShrink: 0,
-        background: '#fff',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-      }}
-    >
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={url} alt="" onError={() => setBroken(true)} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
-    </div>
+    // eslint-disable-next-line @next/next/no-img-element
+    <img src={src} alt="" style={{ width: size, height: size, objectFit: 'contain', flexShrink: 0 }} />
   );
 }
 
@@ -113,8 +79,11 @@ function PhotoBox({ url }: { url?: string }) {
   } as const;
   if (!url || broken) {
     return (
-      <div style={{ ...box, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#999', fontSize: 9, fontStyle: 'italic' }}>
-        FOTOGRAFÍA
+      <div style={{ ...box, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f2f2f2' }}>
+        <svg width="46%" height="46%" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <circle cx="32" cy="22" r="13" fill="#c4c4c4" />
+          <path d="M9 62c0-13.5 10.3-22 23-22s23 8.5 23 22v2H9v-2z" fill="#c4c4c4" />
+        </svg>
       </div>
     );
   }
@@ -122,6 +91,15 @@ function PhotoBox({ url }: { url?: string }) {
     <div style={{ ...box, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src={url} alt="" onError={() => setBroken(true)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+    </div>
+  );
+}
+
+function Watermark() {
+  return (
+    <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: '58%', zIndex: 0, pointerEvents: 'none', opacity: 0.12 }}>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src="/logo.png" alt="" style={{ width: '100%', height: 'auto' }} />
     </div>
   );
 }
@@ -147,7 +125,7 @@ function CredentialPreview({
   const firstName = student?.firstName || '—';
   const careerName = enrollment.career?.name || '—';
   const fecha = formatDate(enrollment.enrollmentDate);
-  const band = { height: 46, background: NAVY, color: '#fff', display: 'flex', alignItems: 'center', gap: 10, padding: '0 12px' } as const;
+  const band = { height: 56, background: '#14213d66', color: '#fff', display: 'flex', alignItems: 'center', gap: 10, padding: '0 12px', position: 'relative', zIndex: 1 } as const;
   const instLines = splitInstName(instName.toUpperCase());
 
   const containerRef = useRef<HTMLDivElement>(null);
@@ -177,8 +155,9 @@ function CredentialPreview({
       <div id="credential-document" className="flex" style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', alignItems: 'flex-start', gap: 24, zoom }}>
         {/* FRENTE */}
         <div className="cred-card" style={{ background: CREAM }} ref={frontRef}>
+          <Watermark />
           <div style={band}>
-            <LogoBox url={institution?.logoUrl} size={30} />
+            <LogoBox url={institution?.logoUrl} size={50} />
             <div style={{ minWidth: 0, flex: 1, paddingRight: 96, textAlign: 'center' }}>
               {instLines.map((line, i) => (
                 <div
@@ -186,6 +165,7 @@ function CredentialPreview({
                   style={{
                     fontSize: i === instLines.length - 1 ? 9.5 : 9,
                     fontWeight: 800,
+                    color: NAVY,
                     lineHeight: 1.15,
                     whiteSpace: 'nowrap',
                     overflow: 'hidden',
@@ -212,6 +192,7 @@ function CredentialPreview({
               position: 'absolute',
               top: 6,
               right: 6,
+              zIndex: 2,
               background: GOLD,
               color: NAVY,
               borderRadius: 6,
@@ -226,8 +207,9 @@ function CredentialPreview({
 
         {/* PARTE POSTERIOR */}
         <div className="cred-card" style={{ background: CREAM }} ref={backRef}>
+          <Watermark />
           <div style={band}>
-            <LogoBox url={institution?.logoUrl} size={30} />
+            <LogoBox url={institution?.logoUrl} size={50} />
             <div style={{ minWidth: 0, flex: 1, textAlign: 'center' }}>
               {instLines.map((line, i) => (
                 <div
@@ -235,6 +217,7 @@ function CredentialPreview({
                   style={{
                     fontSize: i === instLines.length - 1 ? 9.5 : 9,
                     fontWeight: 800,
+                    color: NAVY,
                     lineHeight: 1.15,
                     whiteSpace: 'nowrap',
                     overflow: 'hidden',
