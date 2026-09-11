@@ -125,7 +125,7 @@ function CredentialPreview({
   const firstName = student?.firstName || '—';
   const careerName = enrollment.career?.name || '—';
   const fecha = formatDate(enrollment.enrollmentDate);
-  const band = { height: 56, background: '#14213d66', color: '#fff', display: 'flex', alignItems: 'center', gap: 10, padding: '0 12px', position: 'relative', zIndex: 1 } as const;
+  const band = { height: 62, background: '#14213d26', color: '#fff', display: 'flex', alignItems: 'center', gap: 10, padding: '0 12px', position: 'relative', zIndex: 1 } as const;
   const instLines = splitInstName(instName.toUpperCase());
 
   const containerRef = useRef<HTMLDivElement>(null);
@@ -158,14 +158,14 @@ function CredentialPreview({
           <Watermark />
           <div style={band}>
             <LogoBox url={institution?.logoUrl} size={50} />
-            <div style={{ minWidth: 0, flex: 1, paddingRight: 96, textAlign: 'center' }}>
+            <div style={{ minWidth: 0, flex: 1, paddingRight: 64, textAlign: 'center' }}>
               {instLines.map((line, i) => (
                 <div
                   key={i}
                   style={{
-                    fontSize: i === instLines.length - 1 ? 9.5 : 9,
-                    fontWeight: 800,
-                    color: NAVY,
+                    fontSize: i === instLines.length - 1 ? 11 : 10.5,
+                    fontWeight: 900,
+                    color: '#0c1a2b',
                     lineHeight: 1.15,
                     whiteSpace: 'nowrap',
                     overflow: 'hidden',
@@ -175,6 +175,23 @@ function CredentialPreview({
                   {line}
                 </div>
               ))}
+              <div
+                style={{
+                  fontSize: 9,
+                  color: '#3576a3',
+                  fontWeight: 700,
+                  fontStyle: 'italic',
+                  fontFamily: '"Noto Serif", "Times New Roman", serif',
+                  fontStretch: '75%',
+                  letterSpacing: 0.4,
+                  marginTop: 1,
+                  lineHeight: 1.15,
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                }}
+              >
+                “Conectando Mentes, Impulsando el Progreso”
+              </div>
             </div>
           </div>
           <div style={{ display: 'flex', gap: 14, padding: '10px 12px', flex: 1 }}>
@@ -190,8 +207,9 @@ function CredentialPreview({
           <div
             style={{
               position: 'absolute',
-              top: 6,
+              top: 31,
               right: 6,
+              transform: 'translateY(-50%)',
               zIndex: 2,
               background: GOLD,
               color: NAVY,
@@ -215,9 +233,9 @@ function CredentialPreview({
                 <div
                   key={i}
                   style={{
-                    fontSize: i === instLines.length - 1 ? 9.5 : 9,
-                    fontWeight: 800,
-                    color: NAVY,
+                    fontSize: i === instLines.length - 1 ? 11 : 10.5,
+                    fontWeight: 900,
+                    color: '#0c1a2b',
                     lineHeight: 1.15,
                     whiteSpace: 'nowrap',
                     overflow: 'hidden',
@@ -227,6 +245,23 @@ function CredentialPreview({
                   {line}
                 </div>
               ))}
+              <div
+                style={{
+                  fontSize: 9,
+                  color: '#3576a3',
+                  fontWeight: 700,
+                  fontStyle: 'italic',
+                  fontFamily: '"Noto Serif", "Times New Roman", serif',
+                  fontStretch: '75%',
+                  letterSpacing: 0.4,
+                  marginTop: 1,
+                  lineHeight: 1.15,
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                }}
+              >
+                “Conectando Mentes, Impulsando el Progreso”
+              </div>
             </div>
           </div>
           <div style={{ display: 'flex', gap: 10, padding: '10px 12px', flex: 1 }}>

@@ -32,10 +32,10 @@ interface PlanCareer {
 const WEEKS_PER_SEMESTER = 20;
 
 const PERIODS_TEMPLATE = [
-  { year: '2025', sequence: 1, periodName: '2025/I', startDate: '2025-02-03', endDate: '2025-07-04', status: 'CLOSED' },
-  { year: '2025', sequence: 2, periodName: '2025/II', startDate: '2025-08-04', endDate: '2025-12-19', status: 'CLOSED' },
-  { year: '2026', sequence: 1, periodName: '2026/I', startDate: '2026-02-02', endDate: '2026-07-03', status: 'OPEN' },
-  { year: '2026', sequence: 2, periodName: '2026/II', startDate: '2026-08-03', endDate: '2026-12-18', status: 'OPEN' },
+  { year: '2025', sequence: 1, periodName: 'I/2025', startDate: '2025-02-03', endDate: '2025-07-04', status: 'CLOSED' },
+  { year: '2025', sequence: 2, periodName: 'II/2025', startDate: '2025-08-04', endDate: '2025-12-19', status: 'CLOSED' },
+  { year: '2026', sequence: 1, periodName: 'I/2026', startDate: '2026-02-02', endDate: '2026-07-03', status: 'OPEN' },
+  { year: '2026', sequence: 2, periodName: 'II/2026', startDate: '2026-08-03', endDate: '2026-12-18', status: 'OPEN' },
 ];
 
 const CAREERS: PlanCareer[] = [

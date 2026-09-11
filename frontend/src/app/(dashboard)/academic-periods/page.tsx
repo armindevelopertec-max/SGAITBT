@@ -106,7 +106,7 @@ export default function AcademicPeriodsPage() {
   const previewSequence = previewYear
     ? periods.filter((p) => p.careerId === form.careerId && p.year === previewYear && p.id !== editing?.id).length + 1
     : 0;
-  const previewName = previewYear ? `${previewYear}/${toRoman(previewSequence)}` : '';
+  const previewName = previewYear ? `${toRoman(previewSequence)}/${previewYear}` : '';
   const preview = editing ? editing.periodName : previewName;
 
   const filtered = filter

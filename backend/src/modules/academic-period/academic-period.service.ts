@@ -57,7 +57,7 @@ export class AcademicPeriodService {
       startDate: createDto.startDate,
       endDate: createDto.endDate,
       status: createDto.status,
-      periodName: createDto.periodName || `${year}/${toRoman(sequence)}`,
+      periodName: createDto.periodName || `${toRoman(sequence)}/${year}`,
     });
     return this.periodRepository.save(period);
   }
@@ -107,7 +107,7 @@ export class AcademicPeriodService {
       period.year;
 
     if ((updateDto.year || updateDto.startDate) && !updateDto.periodName) {
-      updateDto.periodName = `${year}/${toRoman(updateDto.sequence || period.sequence)}`;
+      updateDto.periodName = `${toRoman(updateDto.sequence || period.sequence)}/${year}`;
     }
 
     Object.assign(period, updateDto, updateDto.year || updateDto.startDate ? { year } : {});
