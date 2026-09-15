@@ -15,6 +15,12 @@ import {
 } from './dto/user.dto';
 import { UserRole, UserStatus } from '@common/enums';
 import { Student } from '@modules/student/entities/student.entity';
+import {
+  LEGACY_ROLE_MAP,
+  NEW_ROLE_TO_LEGACY,
+  DEFAULT_ROLE_KEYS,
+  RbacService,
+} from '@modules/rbac/rbac.service';
 
 @Injectable()
 export class UserService {
@@ -23,7 +29,13 @@ export class UserService {
     private readonly userRepository: Repository<User>,
     @InjectRepository(Student)
     private readonly studentRepository: Repository<Student>,
+    private readonly rbacService: RbacService,
   ) {}
+
+  private legacyRoleToKey(role?: UserRole | string): string | undefined {
+    if (!role) return undefined;
+    return LEGACY_ROLE_MAP[role] ?? role;
+  }
 
   async create(createDto: CreateUserDto): Promise<User> {
     const existingUsername = await this.userRepository.findOne({
@@ -57,17 +69,35 @@ export class UserService {
 
     const passwordHash = await bcrypt.hash(createDto.password, 10);
 
+    const legacyRole =
+      createDto.role ?? NEW_ROLE_TO_LEGACY[createDto.roleKeys?.[0] ?? ''];
+
     const user = this.userRepository.create({
       username: createDto.username,
       email: createDto.email,
       fullName: createDto.fullName,
       passwordHash,
-      role: createDto.role,
+      role: (legacyRole ?? 'STUDENT') as UserRole,
       status: UserStatus.ACTIVE,
       studentId: createDto.studentId,
     });
 
-    return this.userRepository.save(user);
+    const saved = await this.userRepository.save(user);
+    if (createDto.roleKeys && createDto.roleKeys.length > 0) {
+      await this.rbacService.replaceRoles(saved.id, createDto.roleKeys);
+    } else {
+      await this.assignLegacyRole(saved.id, legacyRole);
+    }
+    return saved;
+  }
+
+  private async assignLegacyRole(
+    userId: string,
+    role?: UserRole | string,
+  ): Promise<void> {
+    const roleKey = this.legacyRoleToKey(role);
+    if (!roleKey) return;
+    await this.rbacService.assignRole(userId, roleKey);
   }
 
   async createStudentUser(studentId: string): Promise<User> {
@@ -101,7 +131,9 @@ export class UserService {
       photoUrl: student.photoUrl,
     });
 
-    return this.userRepository.save(user);
+    const saved = await this.userRepository.save(user);
+    await this.rbacService.assignRole(saved.id, DEFAULT_ROLE_KEYS.ESTUDIANTE);
+    return saved;
   }
 
   async findByUsername(username: string): Promise<User | null> {
@@ -140,9 +172,14 @@ export class UserService {
     const qb = this.userRepository
       .createQueryBuilder('user')
       .leftJoinAndSelect('user.student', 'student')
+      .leftJoinAndSelect('user.userRoles', 'userRoles')
+      .leftJoinAndSelect('userRoles.role', 'assignedRole')
       .orderBy('user.createdAt', 'DESC');
 
-    if (role) qb.andWhere('user.role = :role', { role });
+    if (role) {
+      const roleKey = this.legacyRoleToKey(role);
+      qb.andWhere('assignedRole.name = :roleKey', { roleKey });
+    }
     if (status) qb.andWhere('user.status = :status', { status });
     if (search) {
       qb.andWhere(
@@ -151,7 +188,11 @@ export class UserService {
       );
     }
 
-    return qb.getMany();
+    const users = await qb.getMany();
+    return users.map((u) => ({
+      ...u,
+      roles: u.userRoles?.map((ur) => ur.role.name) ?? [],
+    }) as User);
   }
 
   async findByRole(role: UserRole): Promise<User[]> {
@@ -160,8 +201,23 @@ export class UserService {
 
   async update(id: string, updateDto: UpdateUserDto): Promise<User> {
     const user = await this.findOne(id);
-    Object.assign(user, updateDto);
-    return this.userRepository.save(user);
+    const { roleKeys, role, ...rest } = updateDto;
+
+    Object.assign(user, rest);
+
+    if (role) {
+      user.role = role;
+    }
+
+    await this.userRepository.save(user);
+
+    if (roleKeys && roleKeys.length > 0) {
+      await this.rbacService.replaceRoles(id, roleKeys);
+    } else if (role) {
+      await this.assignLegacyRole(id, role);
+    }
+
+    return this.findOne(id);
   }
 
   async updatePassword(id: string, newPassword: string): Promise<void> {
@@ -196,10 +252,12 @@ export class UserService {
   async countByRole(): Promise<Record<string, number>> {
     const result = await this.userRepository
       .createQueryBuilder('user')
-      .select('user.role', 'role')
-      .addSelect('COUNT(*)', 'count')
+      .innerJoin('user.userRoles', 'userRole')
+      .innerJoin('userRole.role', 'role')
+      .select('role.name', 'role')
+      .addSelect('COUNT(DISTINCT user.id)', 'count')
       .where('user.isActive = true')
-      .groupBy('user.role')
+      .groupBy('role.name')
       .getRawMany();
 
     const counts: Record<string, number> = {};
@@ -207,5 +265,10 @@ export class UserService {
       counts[row.role] = parseInt(row.count, 10);
     }
     return counts;
+  }
+
+  async updateUserRoles(id: string, roleKeys: string[]): Promise<User> {
+    await this.rbacService.replaceRoles(id, roleKeys);
+    return this.findOne(id);
   }
 }

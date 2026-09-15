@@ -11,19 +11,19 @@ import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { SubjectService } from './subject.service';
 import { CreateSubjectDto, UpdateSubjectDto } from './dto/subject.dto';
 import { JwtAuthGuard } from '@common/guards/jwt-auth.guard';
-import { RolesGuard } from '@common/guards/roles.guard';
-import { Roles } from '@common/decorators/roles.decorator';
-import { UserRole } from '@common/enums';
+import { PermissionsGuard } from '@common/guards/permissions.guard';
+import { RequirePermission } from '@common/decorators/require-permission.decorator';
+import { PERMISSIONS } from '@common/permissions';
 
 @ApiTags('Subjects')
 @Controller('subjects')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, PermissionsGuard)
 @ApiBearerAuth()
 export class SubjectController {
   constructor(private readonly subjectService: SubjectService) {}
 
   @Post()
-  @Roles(UserRole.ADMIN, UserRole.SECRETARY)
+  @RequirePermission(PERMISSIONS.SUBJECTS_CREATE)
   create(@Body() dto: CreateSubjectDto) {
     return this.subjectService.create(dto);
   }
@@ -49,13 +49,13 @@ export class SubjectController {
   }
 
   @Patch(':id')
-  @Roles(UserRole.ADMIN, UserRole.SECRETARY)
+  @RequirePermission(PERMISSIONS.SUBJECTS_UPDATE)
   update(@Param('id') id: string, @Body() dto: UpdateSubjectDto) {
     return this.subjectService.update(id, dto);
   }
 
   @Patch(':id/toggle-state')
-  @Roles(UserRole.ADMIN, UserRole.SECRETARY)
+  @RequirePermission(PERMISSIONS.SUBJECTS_UPDATE)
   toggleState(@Param('id') id: string) {
     return this.subjectService.toggleState(id);
   }

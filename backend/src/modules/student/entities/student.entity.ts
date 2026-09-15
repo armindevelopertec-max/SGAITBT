@@ -14,6 +14,7 @@ import { AcademicPeriod } from '@modules/academic-period/entities/academic-perio
 import { Enrollment } from '@modules/enrollment/entities/enrollment.entity';
 import { Deposit } from '@modules/deposit/entities/deposit.entity';
 import { User } from '@modules/user/entities/user.entity';
+import { Person } from '@modules/person/entities/person.entity';
 
 @Entity('students')
 export class Student extends BaseEntity {
@@ -89,6 +90,14 @@ export class Student extends BaseEntity {
 
   @OneToOne(() => User, (user) => user.student, { nullable: true })
   user?: User;
+
+  @OneToOne(() => Person, (person) => person.student, { nullable: true })
+  @JoinColumn({ name: 'person_id' })
+  persona?: Person;
+
+  @Column({ name: 'person_id', type: 'uuid', nullable: true })
+  @Index('IDX_student_person_id', { unique: true })
+  personaId?: string;
 
   @OneToMany(() => Enrollment, (enrollment) => enrollment.student)
   enrollments: Enrollment[];

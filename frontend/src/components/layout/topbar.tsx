@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/lib/auth';
 import { MICROLEGEND } from '@/lib/nav';
+import { primaryRoleKey } from '@/lib/permissions';
 
 export function Topbar() {
   const { user, logout } = useAuth();
@@ -41,7 +42,7 @@ export function Topbar() {
             <div>
               <div className="user-info-name">{user.fullName}</div>
               <div className="user-info-role">
-                {MICROLEGEND[user.role] ?? user.role}
+                {MICROLEGEND[primaryRoleKey(user) ?? ''] ?? user.role}
               </div>
             </div>
             <button className="btn btn-outline btn-sm" onClick={() => setMenuOpen(!menuOpen)}>

@@ -12,19 +12,19 @@ import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { CareerService } from './career.service';
 import { CreateCareerDto, UpdateCareerDto, CareerQueryDto } from './dto/career.dto';
 import { JwtAuthGuard } from '@common/guards/jwt-auth.guard';
-import { RolesGuard } from '@common/guards/roles.guard';
-import { Roles } from '@common/decorators/roles.decorator';
-import { UserRole } from '@common/enums';
+import { PermissionsGuard } from '@common/guards/permissions.guard';
+import { RequirePermission } from '@common/decorators/require-permission.decorator';
+import { PERMISSIONS } from '@common/permissions';
 
 @ApiTags('Careers')
 @Controller('careers')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, PermissionsGuard)
 @ApiBearerAuth()
 export class CareerController {
   constructor(private readonly careerService: CareerService) {}
 
   @Post()
-  @Roles(UserRole.ADMIN, UserRole.SECRETARY)
+  @RequirePermission(PERMISSIONS.CAREERS_CREATE)
   create(@Body() dto: CreateCareerDto) {
     return this.careerService.create(dto);
   }
@@ -40,19 +40,19 @@ export class CareerController {
   }
 
   @Patch(':id')
-  @Roles(UserRole.ADMIN, UserRole.SECRETARY)
+  @RequirePermission(PERMISSIONS.CAREERS_UPDATE)
   update(@Param('id') id: string, @Body() dto: UpdateCareerDto) {
     return this.careerService.update(id, dto);
   }
 
   @Patch(':id/toggle-state')
-  @Roles(UserRole.ADMIN, UserRole.SECRETARY)
+  @RequirePermission(PERMISSIONS.CAREERS_UPDATE)
   toggleState(@Param('id') id: string) {
     return this.careerService.toggleState(id);
   }
 
   @Patch(':id/deactivate')
-  @Roles(UserRole.ADMIN)
+  @RequirePermission(PERMISSIONS.CAREERS_DELETE)
   deactivate(@Param('id') id: string) {
     return this.careerService.deactivate(id);
   }

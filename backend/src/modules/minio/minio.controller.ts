@@ -10,19 +10,19 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiTags, ApiBearerAuth, ApiConsumes } from '@nestjs/swagger';
 import { MinioService, BucketName } from './minio.service';
 import { JwtAuthGuard } from '@common/guards/jwt-auth.guard';
-import { RolesGuard } from '@common/guards/roles.guard';
-import { Roles } from '@common/decorators/roles.decorator';
-import { UserRole } from '@common/enums';
+import { PermissionsGuard } from '@common/guards/permissions.guard';
+import { RequirePermission } from '@common/decorators/require-permission.decorator';
+import { PERMISSIONS } from '@common/permissions';
 
 @ApiTags('Uploads')
 @Controller('uploads')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, PermissionsGuard)
 @ApiBearerAuth()
 export class MinioController {
   constructor(private readonly minioService: MinioService) {}
 
   @Post('photo')
-  @Roles(UserRole.ADMIN, UserRole.SECRETARY, UserRole.TEACHER)
+  @RequirePermission(PERMISSIONS.FILES_UPLOAD)
   @ApiConsumes('multipart/form-data')
   @UseInterceptors(FileInterceptor('file'))
   async uploadPhoto(@UploadedFile() file: Express.Multer.File) {
@@ -39,7 +39,7 @@ export class MinioController {
   }
 
   @Post('voucher')
-  @Roles(UserRole.ADMIN, UserRole.SECRETARY)
+  @RequirePermission(PERMISSIONS.FILES_UPLOAD)
   @ApiConsumes('multipart/form-data')
   @UseInterceptors(FileInterceptor('file'))
   async uploadVoucher(@UploadedFile() file: Express.Multer.File) {
@@ -56,7 +56,7 @@ export class MinioController {
   }
 
   @Post('logo')
-  @Roles(UserRole.ADMIN)
+  @RequirePermission(PERMISSIONS.FILES_UPLOAD, PERMISSIONS.INSTITUTION_UPDATE)
   @ApiConsumes('multipart/form-data')
   @UseInterceptors(FileInterceptor('file'))
   async uploadLogo(@UploadedFile() file: Express.Multer.File) {
@@ -73,7 +73,7 @@ export class MinioController {
   }
 
   @Post('document')
-  @Roles(UserRole.ADMIN, UserRole.SECRETARY, UserRole.TEACHER)
+  @RequirePermission(PERMISSIONS.FILES_UPLOAD)
   @ApiConsumes('multipart/form-data')
   @UseInterceptors(FileInterceptor('file'))
   async uploadDocument(@UploadedFile() file: Express.Multer.File) {

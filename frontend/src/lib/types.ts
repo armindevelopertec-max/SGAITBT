@@ -125,6 +125,8 @@ export interface User {
   status: 'ACTIVE' | 'INACTIVE' | 'BLOCKED';
   studentId?: string;
   student?: Student;
+  roles?: string[];
+  userRoles?: { role?: { name: string } }[];
 }
 
 export interface SubjectAssignment {

@@ -12,21 +12,21 @@ import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { DepositService } from './deposit.service';
 import { CreateDepositDto, UpdateDepositDto, VerifyDepositDto, DepositQueryDto } from './dto/deposit.dto';
 import { JwtAuthGuard } from '@common/guards/jwt-auth.guard';
-import { RolesGuard } from '@common/guards/roles.guard';
-import { Roles } from '@common/decorators/roles.decorator';
+import { PermissionsGuard } from '@common/guards/permissions.guard';
+import { RequirePermission } from '@common/decorators/require-permission.decorator';
 import { CurrentUser } from '@common/decorators/current-user.decorator';
-import { UserRole } from '@common/enums';
+import { PERMISSIONS } from '@common/permissions';
 import { User } from '@modules/user/entities/user.entity';
 
 @ApiTags('Deposits')
 @Controller('deposits')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, PermissionsGuard)
 @ApiBearerAuth()
 export class DepositController {
   constructor(private readonly depositService: DepositService) {}
 
   @Post()
-  @Roles(UserRole.ADMIN, UserRole.SECRETARY)
+  @RequirePermission(PERMISSIONS.DEPOSITS_CREATE)
   create(@Body() dto: CreateDepositDto) {
     return this.depositService.create(dto);
   }
@@ -52,13 +52,13 @@ export class DepositController {
   }
 
   @Patch(':id')
-  @Roles(UserRole.ADMIN, UserRole.SECRETARY)
+  @RequirePermission(PERMISSIONS.DEPOSITS_UPDATE)
   update(@Param('id') id: string, @Body() dto: UpdateDepositDto) {
     return this.depositService.update(id, dto);
   }
 
   @Patch(':id/verify')
-  @Roles(UserRole.ADMIN, UserRole.SECRETARY)
+  @RequirePermission(PERMISSIONS.DEPOSITS_UPDATE)
   verify(
     @Param('id') id: string,
     @Body() dto: VerifyDepositDto,

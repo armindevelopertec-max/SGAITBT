@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/lib/auth';
 import { NAV_SECTIONS } from '@/lib/nav';
+import { hasAnyPermission } from '@/lib/permissions';
 import { Icon } from '@/components/ui/icons';
 
 function SidebarLink({ href, label, icon }: { href: string; label: string; icon: string }) {
@@ -22,7 +23,9 @@ export function AppSidebar() {
 
   const sections = NAV_SECTIONS.map((section) => ({
     ...section,
-    items: section.items.filter((item) => !item.roles || !user || item.roles.includes(user.role)),
+    items: section.items.filter(
+      (item) => !item.permissions || hasAnyPermission(user, item.permissions),
+    ),
   })).filter((s) => s.items.length > 0);
 
   return (

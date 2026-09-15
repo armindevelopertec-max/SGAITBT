@@ -4,6 +4,7 @@ import {
   IsNotEmpty,
   IsOptional,
   IsString,
+  IsArray,
   MaxLength,
   MinLength,
 } from 'class-validator';
@@ -30,7 +31,13 @@ export class CreateUserDto {
   fullName: string;
 
   @IsEnum(UserRole)
-  role: UserRole;
+  @IsOptional()
+  role?: UserRole;
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  roleKeys?: string[];
 
   @IsOptional()
   @IsString()
@@ -63,6 +70,11 @@ export class UpdateUserDto {
   @IsOptional()
   @IsEnum(UserStatus)
   status?: UserStatus;
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  roleKeys?: string[];
 
   @IsOptional()
   @IsString()

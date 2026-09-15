@@ -4,6 +4,7 @@ import {
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { UserService } from '@modules/user/user.service';
+import { RbacService } from '@modules/rbac/rbac.service';
 import { User } from '@modules/user/entities/user.entity';
 import { LoginDto } from './dto/auth.dto';
 import { UserStatus } from '@common/enums';
@@ -14,6 +15,8 @@ export interface JwtPayload {
   email: string;
   role: string;
   fullName: string;
+  roles: string[];
+  permissions: string[];
 }
 
 @Injectable()
@@ -21,7 +24,19 @@ export class AuthService {
   constructor(
     private readonly userService: UserService,
     private readonly jwtService: JwtService,
+    private readonly rbacService: RbacService,
   ) {}
+
+  async resolveAuthorities(user: User) {
+    const [roles, permissions] = await Promise.all([
+      this.rbacService.getUserRoles(user.id),
+      this.rbacService.getUserPermissions(user.id),
+    ]);
+    return {
+      roles: roles.map((r) => r.key),
+      permissions,
+    };
+  }
 
   async validateUser(username: string, password: string): Promise<User> {
     const user = await this.userService.findByUsername(username);
@@ -58,12 +73,16 @@ export class AuthService {
 
     await this.userService.recordLogin(user.id);
 
+    const authorities = await this.resolveAuthorities(user);
+
     const payload: JwtPayload = {
       sub: user.id,
       username: user.username,
       email: user.email,
       role: user.role,
       fullName: user.fullName,
+      roles: authorities.roles,
+      permissions: authorities.permissions,
     };
 
     return {
@@ -74,6 +93,8 @@ export class AuthService {
         email: user.email,
         fullName: user.fullName,
         role: user.role,
+        roles: authorities.roles,
+        permissions: authorities.permissions,
         studentId: user.studentId,
         photoUrl: user.student?.photoUrl ?? null,
         mustChangePassword: user.mustChangePassword,

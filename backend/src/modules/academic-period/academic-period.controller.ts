@@ -17,19 +17,19 @@ import {
   AcademicPeriodQueryDto,
 } from './dto/academic-period.dto';
 import { JwtAuthGuard } from '@common/guards/jwt-auth.guard';
-import { RolesGuard } from '@common/guards/roles.guard';
-import { Roles } from '@common/decorators/roles.decorator';
-import { UserRole } from '@common/enums';
+import { PermissionsGuard } from '@common/guards/permissions.guard';
+import { RequirePermission } from '@common/decorators/require-permission.decorator';
+import { PERMISSIONS } from '@common/permissions';
 
 @ApiTags('Academic Periods')
 @Controller('academic-periods')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, PermissionsGuard)
 @ApiBearerAuth()
 export class AcademicPeriodController {
   constructor(private readonly periodService: AcademicPeriodService) {}
 
   @Post()
-  @Roles(UserRole.ADMIN, UserRole.SECRETARY)
+  @RequirePermission(PERMISSIONS.PERIODS_CREATE)
   create(@Body() dto: CreateAcademicPeriodDto) {
     return this.periodService.create(dto);
   }
@@ -45,25 +45,25 @@ export class AcademicPeriodController {
   }
 
   @Patch(':id')
-  @Roles(UserRole.ADMIN, UserRole.SECRETARY)
+  @RequirePermission(PERMISSIONS.PERIODS_UPDATE)
   update(@Param('id') id: string, @Body() dto: UpdateAcademicPeriodDto) {
     return this.periodService.update(id, dto);
   }
 
   @Patch(':id/close')
-  @Roles(UserRole.ADMIN, UserRole.SECRETARY)
+  @RequirePermission(PERMISSIONS.PERIODS_UPDATE)
   close(@Param('id') id: string) {
     return this.periodService.closePeriod(id);
   }
 
   @Patch(':id/open')
-  @Roles(UserRole.ADMIN, UserRole.SECRETARY)
+  @RequirePermission(PERMISSIONS.PERIODS_UPDATE)
   open(@Param('id') id: string) {
     return this.periodService.openPeriod(id);
   }
 
   @Delete(':id')
-  @Roles(UserRole.ADMIN)
+  @RequirePermission(PERMISSIONS.PERIODS_DELETE)
   remove(@Param('id') id: string) {
     return this.periodService.remove(id);
   }

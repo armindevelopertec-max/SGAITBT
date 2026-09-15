@@ -33,6 +33,8 @@ export interface AuthUser {
   email: string;
   fullName: string;
   role: string;
+  roles?: string[];
+  permissions?: string[];
   studentId?: string;
   photoUrl?: string | null;
 }

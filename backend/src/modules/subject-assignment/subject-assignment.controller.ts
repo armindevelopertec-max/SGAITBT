@@ -19,25 +19,25 @@ import {
   AssignmentQueryDto,
 } from './dto/subject-assignment.dto';
 import { JwtAuthGuard } from '@common/guards/jwt-auth.guard';
-import { RolesGuard } from '@common/guards/roles.guard';
-import { Roles } from '@common/decorators/roles.decorator';
-import { UserRole } from '@common/enums';
+import { PermissionsGuard } from '@common/guards/permissions.guard';
+import { RequirePermission } from '@common/decorators/require-permission.decorator';
+import { PERMISSIONS } from '@common/permissions';
 
 @ApiTags('Subject Assignments')
 @Controller('subject-assignments')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, PermissionsGuard)
 @ApiBearerAuth()
 export class SubjectAssignmentController {
   constructor(private readonly assignmentService: SubjectAssignmentService) {}
 
   @Post()
-  @Roles(UserRole.ADMIN, UserRole.SECRETARY)
+  @RequirePermission(PERMISSIONS.ASSIGNMENTS_CREATE)
   create(@Body() dto: CreateSubjectAssignmentDto) {
     return this.assignmentService.create(dto);
   }
 
   @Post('auto-assign')
-  @Roles(UserRole.ADMIN, UserRole.SECRETARY)
+  @RequirePermission(PERMISSIONS.ASSIGNMENTS_CREATE)
   autoAssign(@Body() dto: AutoAssignStudentsDto) {
     return this.assignmentService.autoAssignStudents(dto);
   }
@@ -63,13 +63,13 @@ export class SubjectAssignmentController {
   }
 
   @Patch(':id')
-  @Roles(UserRole.ADMIN, UserRole.SECRETARY)
+  @RequirePermission(PERMISSIONS.ASSIGNMENTS_UPDATE)
   update(@Param('id') id: string, @Body() dto: UpdateSubjectAssignmentDto) {
     return this.assignmentService.update(id, dto);
   }
 
   @Post(':id/enroll-student')
-  @Roles(UserRole.ADMIN, UserRole.SECRETARY)
+  @RequirePermission(PERMISSIONS.ASSIGNMENTS_UPDATE)
   enrollStudent(
     @Param('id') id: string,
     @Body() dto: EnrollStudentInAssignmentDto,
@@ -78,7 +78,7 @@ export class SubjectAssignmentController {
   }
 
   @Delete(':id/students/:studentId')
-  @Roles(UserRole.ADMIN, UserRole.SECRETARY)
+  @RequirePermission(PERMISSIONS.ASSIGNMENTS_UPDATE)
   removeStudent(@Param('id') id: string, @Param('studentId') studentId: string) {
     return this.assignmentService.removeStudent(id, studentId);
   }

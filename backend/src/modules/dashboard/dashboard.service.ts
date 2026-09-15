@@ -13,7 +13,6 @@ import {
   DepositStatus,
   EnrollmentStatus,
   GradeStatus,
-  UserRole,
 } from '@common/enums';
 
 @Injectable()
@@ -56,7 +55,13 @@ export class DashboardService {
         .createQueryBuilder('student')
         .where('student.createdAt >= :start', { start: startOfYear })
         .getCount(),
-      this.userRepository.count({ where: { role: UserRole.TEACHER, isActive: true } }),
+      this.userRepository
+        .createQueryBuilder('user')
+        .innerJoin('user.userRoles', 'userRole')
+        .innerJoin('userRole.role', 'assignedRole')
+        .where('assignedRole.name = :roleKey', { roleKey: 'DOCENTE' })
+        .andWhere('user.isActive = true')
+        .getCount(),
       this.subjectRepository.count({ where: { isActive: true } }),
       this.careerRepository.count({ where: { isActive: true } }),
       this.enrollmentRepository.count({

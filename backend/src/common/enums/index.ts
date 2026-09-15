@@ -67,3 +67,24 @@ export enum UserStatus {
   INACTIVE = 'INACTIVE',
   BLOCKED = 'BLOCKED',
 }
+
+export enum EmployeeType {
+  DIRECTIVO = 'DIRECTIVO',
+  DOCENTE = 'DOCENTE',
+  ADMINISTRATIVO = 'ADMINISTRATIVO',
+  APOYO = 'APOYO',
+}
+
+export enum PersonStatus {
+  ACTIVE = 'ACTIVE',
+  INACTIVE = 'INACTIVE',
+}
+
+export enum PermissionAction {
+  ALL = 'ALL',
+  VIEW = 'VIEW',
+  CREATE = 'CREATE',
+  UPDATE = 'UPDATE',
+  DELETE = 'DELETE',
+  OTHER = 'OTHER',
+}

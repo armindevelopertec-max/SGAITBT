@@ -11,19 +11,19 @@ import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { InstitutionService } from './institution.service';
 import { CreateInstitutionDto, UpdateInstitutionDto, UpdateInstitutionConfigDto } from './dto/institution.dto';
 import { JwtAuthGuard } from '@common/guards/jwt-auth.guard';
-import { RolesGuard } from '@common/guards/roles.guard';
-import { Roles } from '@common/decorators/roles.decorator';
-import { UserRole } from '@common/enums';
+import { PermissionsGuard } from '@common/guards/permissions.guard';
+import { RequirePermission } from '@common/decorators/require-permission.decorator';
+import { PERMISSIONS } from '@common/permissions';
 
 @ApiTags('Institutions')
 @Controller('institutions')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, PermissionsGuard)
 @ApiBearerAuth()
 export class InstitutionController {
   constructor(private readonly institutionService: InstitutionService) {}
 
   @Post()
-  @Roles(UserRole.ADMIN)
+  @RequirePermission(PERMISSIONS.INSTITUTION_UPDATE)
   create(@Body() dto: CreateInstitutionDto) {
     return this.institutionService.create(dto);
   }
@@ -39,25 +39,25 @@ export class InstitutionController {
   }
 
   @Patch(':id')
-  @Roles(UserRole.ADMIN)
+  @RequirePermission(PERMISSIONS.INSTITUTION_UPDATE)
   update(@Param('id') id: string, @Body() dto: UpdateInstitutionDto) {
     return this.institutionService.update(id, dto);
   }
 
   @Patch(':id/config')
-  @Roles(UserRole.ADMIN)
+  @RequirePermission(PERMISSIONS.INSTITUTION_UPDATE)
   updateConfig(@Param('id') id: string, @Body() dto: UpdateInstitutionConfigDto) {
     return this.institutionService.updateConfig(id, dto);
   }
 
   @Patch(':id/logo')
-  @Roles(UserRole.ADMIN)
+  @RequirePermission(PERMISSIONS.INSTITUTION_UPDATE)
   setLogo(@Param('id') id: string, @Body('logoUrl') logoUrl: string) {
     return this.institutionService.setLogo(id, logoUrl);
   }
 
   @Patch(':id/deactivate')
-  @Roles(UserRole.ADMIN)
+  @RequirePermission(PERMISSIONS.INSTITUTION_UPDATE)
   deactivate(@Param('id') id: string) {
     return this.institutionService.deactivate(id);
   }

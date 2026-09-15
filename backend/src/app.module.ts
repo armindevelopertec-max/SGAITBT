@@ -18,6 +18,10 @@ import { GradeModule } from './modules/grade/grade.module';
 import { AcademicHistoryModule } from './modules/academic-history/academic-history.module';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { MinioModule } from './modules/minio/minio.module';
+import { PersonModule } from './modules/person/person.module';
+import { EmployeeModule } from './modules/employee/employee.module';
+import { RbacModule } from './modules/rbac/rbac.module';
+import { AuditModule } from './modules/audit/audit.module';
 
 @Module({
   imports: [
@@ -26,6 +30,10 @@ import { MinioModule } from './modules/minio/minio.module';
       envFilePath: ['.env', '../.env'],
     }),
     TypeOrmModule.forRoot(typeOrmConfig),
+    PersonModule,
+    EmployeeModule,
+    RbacModule,
+    AuditModule,
     InstitutionModule,
     CareerModule,
     AcademicPeriodModule,

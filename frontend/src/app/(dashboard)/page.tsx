@@ -8,6 +8,7 @@ import { PageHeader } from '@/components/ui/page-header';
 import { MICROLEGEND } from '@/lib/nav';
 import { Icon } from '@/components/ui/icons';
 import { LoadingState, ErrorState } from '@/components/ui/state';
+import { hasRole, primaryRoleKey } from '@/lib/permissions';
 
 interface Stat {
   label: string;
@@ -26,12 +27,13 @@ export default function DashboardPage() {
   useEffect(() => {
     if (!user) return;
     setLoading(true);
-    const endpoint =
-      user.role === 'TEACHER'
-        ? '/dashboard/teacher'
-        : user.role === 'STUDENT'
-          ? '/dashboard/student'
-          : '/dashboard/admin';
+    const isTeacher = hasRole(user, 'TEACHER', 'DOCENTE');
+    const isStudent = hasRole(user, 'STUDENT', 'ESTUDIANTE');
+    const endpoint = isTeacher
+      ? '/dashboard/teacher'
+      : isStudent
+        ? '/dashboard/student'
+        : '/dashboard/admin';
 
     apiGet<AdminDashboard>(endpoint)
       .then((res) => {
@@ -44,7 +46,7 @@ export default function DashboardPage() {
   if (loading) return <LoadingState label="Cargando panel principal…" />;
   if (error) return <ErrorState message={error} />;
 
-  if (user?.role === 'TEACHER') {
+  if (user && hasRole(user, 'TEACHER', 'DOCENTE')) {
     return (
       <div>
         <PageHeader title="Panel del Docente" subtitle={`Bienvenido, ${user.fullName}`} />
@@ -58,7 +60,7 @@ export default function DashboardPage() {
     );
   }
 
-  if (user?.role === 'STUDENT') {
+  if (user && hasRole(user, 'STUDENT', 'ESTUDIANTE')) {
     return (
       <div>
         <PageHeader title="Mi perfil académico" subtitle={`Bienvenido, ${user.fullName}`} />
@@ -111,7 +113,7 @@ export default function DashboardPage() {
         `Procesó ${data.summary.enrollmentsThisYear} matrículas de la gestión`,
         `Administró ${data.summary.activeSubjects} materias y ${data.summary.careers} carreras`,
       ]
-    : [`Ingresó al sistema de gestión académica como ${MICROLEGEND[user?.role ?? ''] ?? user?.role}`];
+    : [`Ingresó al sistema de gestión académica como ${MICROLEGEND[primaryRoleKey(user) ?? ''] ?? user?.role}`];
 
   return (
     <div>
@@ -151,7 +153,7 @@ export default function DashboardPage() {
 
         <div className="operator-name">{user?.fullName}</div>
         <div className="operator-role">
-          {MICROLEGEND[user?.role ?? ''] ?? user?.role}
+          {MICROLEGEND[primaryRoleKey(user) ?? ''] ?? user?.role}
         </div>
         <div className="text-muted text-sm">{user?.email}</div>
 

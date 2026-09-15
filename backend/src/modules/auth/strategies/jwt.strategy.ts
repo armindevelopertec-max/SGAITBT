@@ -4,12 +4,15 @@ import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { JwtPayload } from '../auth.service';
 import { UserService } from '@modules/user/user.service';
+import { RbacService } from '@modules/rbac/rbac.service';
+import { UserStatus } from '@common/enums';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
   constructor(
     configService: ConfigService,
     private readonly userService: UserService,
+    private readonly rbacService: RbacService,
   ) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
@@ -20,9 +23,17 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
 
   async validate(payload: JwtPayload) {
     const user = await this.userService.findOne(payload.sub);
-    if (!user || !user.isActive) {
+    if (!user || !user.isActive || user.status !== UserStatus.ACTIVE) {
       return null;
     }
-    return user;
+    const [roles, permissions] = await Promise.all([
+      this.rbacService.getUserRoles(user.id),
+      this.rbacService.getUserPermissions(user.id),
+    ]);
+    return {
+      ...user,
+      roles: roles.map((r) => r.key),
+      permissions,
+    };
   }
 }

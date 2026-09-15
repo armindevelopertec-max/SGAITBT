@@ -7,14 +7,30 @@ import { PageHeader } from '@/components/ui/page-header';
 import { Modal } from '@/components/ui/modal';
 import { StatusBadge } from '@/components/ui/badge';
 import { LoadingState, ErrorState } from '@/components/ui/state';
+import { MICROLEGEND } from '@/lib/nav';
 
 const EMPTY = {
   username: '',
   fullName: '',
   email: '',
   password: 'estudiante2026',
-  role: 'STUDENT',
+  roleKeys: ['ESTUDIANTE'],
 };
+
+const ROLE_OPTIONS: { key: string; label: string }[] = [
+  { key: 'ADMIN', label: 'Administrador' },
+  { key: 'DIRECTIVO', label: 'Directivo' },
+  { key: 'COORDINADOR', label: 'Coordinador académico' },
+  { key: 'DOCENTE', label: 'Docente' },
+  { key: 'SECRETARIA', label: 'Secretaría' },
+  { key: 'ADMINISTRATIVO', label: 'Administrativo' },
+  { key: 'ESTUDIANTE', label: 'Estudiante' },
+];
+
+function roleLabel(u: User): string {
+  const key = u.roles?.[0] ?? u.role;
+  return MICROLEGEND[key] ?? key;
+}
 
 export default function UsersPage() {
   const [users, setUsers] = useState<User[]>([]);
@@ -110,7 +126,7 @@ export default function UsersPage() {
                   <td><strong>{u.username}</strong></td>
                   <td>{u.fullName}</td>
                   <td>{u.email}</td>
-                  <td><StatusBadge value={u.role} /></td>
+                  <td><StatusBadge value={roleLabel(u)} /></td>
                   <td><StatusBadge value={u.status} /></td>
                 </tr>
               ))}
@@ -184,11 +200,10 @@ export default function UsersPage() {
           </div>
           <div className="form-group">
             <label className="form-label">Rol</label>
-            <select className="select" value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })}>
-              <option value="ADMIN">Administrador</option>
-              <option value="SECRETARY">Secretaría</option>
-              <option value="TEACHER">Docente</option>
-              <option value="STUDENT">Estudiante</option>
+            <select className="select" value={form.roleKeys[0]} onChange={(e) => setForm({ ...form, roleKeys: [e.target.value] })}>
+              {ROLE_OPTIONS.map((r) => (
+                <option key={r.key} value={r.key}>{r.label}</option>
+              ))}
             </select>
           </div>
         </div>

@@ -3,6 +3,7 @@ import { UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { AuthService } from './auth.service';
 import { UserService } from '@modules/user/user.service';
+import { RbacService } from '@modules/rbac/rbac.service';
 import { UserRole, UserStatus } from '@common/enums';
 
 const activeUser = {
@@ -34,6 +35,12 @@ function createMocks(overrides: Record<string, unknown> = {}) {
     jwtService: {
       signAsync: jest.fn(),
     },
+    rbacService: {
+      getUserRoles: jest.fn().mockResolvedValue([
+        { key: 'ADMIN', inherited: false },
+      ]),
+      getUserPermissions: jest.fn().mockResolvedValue(['*']),
+    },
     ...overrides,
   };
   return mocks;
@@ -50,6 +57,7 @@ describe('AuthService', () => {
         AuthService,
         { provide: UserService, useValue: mocks.userService },
         { provide: JwtService, useValue: mocks.jwtService },
+        { provide: RbacService, useValue: mocks.rbacService },
       ],
     }).compile();
 
@@ -57,7 +65,7 @@ describe('AuthService', () => {
   });
 
   describe('login', () => {
-    it('emite un token y devuelve el usuario', async () => {
+    it('emite un token y devuelve el usuario con roles/permisos', async () => {
       mocks.userService.findByUsername.mockResolvedValue(activeUser);
       mocks.userService.validatePassword.mockResolvedValue(true);
       mocks.jwtService.signAsync.mockResolvedValue('token.jwt');
@@ -65,8 +73,11 @@ describe('AuthService', () => {
       const result = await service.login({ username: 'admin', password: 'admin2026' });
 
       expect(mocks.userService.recordLogin).toHaveBeenCalledWith('u-1');
+      expect(mocks.rbacService.getUserPermissions).toHaveBeenCalledWith('u-1');
       expect(result.accessToken).toBe('token.jwt');
       expect(result.user.username).toBe('admin');
+      expect(result.user.roles).toEqual(['ADMIN']);
+      expect(result.user.permissions).toEqual(['*']);
     });
 
     it('rechaza credenciales inválidas y registra el intento fallido', async () => {

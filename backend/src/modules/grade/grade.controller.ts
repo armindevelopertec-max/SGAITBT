@@ -18,25 +18,25 @@ import {
   UpdateGradeDto,
 } from './dto/grade.dto';
 import { JwtAuthGuard } from '@common/guards/jwt-auth.guard';
-import { RolesGuard } from '@common/guards/roles.guard';
-import { Roles } from '@common/decorators/roles.decorator';
-import { UserRole } from '@common/enums';
+import { PermissionsGuard } from '@common/guards/permissions.guard';
+import { RequirePermission } from '@common/decorators/require-permission.decorator';
+import { PERMISSIONS } from '@common/permissions';
 
 @ApiTags('Grades')
 @Controller('grades')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, PermissionsGuard)
 @ApiBearerAuth()
 export class GradeController {
   constructor(private readonly gradeService: GradeService) {}
 
   @Post()
-  @Roles(UserRole.ADMIN, UserRole.SECRETARY, UserRole.TEACHER)
+  @RequirePermission(PERMISSIONS.GRADES_CREATE, PERMISSIONS.GRADES_UPDATE, PERMISSIONS.GRADES_VERIFY)
   create(@Body() dto: CreateGradeDto) {
     return this.gradeService.create(dto);
   }
 
   @Post('bulk')
-  @Roles(UserRole.ADMIN, UserRole.SECRETARY, UserRole.TEACHER)
+  @RequirePermission(PERMISSIONS.GRADES_CREATE, PERMISSIONS.GRADES_UPDATE, PERMISSIONS.GRADES_VERIFY)
   createBulk(@Body() dto: CreateBulkGradesDto) {
     return this.gradeService.createBulk(dto);
   }
@@ -67,13 +67,13 @@ export class GradeController {
   }
 
   @Patch(':id')
-  @Roles(UserRole.ADMIN, UserRole.SECRETARY, UserRole.TEACHER)
+  @RequirePermission(PERMISSIONS.GRADES_CREATE, PERMISSIONS.GRADES_UPDATE, PERMISSIONS.GRADES_VERIFY)
   update(@Param('id') id: string, @Body() dto: UpdateGradeDto) {
     return this.gradeService.update(id, dto);
   }
 
   @Delete(':id')
-  @Roles(UserRole.ADMIN, UserRole.SECRETARY)
+  @RequirePermission(PERMISSIONS.GRADES_DELETE)
   remove(@Param('id') id: string) {
     return this.gradeService.delete(id);
   }

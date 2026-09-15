@@ -1,6 +1,18 @@
-import { DataSource } from 'typeorm';
+import { DataSource, type DeepPartial } from 'typeorm';
 import * as bcrypt from 'bcryptjs';
 import * as dotenv from 'dotenv';
+import { EmployeeType, PersonStatus, Sex } from '@common/enums';
+import { Person } from '@modules/person/entities/person.entity';
+import { Employee } from '@modules/employee/entities/employee.entity';
+import { Role } from '@modules/rbac/entities/role.entity';
+import { Permission } from '@modules/rbac/entities/permission.entity';
+import { UserRole as UserRoleJoin } from '@modules/rbac/entities/user-role.entity';
+import { RolePermission } from '@modules/rbac/entities/role-permission.entity';
+import {
+  RbacService,
+  LEGACY_ROLE_MAP,
+  DEFAULT_ROLE_KEYS,
+} from '@modules/rbac/rbac.service';
 
 dotenv.config();
 dotenv.config({ path: '../.env', override: true });
@@ -206,8 +218,43 @@ const TEACHERS: Array<{ username: string; fullName: string; email: string }> = [
   { username: 'lflores', fullName: 'Prof. Lucía Flores Nina', email: 'lflores@itbt.edu.bo' },
 ];
 
+function createPerson(
+  personRepo: import('typeorm').Repository<Person>,
+  data: {
+    ci: string;
+    ciExtension?: string | null;
+    firstName: string;
+    paternalSurname?: string | null;
+    maternalSurname?: string | null;
+    lastName: string;
+    birthDate?: string | Date;
+    sex?: Sex | string | null;
+    phone?: string | null;
+    address?: string | null;
+    email: string;
+  },
+): Person {
+  return personRepo.create({
+    ci: data.ci,
+    ciExtension: data.ciExtension ?? undefined,
+    firstName: data.firstName,
+    paternalSurname: data.paternalSurname ?? undefined,
+    maternalSurname: data.maternalSurname ?? undefined,
+    lastName: data.lastName,
+    birthDate: data.birthDate as Date | undefined,
+    sex: data.sex as Sex | undefined,
+    phone: data.phone ?? undefined,
+    address: data.address ?? undefined,
+    email: data.email,
+    status: PersonStatus.ACTIVE,
+  } as DeepPartial<Person>) as Person;
+}
+
 async function seedDemoData(dataSource: DataSource, passHash: string) {
   const userRepo = dataSource.getRepository('User');
+  const personRepo = dataSource.getRepository(Person);
+  const employeeRepo = dataSource.getRepository(Employee);
+  const userRoleRepo = dataSource.getRepository(UserRoleJoin);
   const careerRepo = dataSource.getRepository('Career');
   const subjectRepo = dataSource.getRepository('Subject');
   const periodRepo = dataSource.getRepository('AcademicPeriod');
@@ -220,25 +267,113 @@ async function seedDemoData(dataSource: DataSource, passHash: string) {
   const historyRepo = dataSource.getRepository('AcademicHistory');
   const attendanceRepo = dataSource.getRepository('Attendance');
 
+  const rbac = new RbacService(
+    dataSource.getRepository(Role),
+    dataSource.getRepository(Permission),
+    userRoleRepo as any,
+    dataSource.getRepository(RolePermission),
+  );
+
+  await rbac.ensurePermissions();
+  await rbac.seedRoles();
+  console.log('✅ Permisos y roles asegurados');
+
+  const ensureLegacyRoleAssigned = async (userId: string, legacyRole: string) => {
+    const keys = await rbac.getUserRoleKeys(userId);
+    const mapped = LEGACY_ROLE_MAP[legacyRole] ?? legacyRole;
+    if (!keys.includes(mapped)) {
+      await rbac.assignRole(userId, mapped);
+    }
+  };
+
+  const ensurePersonFromUser = async (data: {
+    fullName: string;
+    email: string;
+    username: string;
+    ci?: string;
+  }) => {
+    let person = await personRepo.findOne({ where: { email: data.email } });
+    const parts = data.fullName.split(' ');
+    if (!person) {
+      person = await personRepo.save(
+        createPerson(personRepo, {
+          ci: data.ci ?? `USR-${String(hashStr(data.username)).slice(0, 8)}`,
+          firstName: parts[0] ?? data.fullName,
+          paternalSurname: parts[1] ?? null,
+          maternalSurname: parts[2] ?? null,
+          lastName: data.fullName,
+          email: data.email,
+        }),
+      );
+    }
+    return person;
+  };
+
+  const ensureEmployee = async (
+    personId: string,
+    employeeType: EmployeeType,
+    position: string,
+  ) => {
+    const existing = await employeeRepo.findOne({ where: { personId } });
+    if (existing) return existing;
+    const max = await employeeRepo
+      .createQueryBuilder('employee')
+      .select('MAX(employee.employeeCode)::text', 'max')
+      .getRawOne()
+      .then((r) => (r?.max ? parseInt(r.max.replace('EMP-', ''), 10) || 0 : 0));
+    return employeeRepo.save({
+      personId,
+      employeeCode: `EMP-${String(max + 1).padStart(5, '0')}`,
+      employeeType,
+      position,
+    });
+  };
+
   const ensureUser = async (data: {
     username: string;
     email: string;
     fullName: string;
     role: string;
     studentId?: string;
+    personId?: string;
+    ci?: string;
+    employeeType?: EmployeeType;
+    position?: string;
   }) => {
-    const existing = await userRepo.findOne({ where: { username: data.username } });
-    if (existing) return existing;
-    return userRepo.save({
-      username: data.username,
-      email: data.email,
-      fullName: data.fullName,
-      passwordHash: passHash,
-      role: data.role,
-      status: 'ACTIVE',
-      mustChangePassword: false,
-      studentId: data.studentId,
-    });
+    let existing = await userRepo.findOne({ where: { username: data.username } });
+    if (!existing) {
+      existing = await userRepo.save({
+        username: data.username,
+        email: data.email,
+        fullName: data.fullName,
+        passwordHash: passHash,
+        role: data.role,
+        status: 'ACTIVE',
+        mustChangePassword: false,
+        studentId: data.studentId,
+      });
+    }
+    await ensureLegacyRoleAssigned(existing.id, data.role);
+
+    let personId = data.personId;
+    if (!personId) {
+      const person = await ensurePersonFromUser({
+        fullName: data.fullName,
+        email: data.email,
+        username: data.username,
+        ci: data.ci,
+      });
+      personId = person.id;
+    }
+    if (existing.personaId && existing.personaId !== personId) {
+      // El usuario ya tiene persona vinculada; se respeta
+    } else if (!existing.personaId) {
+      await userRepo.update(existing.id, { personaId: personId });
+    }
+    if (data.employeeType) {
+      await ensureEmployee(personId, data.employeeType, data.position ?? '');
+    }
+    return existing;
   };
 
   const secretary = await ensureUser({
@@ -246,12 +381,21 @@ async function seedDemoData(dataSource: DataSource, passHash: string) {
     email: 'secretaria@itbt.edu.bo',
     fullName: 'Secretaría Académica',
     role: 'SECRETARY',
+    employeeType: EmployeeType.ADMINISTRATIVO,
+    position: 'Secretaría Académica',
   });
   console.log('✅ Usuario secretaría: secretaria / demo2026');
 
   const teacherUsers: Array<Record<string, unknown>> = [];
   for (const t of TEACHERS) {
-    const u = await ensureUser({ username: t.username, email: t.email, fullName: t.fullName, role: 'TEACHER' });
+    const u = await ensureUser({
+      username: t.username,
+      email: t.email,
+      fullName: t.fullName,
+      role: 'TEACHER',
+      employeeType: EmployeeType.DOCENTE,
+      position: 'Docente',
+    });
     teacherUsers.push(u);
     console.log(`✅ Docente ${t.username} / demo2026`);
   }
@@ -359,6 +503,30 @@ async function seedDemoData(dataSource: DataSource, passHash: string) {
         careerId: career.id,
         currentPeriodId: openPeriod.id,
       });
+
+      const existingPerson = await personRepo.findOne({ where: { ci: demo.ci } });
+      let person = existingPerson;
+      if (!person) {
+        person = await personRepo.findOne({ where: { email: demo.email } });
+      }
+      if (!person) {
+        person = await personRepo.save(
+          createPerson(personRepo, {
+            ci: demo.ci,
+            ciExtension: demo.ciExtension,
+            firstName: demo.firstName,
+            paternalSurname: demo.paternalSurname,
+            maternalSurname: demo.maternalSurname,
+            lastName: `${demo.paternalSurname} ${demo.maternalSurname}`,
+            birthDate,
+            sex: demo.sex,
+            phone: demo.phone,
+            address: demo.address,
+            email: demo.email,
+          }),
+        );
+      }
+      await studentRepo.update(student.id, { personaId: person.id });
 
       for (const period of periods) {
         const periodY = Number(period.year);
@@ -491,14 +659,17 @@ async function seedDemoData(dataSource: DataSource, passHash: string) {
     });
     for (const [idx, s] of students.entries()) {
       if (!studentUsers.includes(idx)) continue;
+      const freshStudent = await studentRepo.findOne({ where: { id: s.id } });
+      if (!freshStudent) continue;
       await ensureUser({
-        username: s.ci,
-        email: s.email,
-        fullName: `${s.firstName} ${s.lastName}`,
+        username: freshStudent.ci,
+        email: freshStudent.email,
+        fullName: `${freshStudent.firstName} ${freshStudent.lastName}`,
         role: 'STUDENT',
-        studentId: s.id,
+        studentId: freshStudent.id,
+        personId: freshStudent.personaId,
       });
-      console.log(`✅ Usuario estudiante: ${s.ci} / demo2026 (${s.studentCode})`);
+      console.log(`✅ Usuario estudiante: ${freshStudent.ci} / demo2026 (${freshStudent.studentCode})`);
     }
   }
 
@@ -539,6 +710,84 @@ async function seedDemoData(dataSource: DataSource, passHash: string) {
   console.log('  Secretaría:  secretaria / demo2026');
   console.log('  Docentes:    jquispe, mchoque, carana, lflores / demo2026');
   console.log('  Estudiantes: <carnet del estudiante> / demo2026');
+}
+
+async function migrateExistingData(dataSource: DataSource) {
+  const userRepo = dataSource.getRepository('User');
+  const studentRepo = dataSource.getRepository('Student');
+  const personRepo = dataSource.getRepository(Person);
+  const userRoleRepo = dataSource.getRepository(UserRoleJoin);
+
+  const rbac = new RbacService(
+    dataSource.getRepository(Role),
+    dataSource.getRepository(Permission),
+    userRoleRepo as any,
+    dataSource.getRepository(RolePermission),
+  );
+  await rbac.ensurePermissions();
+  await rbac.seedRoles();
+
+  const users = await userRepo.find({ relations: ['student'] });
+  for (const user of users) {
+    if (!user.role) continue;
+    const mapped = LEGACY_ROLE_MAP[user.role] ?? user.role;
+    const hasRole = await userRoleRepo.findOne({
+      where: { userId: user.id },
+      relations: { role: true },
+    });
+    if (!hasRole) {
+      await rbac.assignRole(user.id, mapped);
+    }
+
+    if (!user.personaId) {
+      let person = await personRepo.findOne({ where: { email: user.email } });
+      if (!person) {
+        const parts = (user.fullName ?? user.username).split(' ');
+        person = await personRepo.save(
+          createPerson(personRepo, {
+            ci: `USR-${String(hashStr(user.username)).slice(0, 8)}`,
+            firstName: parts[0] ?? user.username,
+            paternalSurname: parts[1] ?? null,
+            maternalSurname: parts[2] ?? null,
+            lastName: user.fullName ?? user.username,
+            email: user.email,
+          }),
+        );
+      }
+      await userRepo.update(user.id, { personaId: person.id });
+      if (user.studentId && user.student) {
+        await studentRepo.update(user.studentId, { personaId: person.id });
+      }
+    }
+  }
+
+  const students = await studentRepo.find({ where: { personaId: null } });
+  for (const student of students) {
+    let person = await personRepo.findOne({ where: { ci: student.ci } });
+    if (!person) {
+      person = await personRepo.findOne({ where: { email: student.email } });
+    }
+    if (!person) {
+      person = await personRepo.save(
+        createPerson(personRepo, {
+          ci: student.ci,
+          ciExtension: student.ciExtension,
+          firstName: student.firstName,
+          paternalSurname: student.paternalSurname,
+          maternalSurname: student.maternalSurname,
+          lastName: student.lastName,
+          birthDate: student.birthDate,
+          sex: student.sex,
+          phone: student.phone,
+          address: student.address,
+          email: student.email,
+        }),
+      );
+    }
+    await studentRepo.update(student.id, { personaId: person.id });
+  }
+
+  console.log(`✅ Migración de personas/roles existentes (${users.length} usuarios, ${students.length} estudiantes)`);
 }
 
 export async function runSeed() {
@@ -589,9 +838,10 @@ export async function runSeed() {
   }
 
   const adminExists = await userRepo.findOne({ where: { username: 'admin' } });
-  if (!adminExists) {
+  let adminUser = adminExists;
+  if (!adminUser) {
     const passwordHash = await bcrypt.hash('admin2026', 10);
-    await userRepo.save({
+    adminUser = await userRepo.save({
       username: 'admin',
       email: 'admin@itbt.edu.bo',
       fullName: 'Administrador del Sistema',
@@ -604,6 +854,46 @@ export async function runSeed() {
   } else {
     console.log('⏭️  Usuario admin ya existía');
   }
+
+  {
+    const personRepo = dataSource.getRepository(Person);
+    const employeeRepo = dataSource.getRepository(Employee);
+    const rbac = new RbacService(
+      dataSource.getRepository(Role),
+      dataSource.getRepository(Permission),
+      dataSource.getRepository(UserRoleJoin),
+      dataSource.getRepository(RolePermission),
+    );
+    await rbac.ensurePermissions();
+    await rbac.seedRoles();
+    await rbac.assignRole(adminUser.id, DEFAULT_ROLE_KEYS.ADMIN);
+
+    if (!adminUser.personaId) {
+      let person = await personRepo.findOne({ where: { email: 'admin@itbt.edu.bo' } });
+      if (!person) {
+        person = await personRepo.save(
+          createPerson(personRepo, {
+            ci: `USR-${String(hashStr('admin')).slice(0, 8)}`,
+            firstName: 'Administrador',
+            lastName: 'del Sistema',
+            email: 'admin@itbt.edu.bo',
+          }),
+        );
+      }
+      await userRepo.update(adminUser.id, { personaId: person.id });
+      const employee = await employeeRepo.findOne({ where: { personId: person.id } });
+      if (!employee) {
+        await employeeRepo.save({
+          personId: person.id,
+          employeeCode: 'EMP-00001',
+          employeeType: EmployeeType.DIRECTIVO,
+          position: 'Rector',
+        });
+      }
+    }
+  }
+
+  await migrateExistingData(dataSource);
 
   for (const careerData of CAREERS) {
     const existingCareer = await careerRepo.findOne({

@@ -17,25 +17,25 @@ import {
   EnrollStudentDto,
 } from './dto/enrollment.dto';
 import { JwtAuthGuard } from '@common/guards/jwt-auth.guard';
-import { RolesGuard } from '@common/guards/roles.guard';
-import { Roles } from '@common/decorators/roles.decorator';
-import { UserRole } from '@common/enums';
+import { PermissionsGuard } from '@common/guards/permissions.guard';
+import { RequirePermission } from '@common/decorators/require-permission.decorator';
+import { PERMISSIONS } from '@common/permissions';
 
 @ApiTags('Enrollments')
 @Controller('enrollments')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, PermissionsGuard)
 @ApiBearerAuth()
 export class EnrollmentController {
   constructor(private readonly enrollmentService: EnrollmentService) {}
 
   @Post()
-  @Roles(UserRole.ADMIN, UserRole.SECRETARY)
+  @RequirePermission(PERMISSIONS.ENROLLMENTS_CREATE)
   create(@Body() dto: CreateEnrollmentDto) {
     return this.enrollmentService.create(dto);
   }
 
   @Post('enroll-student')
-  @Roles(UserRole.ADMIN, UserRole.SECRETARY)
+  @RequirePermission(PERMISSIONS.ENROLLMENTS_CREATE)
   enrollStudent(@Body() dto: EnrollStudentDto) {
     return this.enrollmentService.enrollStudent(dto);
   }
@@ -66,13 +66,13 @@ export class EnrollmentController {
   }
 
   @Patch(':id')
-  @Roles(UserRole.ADMIN, UserRole.SECRETARY)
+  @RequirePermission(PERMISSIONS.ENROLLMENTS_UPDATE)
   update(@Param('id') id: string, @Body() dto: UpdateEnrollmentDto) {
     return this.enrollmentService.update(id, dto);
   }
 
   @Patch(':id/cancel')
-  @Roles(UserRole.ADMIN, UserRole.SECRETARY)
+  @RequirePermission(PERMISSIONS.ENROLLMENTS_UPDATE)
   cancel(@Param('id') id: string) {
     return this.enrollmentService.cancel(id);
   }

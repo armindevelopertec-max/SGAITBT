@@ -3,11 +3,14 @@ import {
   Entity,
   JoinColumn,
   OneToOne,
+  OneToMany,
   Index,
 } from 'typeorm';
 import { BaseEntity } from '@common/entities/base.entity';
-import { UserRole, UserStatus } from '@common/enums';
+import { UserRole as UserRoleEnum, UserStatus } from '@common/enums';
 import { Student } from '@modules/student/entities/student.entity';
+import { Person } from '@modules/person/entities/person.entity';
+import { UserRole } from '@modules/rbac/entities/user-role.entity';
 
 @Entity('users')
 export class User extends BaseEntity {
@@ -25,12 +28,13 @@ export class User extends BaseEntity {
   @Column({ type: 'varchar', length: 150 })
   fullName: string;
 
+  // Deprecated: se migra a roles via user_roles. Se elimina en pasos posteriores.
   @Column({
     type: 'enum',
-    enum: UserRole,
-    default: UserRole.STUDENT,
+    enum: UserRoleEnum,
+    default: UserRoleEnum.STUDENT,
   })
-  role: UserRole;
+  role: UserRoleEnum;
 
   @Column({
     type: 'enum',
@@ -58,4 +62,15 @@ export class User extends BaseEntity {
   @Column({ name: 'student_id', type: 'uuid', nullable: true })
   @Index('IDX_user_student_id', { unique: true })
   studentId?: string;
+
+  @OneToOne(() => Person, (person) => person.user, { nullable: true })
+  @JoinColumn({ name: 'person_id' })
+  persona?: Person;
+
+  @Column({ name: 'person_id', type: 'uuid', nullable: true })
+  @Index('IDX_user_person_id', { unique: true })
+  personaId?: string;
+
+  @OneToMany(() => UserRole, (userRole) => userRole.user)
+  userRoles?: UserRole[];
 }

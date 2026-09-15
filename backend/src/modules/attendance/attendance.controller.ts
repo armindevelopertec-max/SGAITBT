@@ -17,19 +17,19 @@ import {
   UpdateAttendanceDto,
 } from './dto/attendance.dto';
 import { JwtAuthGuard } from '@common/guards/jwt-auth.guard';
-import { RolesGuard } from '@common/guards/roles.guard';
-import { Roles } from '@common/decorators/roles.decorator';
-import { UserRole } from '@common/enums';
+import { PermissionsGuard } from '@common/guards/permissions.guard';
+import { RequirePermission } from '@common/decorators/require-permission.decorator';
+import { PERMISSIONS } from '@common/permissions';
 
 @ApiTags('Attendance')
 @Controller('attendance')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, PermissionsGuard)
 @ApiBearerAuth()
 export class AttendanceController {
   constructor(private readonly attendanceService: AttendanceService) {}
 
   @Post()
-  @Roles(UserRole.ADMIN, UserRole.SECRETARY, UserRole.TEACHER)
+  @RequirePermission(PERMISSIONS.ATTENDANCE_CREATE)
   create(@Body() dto: CreateAttendanceDto) {
     return this.attendanceService.create(dto);
   }
@@ -53,13 +53,13 @@ export class AttendanceController {
   }
 
   @Patch(':id')
-  @Roles(UserRole.ADMIN, UserRole.SECRETARY, UserRole.TEACHER)
+  @RequirePermission(PERMISSIONS.ATTENDANCE_UPDATE)
   update(@Param('id') id: string, @Body() dto: UpdateAttendanceDto) {
     return this.attendanceService.update(id, dto);
   }
 
   @Delete(':id')
-  @Roles(UserRole.ADMIN, UserRole.SECRETARY)
+  @RequirePermission(PERMISSIONS.ATTENDANCE_DELETE)
   remove(@Param('id') id: string) {
     return this.attendanceService.delete(id);
   }

@@ -2,13 +2,13 @@ import { Controller, Get, Param, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { AcademicHistoryService } from './academic-history.service';
 import { JwtAuthGuard } from '@common/guards/jwt-auth.guard';
-import { RolesGuard } from '@common/guards/roles.guard';
-import { Roles } from '@common/decorators/roles.decorator';
-import { UserRole } from '@common/enums';
+import { PermissionsGuard } from '@common/guards/permissions.guard';
+import { RequirePermission } from '@common/decorators/require-permission.decorator';
+import { PERMISSIONS } from '@common/permissions';
 
 @ApiTags('Academic History')
 @Controller('academic-history')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, PermissionsGuard)
 @ApiBearerAuth()
 export class AcademicHistoryController {
   constructor(private readonly historyService: AcademicHistoryService) {}
@@ -24,19 +24,19 @@ export class AcademicHistoryController {
   }
 
   @Get('career/:careerId')
-  @Roles(UserRole.ADMIN, UserRole.SECRETARY)
+  @RequirePermission(PERMISSIONS.HISTORY_VIEW)
   findForCareer(@Param('careerId') careerId: string) {
     return this.historyService.findForCareer(careerId);
   }
 
   @Get('period/:academicPeriodId')
-  @Roles(UserRole.ADMIN, UserRole.SECRETARY)
+  @RequirePermission(PERMISSIONS.HISTORY_VIEW)
   findForPeriod(@Param('academicPeriodId') academicPeriodId: string) {
     return this.historyService.findForPeriod(academicPeriodId);
   }
 
   @Get('stats/overall')
-  @Roles(UserRole.ADMIN, UserRole.SECRETARY)
+  @RequirePermission(PERMISSIONS.HISTORY_VIEW, PERMISSIONS.DASHBOARD_VIEW)
   overallStats() {
     return this.historyService.getOverallStats();
   }

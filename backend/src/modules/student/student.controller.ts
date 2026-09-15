@@ -12,21 +12,22 @@ import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { StudentService } from './student.service';
 import { CreateStudentDto, UpdateStudentDto, StudentQueryDto } from './dto/student.dto';
 import { JwtAuthGuard } from '@common/guards/jwt-auth.guard';
-import { RolesGuard } from '@common/guards/roles.guard';
-import { Roles } from '@common/decorators/roles.decorator';
+import { PermissionsGuard } from '@common/guards/permissions.guard';
+import { RequirePermission } from '@common/decorators/require-permission.decorator';
 import { CurrentUser } from '@common/decorators/current-user.decorator';
-import { UserRole, AcademicStatus } from '@common/enums';
+import { PERMISSIONS } from '@common/permissions';
+import { AcademicStatus } from '@common/enums';
 import { User } from '@modules/user/entities/user.entity';
 
 @ApiTags('Students')
 @Controller('students')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, PermissionsGuard)
 @ApiBearerAuth()
 export class StudentController {
   constructor(private readonly studentService: StudentService) {}
 
   @Post()
-  @Roles(UserRole.ADMIN, UserRole.SECRETARY)
+  @RequirePermission(PERMISSIONS.STUDENTS_CREATE)
   create(@Body() dto: CreateStudentDto) {
     return this.studentService.create(dto);
   }
@@ -57,7 +58,7 @@ export class StudentController {
   }
 
   @Get('me')
-  @Roles(UserRole.STUDENT)
+  @RequirePermission(PERMISSIONS.STUDENTS_VIEW)
   findMe(@CurrentUser() user: User) {
     if (!user.studentId) {
       throw new Error('El usuario no tiene estudiante asociado');
@@ -71,19 +72,19 @@ export class StudentController {
   }
 
   @Patch(':id')
-  @Roles(UserRole.ADMIN, UserRole.SECRETARY)
+  @RequirePermission(PERMISSIONS.STUDENTS_UPDATE)
   update(@Param('id') id: string, @Body() dto: UpdateStudentDto) {
     return this.studentService.update(id, dto);
   }
 
   @Patch(':id/status')
-  @Roles(UserRole.ADMIN, UserRole.SECRETARY)
+  @RequirePermission(PERMISSIONS.STUDENTS_UPDATE)
   updateStatus(@Param('id') id: string, @Body('status') status: AcademicStatus) {
     return this.studentService.updateStatus(id, status);
   }
 
   @Patch(':id/current-period/:periodId')
-  @Roles(UserRole.ADMIN, UserRole.SECRETARY)
+  @RequirePermission(PERMISSIONS.STUDENTS_UPDATE)
   assignCurrentPeriod(@Param('id') id: string, @Param('periodId') periodId: string) {
     return this.studentService.assignCurrentPeriod(id, periodId);
   }
