@@ -1,0 +1,22 @@
+# Secrets
+.env
+*.env.local
+
+# Dependencias
+node_modules/
+
+# Builds / compilación
+dist/
+.next/
+out/
+coverage/
+*.tsbuildinfo
+
+# Logs
+*.log
+.logs/
+
+# Sistema
+.DS_Store
+.vscode/
+.idea/
