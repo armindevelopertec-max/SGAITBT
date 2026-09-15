@@ -1,0 +1,37 @@
+HISTORIAL ACADÉMICO
+
+Institución: Instituto Tecnológico “Boliviana de Tecnología”
+Documento: Historial Académico
+Carrera: Mecánica Automotriz
+
+Datos del estudiante:
+
+Nombre: Jhon Jesus Chura Aguilar
+C.I.: 15938731
+Celular: 76835582
+Ingreso: I/2025
+Matrícula: CAJ-ME2531
+Plan: 0210/2023
+Fecha de impresión: 09/09/2026 15:34
+Estructura del historial
+N.º	Código	Materia	Pre-Requisito	2025	2026	2027	2028	A	R	H
+
+En cada año se manejan dos periodos/semestres:
+
+2025: 1.º y 2.º semestre
+2026: 1.º y 2.º semestre
+2027: 1.º y 2.º semestre
+2028: 1.º y 2.º semestre
+
+Cada materia muestra la calificación obtenida en el periodo correspondiente.
+
+Por ejemplo:
+
+SOM-100 — Seguridad Ocupacional y Medio Ambiente → 84
+MOG-100 — Motores a Gasolina I → 66
+ELA-100 — Electricidad Automotriz I → 76
+MAA-100 — Matemática Automotriz → 82
+
+Además, al extremo derecho aparecen las columnas A, R y H, que forman parte del control del estado académico de cada asignatura.
+
+Este formato es adecuado para relacionarlo directamente con el plan de estudios, porque cada materia utiliza el mismo código, permitiendo controlar automáticamente las materias cursadas, notas, prerrequisitos y avance académico del estudiante.

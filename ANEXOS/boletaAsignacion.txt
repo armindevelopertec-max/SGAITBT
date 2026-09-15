@@ -1,0 +1,58 @@
+Claro. Para el **Sistema de Gestión Académica Institucional (SIGAI)**, la boleta de asignación **I/2026** puede quedar estructurada de esta manera, tomando como referencia el formato que proporcionaste y adaptándola al **Instituto Tecnológico “Boliviana de Tecnología”**.
+
+# BOLETA DE ASIGNACIÓN I/2026
+
+**SISTEMA DE GESTIÓN ACADÉMICA INSTITUCIONAL – SIGAI**
+**BOLETA DE ASIGNACIÓN I/2026**
+**ORIGINAL PARA ESTUDIANTE**
+
+### DATOS DEL ESTUDIANTE
+
+**C.I.:** __________________________
+**FILIAL:** Central El Alto
+**APELLIDO PATERNO:** __________________________
+**APELLIDO MATERNO:** __________________________
+**NOMBRES:** __________________________
+**NRO. FOLDER:** __________________________
+**CARRERA:** Autotrónica
+**GESTIÓN DE INGRESO:** __________________________
+**NRO. TIT. BACHILLER:** __________________________
+**PLAN:** __________________________
+
+### DATOS DE ACCESO POR SISTEMA
+
+**CUENTA:** __________________________
+**FECHA DE INSCRIPCIÓN:** ****/****/2026 ****:****:____
+
+### MATERIAS INSCRITAS
+
+| N.º | CÓDIGO  | MATERIA                                | SEM | PAR | TUR |
+| --: | ------- | -------------------------------------- | --: | --- | --- |
+|   1 | SOM-100 | Seguridad Ocupacional y Medio Ambiente |   1 | C   | T   |
+|   2 | MAA-100 | Matemática Aplicada                    |   1 | C   | T   |
+|   3 | EMC-100 | Electricidad del Motor y Carrocería I  |   1 | C   | T   |
+|   4 | MEA-100 | Metrología Automotriz                  |   1 | C   | T   |
+|   5 | MGD-100 | Motores a Gasolina y Diésel I          |   1 | C   | T   |
+|   6 | TRA-100 | Transmisiones                          |   1 | C   | T   |
+
+**PAR:** Paralelo
+**TUR:** Turno
+
+El interesado debe verificar que todos los datos sean correctos antes de firmar. La institución no se hará responsable por datos incorrectos para trámites posteriores.
+
+### DATOS INSTITUCIONALES
+
+**Instituto Tecnológico “Boliviana de Tecnología”**
+**R.M. 1049/2023**
+
+**Dirección:** El Alto, Av. de los Héroes, Z. Ferropetrol N.º 11
+**Teléfono:** 75252479
+**Código QR:** Incluido para consulta y verificación de información.
+
+**Lugar y fecha:** El Alto, ____ de ______________ de 2026.
+
+**Firma del estudiante:** __________________________
+
+**Sello de la institución:** __________________________
+
+**Descripción:** Documento oficial que acredita la asignación e inscripción del estudiante a las materias correspondientes al periodo académico **I/2026**, detallando sus datos personales, carrera, gestión, materias inscritas y datos de registro académico.

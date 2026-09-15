@@ -1,0 +1,81 @@
+# PLAN DE ESTUDIOS
+
+**Carrera:** Autotrónica
+**Área de formación:** Electrónica y Electricidad
+**Régimen de estudios:** Semestral
+**Carga horaria total:** 3600 horas
+**Horas por semana:** 30
+**Horas por mes:** 120
+**Horas por semestre:** 600
+**Título profesional:** Técnico Superior en Autotrónica
+
+**Descripción:** Forma profesionales especializados en el diagnóstico, mantenimiento y reparación de sistemas mecánicos, eléctricos y electrónicos de vehículos automotores.
+
+## PRIMER SEMESTRE
+
+| Código  | Asignatura                             | Horas | Prerrequisito |
+| ------- | -------------------------------------- | ----: | ------------- |
+| SOM-100 | Seguridad Ocupacional y Medio Ambiente |     4 | Ninguno       |
+| MAA-100 | Matemática Aplicada                    |     4 | Ninguno       |
+| EMC-100 | Electricidad del Motor y Carrocería I  |     4 | Ninguno       |
+| MEA-100 | Metrología Automotriz                  |     6 | Ninguno       |
+| MGD-100 | Motores a Gasolina y Diésel I          |     6 | Ninguno       |
+| TRA-100 | Transmisiones                          |     6 | Ninguno       |
+
+## SEGUNDO SEMESTRE
+
+| Código  | Asignatura                             | Horas | Prerrequisito |
+| ------- | -------------------------------------- | ----: | ------------- |
+| INT-200 | Inglés Técnico                         |     4 | Ninguno       |
+| FIS-200 | Física Aplicada                        |     4 | MAA-100       |
+| EMC-200 | Electricidad del Motor y Carrocería II |     4 | EMC-100       |
+| CIF-200 | Circuitos de Fluidos                   |     6 | Ninguno       |
+| MGD-200 | Motores a Gasolina y Diésel II         |     6 | MGD-100       |
+| DIT-200 | Dibujo Técnico                         |     2 | Ninguno       |
+| SIA-200 | Sistema de Iluminación Automotriz      |     4 | Ninguno       |
+
+## TERCER SEMESTRE
+
+| Código  | Asignatura                      | Horas | Prerrequisito |
+| ------- | ------------------------------- | ----: | ------------- |
+| SIM-300 | Sistema del Motor               |     6 | MGD-200       |
+| VHE-300 | Vehículos Híbridos y Eléctricos |     6 | Ninguno       |
+| PRO-300 | Programación                    |     4 | Ninguno       |
+| CAC-300 | Circuitos de Arranque y Carga   |     6 | SIA-200       |
+| IGA-300 | Inyección a Gasolina            |     4 | MGD-200       |
+| AUT-300 | Autotrónica I                   |     4 | Ninguno       |
+
+## CUARTO SEMESTRE
+
+| Código  | Asignatura                          | Horas | Prerrequisito |
+| ------- | ----------------------------------- | ----: | ------------- |
+| EDA-400 | Electrónica Digital del Automóvil   |     6 | Ninguno       |
+| MAN-400 | Mantenimiento del Automóvil         |     4 | Ninguno       |
+| EAA-400 | Electrónica Analógica del Automóvil |     6 | Ninguno       |
+| MIC-400 | Microcontroladores                  |     6 | PRO-300       |
+| RMD-400 | Reparación de Motores a Diésel      |     4 | Ninguno       |
+| AUT-400 | Autotrónica II                      |     4 | AUT-300       |
+
+## QUINTO SEMESTRE
+
+| Código  | Asignatura                          | Horas | Prerrequisito |
+| ------- | ----------------------------------- | ----: | ------------- |
+| IEG-500 | Inyección Electrónica a Gasolina    |     4 | Ninguno       |
+| ATM-500 | Automatización                      |     4 | Ninguno       |
+| RMP-500 | Redes Multiplexadas y Protocolos    |     6 | MIC-400       |
+| RSA-500 | Reparación de Caja Automática       |     4 | MAN-400       |
+| LAU-500 | Laboratorio Autotrónica I           |     4 | AUT-400       |
+| EMP-500 | Emprendimiento Productivo           |     4 | Ninguno       |
+| TMG-500 | Taller de Modalidad de Graduación I |     4 | Ninguno       |
+
+## SEXTO SEMESTRE
+
+| Código  | Asignatura                                       | Horas | Prerrequisito |
+| ------- | ------------------------------------------------ | ----: | ------------- |
+| PMI-600 | Potenciamiento del Motor a Inyección Electrónica |     4 | Ninguno       |
+| SCO-600 | Seguridad y Confort                              |     6 | Ninguno       |
+| IED-600 | Inyección Electrónica a Diésel                   |     6 | Ninguno       |
+| SHI-600 | Sistemas Híbridos                                |     4 | Ninguno       |
+| LAU-600 | Laboratorio Autotrónica II                       |     4 | LAU-500       |
+| ENE-600 | Electroneumática                                 |     2 | Ninguno       |
+| TMG-600 | Taller de Modalidad de Graduación II             |     4 | TMG-500       |

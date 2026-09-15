@@ -1,0 +1,82 @@
+# PLAN DE ESTUDIOS
+
+**Carrera:** Mecánica Automotriz
+**Área de formación:** Mecánica
+**Régimen de estudios:** Semestral
+**Carga horaria total:** 3600 horas
+**Horas por semana:** 30
+**Horas por mes:** 120
+**Horas por semestre:** 600
+**Título profesional:** Técnico Superior en Mecánica Automotriz
+
+**Descripción:** Forma profesionales especializados en el mantenimiento, diagnóstico y reparación de sistemas mecánicos y automotrices de vehículos.
+
+## PRIMER SEMESTRE
+
+| Código  | Asignatura                             | Horas | Prerrequisito |
+| ------- | -------------------------------------- | ----: | ------------- |
+| SOM-100 | Seguridad Ocupacional y Medio Ambiente |     4 | Ninguno       |
+| MOG-100 | Motores a Gasolina I                   |     6 | Ninguno       |
+| ELA-100 | Electricidad Automotriz I              |     6 | Ninguno       |
+| MAA-100 | Matemática Automotriz                  |     4 | Ninguno       |
+| MEA-100 | Metrología Automotriz                  |     4 | Ninguno       |
+| DTA-100 | Dibujo Técnico Automotriz I            |     2 | Ninguno       |
+| QUA-100 | Química Automotriz                     |     4 | Ninguno       |
+
+## SEGUNDO SEMESTRE
+
+| Código  | Asignatura                   | Horas | Prerrequisito |
+| ------- | ---------------------------- | ----: | ------------- |
+| INT-200 | Inglés Técnico               |     4 | Ninguno       |
+| MOG-200 | Motores a Gasolina II        |     6 | MOG-100       |
+| ELA-200 | Electricidad Automotriz II   |     6 | ELA-100       |
+| CHS-200 | Chapería y Soldadura         |     6 | Ninguno       |
+| FIS-200 | Física Automotriz            |     4 | Ninguno       |
+| DTA-200 | Dibujo Técnico Automotriz II |     4 | DTA-100       |
+
+## TERCER SEMESTRE
+
+| Código  | Asignatura                  | Horas | Prerrequisito |
+| ------- | --------------------------- | ----: | ------------- |
+| MOG-300 | Motores a Gasolina III      |     6 | MOG-200       |
+| ELA-300 | Electricidad Automotriz III |     4 | ELA-200       |
+| MOD-300 | Motores Diésel I            |     4 | Ninguno       |
+| ETA-300 | Electrónica Automotriz I    |     6 | Ninguno       |
+| TER-300 | Termodinámica               |     2 | Ninguno       |
+| TRA-300 | Transmisiones I             |     8 | Ninguno       |
+
+## CUARTO SEMESTRE
+
+| Código  | Asignatura                | Horas | Prerrequisito |
+| ------- | ------------------------- | ----: | ------------- |
+| MOG-400 | Motores a Gasolina IV     |     6 | MOG-300       |
+| IAG-400 | Inyección a Gasolina I    |     6 | Ninguno       |
+| MOD-400 | Motores Diésel II         |     4 | MOD-300       |
+| ETA-400 | Electrónica Automotriz II |     6 | ETA-300       |
+| TRA-400 | Transmisiones II          |     4 | TRA-300       |
+| EMP-400 | Emprendimiento Productivo |     4 | Ninguno       |
+
+## QUINTO SEMESTRE
+
+| Código  | Asignatura                          | Horas | Prerrequisito |
+| ------- | ----------------------------------- | ----: | ------------- |
+| IED-500 | Inyección Electrónica Diésel I      |     4 | Ninguno       |
+| IAG-500 | Inyección a Gasolina II             |     6 | IAG-400       |
+| LAD-500 | Laboratorio Diésel I                |     4 | Ninguno       |
+| ETA-500 | Electrónica Automotriz III          |     6 | ETA-400       |
+| NEU-500 | Neumática                           |     2 | Ninguno       |
+| TRA-500 | Transmisiones III                   |     4 | TRA-400       |
+| TMG-500 | Taller de Modalidad de Graduación I |     4 | Ninguno       |
+
+## SEXTO SEMESTRE
+
+| Código  | Asignatura                           | Horas | Prerrequisito |
+| ------- | ------------------------------------ | ----: | ------------- |
+| IED-600 | Inyección Electrónica Diésel II      |     4 | IED-500       |
+| DAU-600 | Diagnóstico del Automóvil            |     4 | IAG-500       |
+| LAD-600 | Laboratorio Diésel II                |     4 | LAD-500       |
+| HID-600 | Hidráulica                           |     2 | Ninguno       |
+| MAP-600 | Maquinaria Agrícola y Pesada         |     4 | Ninguno       |
+| IAG-600 | Inyección a Gasolina III             |     4 | IAG-500       |
+| TRA-600 | Transmisiones IV                     |     4 | TRA-500       |
+| TMG-600 | Taller de Modalidad de Graduación II |     4 | TMG-500       |

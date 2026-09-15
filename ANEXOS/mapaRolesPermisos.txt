@@ -1,0 +1,122 @@
+================================================================
+MODELO DE PERSONAS, ROLES Y PERMISOS  (PLAN - PENDIENTE DE EJECUTAR)
+================================================================
+Fecha: 2026-09-10
+Estado: ANOTADO, NO EJECUTADO. Ejecutar solo cuando el usuario confirme.
+
+--------------------------------------------------------------------------------
+1) MODELO DE NEGOCIO
+--------------------------------------------------------------------------------
+PERSONA
+   │
+   ├── ESTUDIANTE
+   │
+   └── EMPLEADO
+        │
+        ├── DIRECTIVO
+        │    └── RECTOR
+        │
+        ├── DOCENTE
+        │
+        ├── ADMINISTRATIVO
+        │    └── SECRETARIA
+        │
+        └── APOYO
+
+PERSONA
+   │
+   └── USUARIO
+        │
+        └── ROLES
+             │
+             └── PERMISOS
+
+--------------------------------------------------------------------------------
+2) DECISIONES ACORDADAS
+--------------------------------------------------------------------------------
+a) Implementar TODO el modelo de una vez (no por fases).
+b) Multi-rol: un USUARIO puede tener varios ROLES a la vez
+   (tabla user_roles, many-to-many).
+c) HERENCIA de permisos segun el arbol:
+   - EMPLEADO -> DIRECTIVO -> RECTOR
+   - EMPLEADO -> DOCENTE
+   - EMPLEADO -> ADMINISTRATIVO -> SECRETARIA
+   - EMPLEADO -> APOYO
+   Los permisos efectivos = union de los propios + todos los ancestros.
+d) Granularidad de PERMISOS por modulo y accion: view / create / edit / delete / manage / print.
+e) Mapeo de acceso:
+   - ADMIN            = todo (superusuario)
+   - RECTOR/DIRECTIVO = lectura total + reportes
+   - DOCENTE          = notas y asistencia (como TEACHER actual)
+   - SECRETARIA       = matriculas, depositos, periodos (lo mismo que hoy)
+   - ADMINISTRATIVO   = lectura + matriculas basicas (sin asignacion de materias ni periodos)
+   - APOYO            = lectura minima
+   - ESTUDIANTE       = su dashboard estudiantil (como hoy)
+
+--------------------------------------------------------------------------------
+3) CAMBIOS DE BACKEND
+--------------------------------------------------------------------------------
+3.1 Entidades nuevas
+  - Permission  (permissions):  code, name, module, action.
+  - Role        (roles):        code, name, parentCode (autoreferencia = arbol).
+  - Employee    (employees):    firstName, paternalSurname, maternalSurname, ci,
+                                ciExtension, sex, phone, email, photoUrl,
+                                category (DIRECTIVO|DOCENTE|ADMINISTRATIVO|APOYO),
+                                position, hiredAt, userId (nullable).
+  Relaciones many-to-many:
+  - role_permissions  (Role <-> Permission)
+  - user_roles        (User  <-> Role)
+
+3.2 User (entity + service)
+  - Agregar user_roles.
+  - users.role pasa de enum a varchar (rol principal, legado) para no romper
+    la sincronizacion de TypeORM con enums de Postgres.
+  - Crear user con varios roles; findByRole con codigos nuevos; counts por rol efectivo.
+  - "PERSONA" = concepto: users -> studentId  (estudiante)  |  employeeId (empleado).
+
+3.3 RBAC / Guards
+  - Nuevo PermissionGuard + decorator @Perms('student.view') etc.
+  - RolesGuard actualizado para respetar la jerarquia (conserva @Roles).
+  - Migrar los ~50 endpoints actuales (matricula, depositos, periodos, notas,
+    asistencia, usuarios, certificados, centralizadores, dashboard...) al
+    esquema de permisos segun el mapeo.
+
+3.4 Auth / JWT
+  - JwtPayload y respuestas de /auth/login y /users/me incluyen:
+    roles: string[]  y  perms: string[].
+
+3.5 Endpoints nuevos
+  - GET /roles
+  - GET /permissions
+  - CRUD /employees
+
+3.6 Seed
+  - Catalogo de PERMISSIONS.
+  - ROLES con herencia y matriz de permisos (ARN para herencia).
+  - Migrar usuarios actuales a user_roles:
+        admin     -> ADMIN
+        secretaria-> SECRETARIA
+        docente   -> DOCENTE
+        estudiante-> ESTUDIANTE
+
+--------------------------------------------------------------------------------
+4) CAMBIOS DE FRONTEND
+--------------------------------------------------------------------------------
+- types.ts / auth.tsx: User.roles, User.perms, hasPermit().
+- Sidebar: secciones filtradas por nuevos codigos de rol.
+- MICROLEGEND y badge.tsx: agregar RECTOR, DIRECTIVO, DOCENTE,
+  ADMINISTRATIVO, SECRETARIA, APOYO, ESTUDIANTE (quitar TEACHER/SECRETARY).
+- users/page.tsx: seleccion multi-rol + arbol de roles.
+- assignments/page.tsx: usuarios por rol DOCENTE.
+- page.tsx (dashboard) y topbar: ramificar por nuevos roles.
+- Nueva seccion EMPLEADOS (CRUD basico).
+
+--------------------------------------------------------------------------------
+5) VERIFICACION Y RIESGO
+--------------------------------------------------------------------------------
+- tsc + build (backend y frontend).
+- npm run seed.
+- Smoke test: login por rol, 403 en acciones sin permiso.
+- RIESGO: al cambiar users.role de enum a varchar + tablas nuevas con
+  synchronize=true, conviene re-seed del entorno de desarrollo.
+  (Se pierden datos actuales del entorno dev si el schema se recrea.)

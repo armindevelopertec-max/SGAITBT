@@ -1,0 +1,32 @@
+# CREDENCIAL DE MATRÍCULA
+
+**Institución:** Instituto Tecnológico Boliviana de Tecnología
+**Documento:** Matrícula Gestión 2024
+
+**Datos del estudiante:**
+
+* **Apellidos:** Condori Mendoza
+* **Nombres:** Edgar Luis
+* **Apellido paterno:** Condori
+* **Apellido materno:** Mendoza
+* **C.I.:** 84521435
+* **DIP. BACH.:** 02458
+* **N.º de matrícula:** CME-AU2435
+* **Carrera:** Autotrónica
+* **Fecha de matrícula:** 10/02/2024
+
+**Descripción:** Credencial oficial que acredita la matrícula del estudiante en el Instituto Tecnológico Boliviana de Tecnología durante la gestión 2024.
+
+## PARTE POSTERIOR
+
+**Institución:** Instituto Tecnológico Boliviana de Tecnología
+
+**Texto institucional:**
+El presente documento reconoce que la/el titular está matriculado en el **INSTITUTO TECNOLÓGICO “BOLIVIANA DE TECNOLOGÍA” R.M. 1049/2023**.
+
+**Más información:**
+**Dirección:** El Alto, Av. de los Héroes, Z. Ferropetrol N.º 11
+**Teléfono:** 75252479
+**Código QR:** Incluido como medio de acceso a información adicional.
+
+**Descripción:** La parte posterior contiene la información institucional, normativa de reconocimiento, datos de contacto y código QR de verificación o consulta.
