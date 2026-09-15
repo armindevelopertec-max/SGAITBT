@@ -12,19 +12,42 @@ Sistema de Gestión Académica para el **Instituto Tecnológico "Boliviana de Te
 | Object storage | MinIO API `9000` · Consola `9001` |
 | Administración DB | pgAdmin `5050` |
 
+## Configuración
+
+Copia las variables de entorno de ejemplo y ajusta los valores (especialmente las contraseñas):
+
+```bash
+cp .env.example .env
+```
+
+Las variables obligatorias (`DB_PASSWORD`, `JWT_SECRET`, `MINIO_ROOT_PASSWORD`, `PGADMIN_PASSWORD`, etc.) no tienen valores por defecto: si faltan, Docker Compose falla con un mensaje claro en lugar de usar secretos inseguros.
+
 ## Inicio rápido
 
 ```bash
-docker compose up -d db minio pgadmin redis
+docker compose up -d postgres minio pgadmin redis
 npm run seed --prefix backend          # crea admin + datos base
 npm run start:dev --prefix backend     # backend en :3001
 npm run dev --prefix frontend          # frontend en :3000
 ```
 
-Para levantar todo el stack (incluye backend y frontend contenerizados):
+Para levantar todo el stack (incluye backend, frontend contenerizados y ejecuta el **seed** automáticamente tras iniciar PostgreSQL):
 
 ```bash
 docker compose up -d
+```
+
+El seed es un servicio one-shot (`seed`) que corre una sola vez y termina; es idempotente y no hace nada si los datos ya existen.
+
+## Calidad: lint, typecheck y tests
+
+```bash
+npm run lint       --prefix backend     # ESLint (TypeScript)
+npm run typecheck  --prefix backend     # tsc --noEmit
+npm test           --prefix backend     # tests unitarios (Jest)
+npm run test:e2e   --prefix backend     # smoke e2e (requiere PostgreSQL local)
+cd frontend && npm run lint             # ESLint (Next.js)
+npx tsc --noEmit                        # typecheck del frontend
 ```
 
 ## Credenciales

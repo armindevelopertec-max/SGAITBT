@@ -6,7 +6,6 @@ import {
   IsNumber,
   IsOptional,
   IsString,
-  MaxLength,
 } from 'class-validator';
 import { EnrollmentStatus } from '@common/enums';
 

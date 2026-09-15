@@ -290,7 +290,7 @@ async function seedDemoData(dataSource: DataSource, passHash: string) {
       return m ? parseInt(m[1], 10) : 0;
     });
 
-  let depCounter: Record<string, number> = {};
+  const depCounter: Record<string, number> = {};
   const depositCounters = async (year: string) => {
     if (!(year in depCounter)) {
       const r = await depositRepo
@@ -305,7 +305,7 @@ async function seedDemoData(dataSource: DataSource, passHash: string) {
     return n;
   };
 
-  let enrolledCounter: Record<string, number> = {};
+  const enrolledCounter: Record<string, number> = {};
   const nextEnrollmentNumber = async (year: string) => {
     if (!(year in enrolledCounter)) {
       const r = await enrollmentRepo
@@ -320,7 +320,7 @@ async function seedDemoData(dataSource: DataSource, passHash: string) {
     return n;
   };
 
-  for (const [code, repo] of Object.entries(careerRepos) as Array<[string, any]>) {
+  for (const [, repo] of Object.entries(careerRepos) as Array<[string, any]>) {
     const { career, students, periods, openPeriod, subjects } = repo;
     const studentList = students as DemoStudent[];
 
@@ -483,7 +483,7 @@ async function seedDemoData(dataSource: DataSource, passHash: string) {
 
   const studentUsers = [1, 3, 7, 9];
   console.log('  Usuarios de estudiantes (demo): <carnet> / demo2026');
-  for (const [code, repo] of Object.entries(careerRepos) as Array<[string, any]>) {
+  for (const [, repo] of Object.entries(careerRepos) as Array<[string, any]>) {
     const students = await studentRepo.find({
       where: { careerId: repo.career.id },
       take: 8,
@@ -503,7 +503,7 @@ async function seedDemoData(dataSource: DataSource, passHash: string) {
   }
 
   const attendanceDates = [10, 24];
-  for (const [code, repo] of Object.entries(careerRepos) as Array<[string, any]>) {
+  for (const [, repo] of Object.entries(careerRepos) as Array<[string, any]>) {
     for (const s of await studentRepo.find({ where: { careerId: repo.career.id } })) {
       const seEnrollments = await subjectEnrollmentRepo.find({
         where: { studentId: s.id },

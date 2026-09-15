@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/lib/auth';
-import { NAV_SECTIONS, MICROLEGEND } from '@/lib/nav';
+import { NAV_SECTIONS } from '@/lib/nav';
 import { Icon } from '@/components/ui/icons';
 
 function SidebarLink({ href, label, icon }: { href: string; label: string; icon: string }) {

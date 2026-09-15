@@ -4,9 +4,9 @@ services:
     container_name: sga_postgres
     restart: unless-stopped
     environment:
-      POSTGRES_USER: ${DB_USER:-sga_admin}
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-sga_secret_2026}
-      POSTGRES_DB: ${DB_NAME:-sga_itbt}
+      POSTGRES_USER: ${DB_USER:?Define DB_USER en .env}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?Define DB_PASSWORD en .env}
+      POSTGRES_DB: ${DB_NAME:?Define DB_NAME en .env}
     ports:
       - '${DB_PORT:-5432}:5432'
     volumes:
@@ -15,7 +15,7 @@ services:
     networks:
       - sga_network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-sga_admin} -d ${DB_NAME:-sga_itbt}"]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:?Define DB_USER en .env} -d ${DB_NAME:?Define DB_NAME en .env}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -26,8 +26,8 @@ services:
     restart: unless-stopped
     command: server /data --console-address ":9001"
     environment:
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minio_secret_2026}
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?Define MINIO_ROOT_USER en .env}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?Define MINIO_ROOT_PASSWORD en .env}
     ports:
       - '${MINIO_API_PORT:-9000}:9000'
       - '${MINIO_CONSOLE_PORT:-9001}:9001'
@@ -47,7 +47,7 @@ services:
     restart: unless-stopped
     environment:
       PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@sga-itbt.com}
-      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-pgadmin2026}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:?Define PGADMIN_PASSWORD en .env}
     ports:
       - '${PGADMIN_PORT:-5050}:80'
     volumes:
@@ -87,14 +87,14 @@ services:
       PORT: 3001
       DB_HOST: postgres
       DB_PORT: 5432
-      DB_USER: ${DB_USER:-sga_admin}
-      DB_PASSWORD: ${DB_PASSWORD:-sga_secret_2026}
-      DB_NAME: ${DB_NAME:-sga_itbt}
+      DB_USER: ${DB_USER:?Define DB_USER en .env}
+      DB_PASSWORD: ${DB_PASSWORD:?Define DB_PASSWORD en .env}
+      DB_NAME: ${DB_NAME:?Define DB_NAME en .env}
       MINIO_ENDPOINT: minio
       MINIO_PORT: 9000
-      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-minioadmin}
-      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-minio_secret_2026}
-      JWT_SECRET: ${JWT_SECRET:-sga_itbt_jwt_secret_key_2026}
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:?Define MINIO_ROOT_USER en .env}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:?Define MINIO_ROOT_PASSWORD en .env}
+      JWT_SECRET: ${JWT_SECRET:?Define JWT_SECRET en .env}
       JWT_EXPIRATION: ${JWT_EXPIRATION:-24h}
       REDIS_HOST: redis
       REDIS_PORT: 6379
@@ -110,6 +110,26 @@ services:
       minio:
         condition: service_healthy
       redis:
+        condition: service_healthy
+
+  seed:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: sga_seed
+    restart: "no"
+    command: ["npm", "run", "seed"]
+    environment:
+      NODE_ENV: development
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: ${DB_USER:?Define DB_USER en .env}
+      DB_PASSWORD: ${DB_PASSWORD:?Define DB_PASSWORD en .env}
+      DB_NAME: ${DB_NAME:?Define DB_NAME en .env}
+    networks:
+      - sga_network
+    depends_on:
+      postgres:
         condition: service_healthy
 
   frontend:

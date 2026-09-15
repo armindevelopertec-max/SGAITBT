@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { apiGet, apiPatch, apiPost, extractError } from '@/lib/api';
-import { Career, Subject } from '@/lib/types';
+import { Career } from '@/lib/types';
 import { PageHeader } from '@/components/ui/page-header';
 import { Modal } from '@/components/ui/modal';
 import { StatusBadge } from '@/components/ui/badge';

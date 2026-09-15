@@ -280,7 +280,7 @@ function drawDataGrid(doc: jsPDF, pg: PageFlow, rows: DataRow[], y0: number): vo
 
 function sectionTitle(doc: jsPDF, pg: PageFlow, text: string): void {
   pg.ensure(16);
-  let y = pg.getY() + 3;
+  const y = pg.getY() + 3;
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(10);
   doc.setTextColor(...NAVY);
@@ -296,7 +296,7 @@ function tableHeader(
   pg: PageFlow,
   cells: Array<{ text: string; w: number; align?: 'left' | 'center' | 'right' }>,
 ): void {
-  let y = pg.getY() + 1;
+  const y = pg.getY() + 1;
   doc.setFillColor(240, 242, 246);
   doc.rect(MARGIN_X, y - 4, pageW(doc) - MARGIN_X * 2, 7, 'F');
   doc.setFont('helvetica', 'bold');
@@ -698,7 +698,7 @@ function drawHistorial(
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(6.5);
   doc.setTextColor(80, 80, 80);
-  let subY = pg.getY() + 1;
+  const subY = pg.getY() + 1;
   doc.text(`Documento: ${docNumber} · Página: 1`, MARGIN_X, subY);
   pg.setY(subY + 2);
 
@@ -812,7 +812,7 @@ function drawCertificado(
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(10);
   doc.setTextColor(20, 20, 20);
-  let y = pg.getY() + 4;
+  const y = pg.getY() + 4;
 
   if (docType === 'NOTES') {
     doc.text('Se certifica que el (la) estudiante ha cursado las siguientes materias:', MARGIN_X, y);

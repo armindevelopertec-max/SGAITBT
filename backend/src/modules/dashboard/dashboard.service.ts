@@ -112,7 +112,7 @@ export class DashboardService {
     };
   }
 
-  async getTeacherDashboard(teacherId: string) {
+  async getTeacherDashboard(_teacherId: string) {
     const assignments = await this.enrollmentRepository
       .createQueryBuilder('e')
       .select('COUNT(DISTINCT e.studentId)', 'students')
