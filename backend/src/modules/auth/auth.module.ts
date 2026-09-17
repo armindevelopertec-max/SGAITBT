@@ -16,12 +16,20 @@ import { RbacModule } from '@modules/rbac/rbac.module';
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
-      useFactory: (configService: ConfigService) => ({
-        secret: configService.get<string>('JWT_SECRET', 'sga_itbt_jwt_secret_key_2026'),
-        signOptions: {
-          expiresIn: configService.get<string>('JWT_EXPIRATION', '24h'),
-        },
-      }),
+      useFactory: (configService: ConfigService) => {
+        const secret = configService.get<string>('JWT_SECRET');
+        if (!secret) {
+          throw new Error(
+            'JWT_SECRET is required. Configure it in the environment or .env before starting the backend.',
+          );
+        }
+        return {
+          secret,
+          signOptions: {
+            expiresIn: configService.get<string>('JWT_EXPIRATION', '24h'),
+          },
+        };
+      },
     }),
   ],
   controllers: [AuthController],

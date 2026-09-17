@@ -6,8 +6,12 @@ import { Student, AcademicHistoryRecord } from '@/lib/types';
 import { PageHeader } from '@/components/ui/page-header';
 import { StatusBadge } from '@/components/ui/badge';
 import { LoadingState, ErrorState } from '@/components/ui/state';
+import { useAuth } from '@/lib/auth';
+import { hasPermission } from '@/lib/permissions';
 
 export default function AcademicHistoryPage() {
+  const { user } = useAuth();
+  const canBrowse = hasPermission(user, 'students.view');
   const [students, setStudents] = useState<Student[]>([]);
   const [history, setHistory] = useState<AcademicHistoryRecord[]>([]);
   const [summary, setSummary] = useState<{
@@ -24,6 +28,12 @@ export default function AcademicHistoryPage() {
 
   async function loadStudents() {
     try {
+      if (!canBrowse) {
+        const me = await apiGet<Student>('/students/me');
+        setStudents([me]);
+        await loadStudent(me.id);
+        return;
+      }
       setStudents(await apiGet<Student[]>('/students'));
     } catch (err) {
       setError(extractError(err));
@@ -61,21 +71,39 @@ export default function AcademicHistoryPage() {
         title="Historial Académico"
         subtitle="Trayectoria académica completa de cada estudiante"
         actions={
-          <select
-            className="select"
-            style={{ width: 280 }}
-            value={selectedId}
-            onChange={(e) => e.target.value && loadStudent(e.target.value)}
-          >
-            <option value="">Seleccionar estudiante…</option>
-            {students.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.studentCode} — {s.firstName} {s.lastName}
-              </option>
-            ))}
-          </select>
+          canBrowse ? (
+            <select
+              className="select"
+              style={{ width: 280 }}
+              value={selectedId}
+              onChange={(e) => e.target.value && loadStudent(e.target.value)}
+            >
+              <option value="">Seleccionar estudiante…</option>
+              {students.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.studentCode} — {s.firstName} {s.lastName}
+                </option>
+              ))}
+            </select>
+          ) : undefined
         }
       />
+
+      {!canBrowse && students[0] && (
+        <div
+          className="card"
+          style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}
+        >
+          <div>
+            <div style={{ fontWeight: 600 }}>
+              {students[0].firstName} {students[0].lastName}
+            </div>
+            <div style={{ color: 'var(--text-muted)', fontSize: 13 }}>
+              {students[0].studentCode}
+            </div>
+          </div>
+        </div>
+      )}
 
       {error && <ErrorState message={error} />}
 

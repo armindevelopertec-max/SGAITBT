@@ -30,11 +30,27 @@ export class CareerController {
   }
 
   @Get()
+  @RequirePermission(
+    PERMISSIONS.CAREERS_VIEW,
+    PERMISSIONS.SUBJECTS_VIEW,
+    PERMISSIONS.PERIODS_VIEW,
+    PERMISSIONS.STUDENTS_VIEW,
+    PERMISSIONS.ENROLLMENTS_VIEW,
+    PERMISSIONS.REPORTS_VIEW,
+  )
   findAll(@Query() query: CareerQueryDto) {
     return this.careerService.findAll(query);
   }
 
   @Get(':id')
+  @RequirePermission(
+    PERMISSIONS.CAREERS_VIEW,
+    PERMISSIONS.SUBJECTS_VIEW,
+    PERMISSIONS.PERIODS_VIEW,
+    PERMISSIONS.STUDENTS_VIEW,
+    PERMISSIONS.ENROLLMENTS_VIEW,
+    PERMISSIONS.REPORTS_VIEW,
+  )
   findOne(@Param('id') id: string) {
     return this.careerService.findOne(id);
   }

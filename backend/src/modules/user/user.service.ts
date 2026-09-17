@@ -13,14 +13,9 @@ import {
   ResetPasswordDto,
   UserQueryDto,
 } from './dto/user.dto';
-import { UserRole, UserStatus } from '@common/enums';
+import { UserStatus } from '@common/enums';
 import { Student } from '@modules/student/entities/student.entity';
-import {
-  LEGACY_ROLE_MAP,
-  NEW_ROLE_TO_LEGACY,
-  DEFAULT_ROLE_KEYS,
-  RbacService,
-} from '@modules/rbac/rbac.service';
+import { DEFAULT_ROLE_KEYS, LEGACY_ROLE_MAP, RbacService } from '@modules/rbac/rbac.service';
 
 @Injectable()
 export class UserService {
@@ -31,11 +26,6 @@ export class UserService {
     private readonly studentRepository: Repository<Student>,
     private readonly rbacService: RbacService,
   ) {}
-
-  private legacyRoleToKey(role?: UserRole | string): string | undefined {
-    if (!role) return undefined;
-    return LEGACY_ROLE_MAP[role] ?? role;
-  }
 
   async create(createDto: CreateUserDto): Promise<User> {
     const existingUsername = await this.userRepository.findOne({
@@ -69,15 +59,11 @@ export class UserService {
 
     const passwordHash = await bcrypt.hash(createDto.password, 10);
 
-    const legacyRole =
-      createDto.role ?? NEW_ROLE_TO_LEGACY[createDto.roleKeys?.[0] ?? ''];
-
     const user = this.userRepository.create({
       username: createDto.username,
       email: createDto.email,
       fullName: createDto.fullName,
       passwordHash,
-      role: (legacyRole ?? 'STUDENT') as UserRole,
       status: UserStatus.ACTIVE,
       studentId: createDto.studentId,
     });
@@ -85,19 +71,8 @@ export class UserService {
     const saved = await this.userRepository.save(user);
     if (createDto.roleKeys && createDto.roleKeys.length > 0) {
       await this.rbacService.replaceRoles(saved.id, createDto.roleKeys);
-    } else {
-      await this.assignLegacyRole(saved.id, legacyRole);
     }
     return saved;
-  }
-
-  private async assignLegacyRole(
-    userId: string,
-    role?: UserRole | string,
-  ): Promise<void> {
-    const roleKey = this.legacyRoleToKey(role);
-    if (!roleKey) return;
-    await this.rbacService.assignRole(userId, roleKey);
   }
 
   async createStudentUser(studentId: string): Promise<User> {
@@ -125,7 +100,6 @@ export class UserService {
       email: student.email,
       fullName: `${student.firstName} ${student.lastName}`,
       passwordHash,
-      role: UserRole.STUDENT,
       status: UserStatus.ACTIVE,
       studentId: student.id,
       photoUrl: student.photoUrl,
@@ -168,7 +142,7 @@ export class UserService {
   }
 
   async findAll(query?: UserQueryDto): Promise<User[]> {
-    const { role, status, search } = query || {};
+    const { status, search } = query || {};
     const qb = this.userRepository
       .createQueryBuilder('user')
       .leftJoinAndSelect('user.student', 'student')
@@ -176,10 +150,6 @@ export class UserService {
       .leftJoinAndSelect('userRoles.role', 'assignedRole')
       .orderBy('user.createdAt', 'DESC');
 
-    if (role) {
-      const roleKey = this.legacyRoleToKey(role);
-      qb.andWhere('assignedRole.name = :roleKey', { roleKey });
-    }
     if (status) qb.andWhere('user.status = :status', { status });
     if (search) {
       qb.andWhere(
@@ -195,26 +165,27 @@ export class UserService {
     }) as User);
   }
 
-  async findByRole(role: UserRole): Promise<User[]> {
-    return this.userRepository.find({ where: { role, status: UserStatus.ACTIVE } });
+  async findByRole(role: string): Promise<User[]> {
+    const mappedKey = LEGACY_ROLE_MAP[role] ?? role;
+    return this.userRepository
+      .createQueryBuilder('user')
+      .innerJoin('user.userRoles', 'userRole')
+      .innerJoin('userRole.role', 'assignedRole')
+      .where('assignedRole.name = :mappedKey', { mappedKey })
+      .andWhere('user.status = :status', { status: UserStatus.ACTIVE })
+      .getMany();
   }
 
   async update(id: string, updateDto: UpdateUserDto): Promise<User> {
     const user = await this.findOne(id);
-    const { roleKeys, role, ...rest } = updateDto;
+    const { roleKeys, ...rest } = updateDto;
 
     Object.assign(user, rest);
-
-    if (role) {
-      user.role = role;
-    }
 
     await this.userRepository.save(user);
 
     if (roleKeys && roleKeys.length > 0) {
       await this.rbacService.replaceRoles(id, roleKeys);
-    } else if (role) {
-      await this.assignLegacyRole(id, role);
     }
 
     return this.findOne(id);

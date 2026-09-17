@@ -5,6 +5,9 @@ export type EnrollmentStatus = 'ACTIVE' | 'INACTIVE' | 'CANCELLED';
 export type PeriodStatus = 'OPEN' | 'CLOSED';
 export type GradeStatus = 'APPROVED' | 'FAILED' | 'PENDING';
 export type AttendanceStatus = 'PRESENT' | 'ABSENT' | 'LATE' | 'JUSTIFIED';
+export type Sex = 'MALE' | 'FEMALE';
+export type PersonStatus = 'ACTIVE' | 'INACTIVE';
+export type EmployeeType = 'DIRECTIVO' | 'DOCENTE' | 'ADMINISTRATIVO' | 'APOYO';
 
 export interface Institution {
   id: string;
@@ -136,8 +139,8 @@ export interface SubjectAssignment {
   schedule?: Record<string, unknown>;
   subjectId: string;
   subject?: Subject;
-  teacherId?: string;
-  teacher?: User;
+  employeeId?: string;
+  employee?: Employee;
   academicPeriodId: string;
   academicPeriod?: AcademicPeriod;
   semester: number;
@@ -208,4 +211,70 @@ export interface AdminDashboard {
   studentsByCareer: Array<{ careerName: string; total: string }>;
   studentsByStatus: Array<{ status: string; total: string }>;
   recentStudents: Student[];
+}
+
+export interface Person {
+  id: string;
+  ci: string;
+  ciExtension?: string;
+  firstName: string;
+  paternalSurname?: string;
+  maternalSurname?: string;
+  lastName: string;
+  birthDate?: string;
+  sex?: Sex;
+  phone?: string;
+  email: string;
+  address?: string;
+  photoUrl?: string;
+  status: PersonStatus;
+  isActive: boolean;
+  user?: User;
+  student?: Student;
+  employees?: Employee[];
+}
+
+export interface Employee {
+  id: string;
+  employeeCode: string;
+  hireDate?: string;
+  employeeType: EmployeeType;
+  position?: string;
+  personId: string;
+  isActive: boolean;
+  persona?: Person;
+}
+
+export interface PermissionInfo {
+  id: string;
+  key: string;
+  module?: string;
+  action: string;
+  description?: string;
+}
+
+export interface RoleItem {
+  id: string;
+  name: string;
+  description?: string;
+  parentId?: string;
+  parentName?: string | null;
+  isSystem: boolean;
+  isActive: boolean;
+  permissions: string[];
+}
+
+export interface AuditLog {
+  id: string;
+  createdAt: string;
+  userId?: string;
+  username?: string;
+  action: string;
+  module: string;
+  entityType?: string;
+  entityId?: string;
+  previousValue?: Record<string, unknown> | null;
+  newValue?: Record<string, unknown> | null;
+  ip?: string;
+  description?: string;
 }

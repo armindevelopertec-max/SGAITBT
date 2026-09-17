@@ -14,23 +14,25 @@ export class AcademicHistoryController {
   constructor(private readonly historyService: AcademicHistoryService) {}
 
   @Get('student/:studentId')
+  @RequirePermission(PERMISSIONS.HISTORY_VIEW, PERMISSIONS.REPORTS_VIEW)
   findForStudent(@Param('studentId') studentId: string) {
     return this.historyService.findForStudent(studentId);
   }
 
   @Get('student/:studentId/summary')
+  @RequirePermission(PERMISSIONS.HISTORY_VIEW, PERMISSIONS.REPORTS_VIEW)
   studentSummary(@Param('studentId') studentId: string) {
     return this.historyService.getStudentSummary(studentId);
   }
 
   @Get('career/:careerId')
-  @RequirePermission(PERMISSIONS.HISTORY_VIEW)
+  @RequirePermission(PERMISSIONS.HISTORY_VIEW, PERMISSIONS.REPORTS_VIEW)
   findForCareer(@Param('careerId') careerId: string) {
     return this.historyService.findForCareer(careerId);
   }
 
   @Get('period/:academicPeriodId')
-  @RequirePermission(PERMISSIONS.HISTORY_VIEW)
+  @RequirePermission(PERMISSIONS.HISTORY_VIEW, PERMISSIONS.REPORTS_VIEW)
   findForPeriod(@Param('academicPeriodId') academicPeriodId: string) {
     return this.historyService.findForPeriod(academicPeriodId);
   }

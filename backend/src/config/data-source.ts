@@ -2,7 +2,7 @@ import { DataSource, DataSourceOptions } from 'typeorm';
 import * as dotenv from 'dotenv';
 
 dotenv.config();
-dotenv.config({ path: '../.env', override: true });
+dotenv.config({ path: '../.env' });
 
 export const dataSourceOptions: DataSourceOptions = {
   type: 'postgres',
@@ -13,8 +13,8 @@ export const dataSourceOptions: DataSourceOptions = {
   database: process.env.DB_NAME || 'sga_itbt',
   entities: [__dirname + '/../modules/**/entities/*.entity.{ts,js}'],
   migrations: [__dirname + '/../database/migrations/*.{ts,js}'],
-  synchronize: true,
-  logging: true,
+  synchronize: false,
+  logging: false,
 };
 
 const dataSource = new DataSource(dataSourceOptions);

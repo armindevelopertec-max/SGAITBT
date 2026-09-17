@@ -29,11 +29,21 @@ export class InstitutionController {
   }
 
   @Get()
+  @RequirePermission(
+    PERMISSIONS.INSTITUTION_VIEW,
+    PERMISSIONS.ENROLLMENTS_VIEW,
+    PERMISSIONS.REPORTS_VIEW,
+  )
   findAll() {
     return this.institutionService.findAll();
   }
 
   @Get(':id')
+  @RequirePermission(
+    PERMISSIONS.INSTITUTION_VIEW,
+    PERMISSIONS.ENROLLMENTS_VIEW,
+    PERMISSIONS.REPORTS_VIEW,
+  )
   findOne(@Param('id') id: string) {
     return this.institutionService.findOne(id);
   }

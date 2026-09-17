@@ -7,8 +7,6 @@ export interface PermissionKey {
 export function hasPermission(user: AuthUser | null, permission: string): boolean {
   if (!user) return false;
   const permissions = Array.isArray(user.permissions) ? user.permissions : [];
-  // Sesiones previas al modelo de permisos: conservan acceso mientras no se vuelvan a logear
-  if (user.permissions === undefined) return true;
   if (permissions.includes('*')) return true;
   return permissions.includes(permission);
 }
@@ -25,7 +23,7 @@ export function hasRole(user: AuthUser | null, ...roles: string[]): boolean {
   const userRoles = Array.isArray(user.roles) ? user.roles : [];
   const matched = userRoles.some((r) => roles.includes(r.toUpperCase())) ||
     roles.includes(user.role?.toUpperCase());
-  return user.permissions !== undefined ? matched : true;
+  return matched;
 }
 
 export function primaryRoleKey(user: AuthUser | null): string | undefined {

@@ -1,4 +1,10 @@
-import { Injectable, Logger } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import { PermissionAction } from '@common/enums';
@@ -64,7 +70,7 @@ const ROLE_TREE: RoleStruct[] = [
     key: DEFAULT_ROLE_KEYS.APOYO,
     description: 'Empleado base',
     system: true,
-    permissions: ['dashboard.view', 'history.view', 'reports.view'],
+    permissions: ['dashboard.view'],
   },
   {
     key: DEFAULT_ROLE_KEYS.DIRECTIVO,
@@ -192,7 +198,7 @@ const ROLE_TREE: RoleStruct[] = [
     description: 'Estudiante',
     parentKey: DEFAULT_ROLE_KEYS.APOYO,
     system: true,
-    permissions: ['dashboard.view', 'history.view', 'grades.view'],
+    permissions: ['dashboard.view', 'history.view'],
   },
 ];
 
@@ -290,6 +296,10 @@ export class RbacService {
       await this.roleRepository.update({ id: roleId }, { parentId });
     }
 
+    const permissionKeyById = new Map(
+      permissions.map((p) => [p.id, p.key]),
+    );
+
     for (const struct of ROLE_TREE) {
       const roleId = roleIdsByKey.get(struct.key);
       if (!roleId || !struct.permissions) continue;
@@ -298,6 +308,17 @@ export class RbacService {
         where: { roleId },
       });
       const currentPermissionIds = new Set(current.map((rp) => rp.permissionId));
+
+      if (struct.system) {
+        const allowedKeys = new Set(struct.permissions);
+        const stale = current.filter((rp) => {
+          const key = permissionKeyById.get(rp.permissionId);
+          return key === undefined || !allowedKeys.has(key);
+        });
+        if (stale.length > 0) {
+          await this.rolePermissionRepository.remove(stale);
+        }
+      }
 
       for (const key of struct.permissions) {
         const permission = permissionByKey.get(key);
@@ -315,6 +336,20 @@ export class RbacService {
 
   async findRoleByKey(key: string): Promise<Role | null> {
     return this.roleRepository.findOne({ where: { name: key } });
+  }
+
+  async findRoleById(id: string): Promise<Role> {
+    const role = await this.roleRepository.findOne({
+      where: { id },
+      relations: {
+        parent: true,
+        rolePermissions: { permission: true },
+      },
+    });
+    if (!role) {
+      throw new NotFoundException('Rol no encontrado');
+    }
+    return role;
   }
 
   async assignRole(userId: string, roleKey: string): Promise<void> {
@@ -425,6 +460,97 @@ export class RbacService {
       },
       order: { name: 'ASC' },
     });
+  }
+
+  async createRole(
+    key: string,
+    description?: string,
+    parentKey?: string,
+  ): Promise<Role> {
+    const roleKey = key.trim().toUpperCase().replace(/\s+/g, '_');
+    const existing = await this.roleRepository.findOne({
+      where: { name: roleKey },
+    });
+    if (existing) {
+      throw new ConflictException(`Ya existe el rol ${roleKey}`);
+    }
+    let parentId: string | undefined;
+    if (parentKey) {
+      const parent = await this.findRoleByKey(parentKey.trim().toUpperCase());
+      if (!parent) {
+        throw new BadRequestException(`No existe el rol padre ${parentKey}`);
+      }
+      parentId = parent.id;
+    }
+    const role = this.roleRepository.create({
+      name: roleKey,
+      description,
+      parentId,
+      isSystem: false,
+    });
+    return this.roleRepository.save(role);
+  }
+
+  async updateRole(
+    id: string,
+    data: { description?: string; parentKey?: string },
+  ): Promise<Role> {
+    const role = await this.findRoleById(id);
+    if (data.description !== undefined) {
+      role.description = data.description;
+    }
+    if (data.parentKey !== undefined) {
+      if (data.parentKey) {
+        if (data.parentKey === role.name) {
+          throw new BadRequestException('Un rol no puede ser su propio padre');
+        }
+        const parent = await this.findRoleByKey(data.parentKey.trim().toUpperCase());
+        if (!parent) {
+          throw new BadRequestException(`No existe el rol padre ${data.parentKey}`);
+        }
+        role.parentId = parent.id;
+      } else {
+        role.parentId = undefined;
+      }
+    }
+    return this.roleRepository.save(role);
+  }
+
+  async deleteRole(id: string): Promise<void> {
+    const role = await this.findRoleById(id);
+    if (role.isSystem) {
+      throw new BadRequestException('No se puede eliminar un rol de sistema');
+    }
+    const assigned = await this.userRoleRepository.count({ where: { roleId: id } });
+    if (assigned > 0) {
+      throw new BadRequestException(
+        `El rol ${role.name} está asignado a ${assigned} usuario(s) y no puede eliminarse`,
+      );
+    }
+    await this.rolePermissionRepository.delete({ roleId: id });
+    await this.userRoleRepository.delete({ roleId: id });
+    await this.roleRepository.delete(id);
+  }
+
+  async setRolePermissions(roleId: string, permissionKeys: string[]): Promise<Role> {
+    await this.findRoleById(roleId);
+    const permissions = await this.permissionRepository.find({
+      where: { key: In(permissionKeys) },
+    });
+    await this.rolePermissionRepository.delete({ roleId });
+    for (const permission of permissions) {
+      await this.rolePermissionRepository.save(
+        this.rolePermissionRepository.create({
+          roleId,
+          permissionId: permission.id,
+        }),
+      );
+    }
+    return this.findRoleById(roleId);
+  }
+
+  async listPermissions(): Promise<Permission[]> {
+    return this.permissionRepository.find({ order: { module: 'ASC', key: 'ASC' } });
   }
 
   async hasAnyPermission(userId: string, required: string[]): Promise<boolean> {

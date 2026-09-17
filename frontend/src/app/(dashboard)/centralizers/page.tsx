@@ -38,6 +38,9 @@ export default function CentralizersPage() {
   const selected = assignments.find((a) => a.id === selectedId);
   const assignGrades = grades.filter((g) => g.assignmentId === selectedId);
 
+  const personName = (p?: { firstName?: string; paternalSurname?: string; maternalSurname?: string; lastName?: string }) =>
+    p ? [p.firstName, p.paternalSurname, p.maternalSurname].filter(Boolean).join(' ') || p.lastName || '—' : '—';
+
   function print() {
     window.print();
   }
@@ -104,7 +107,7 @@ export default function CentralizersPage() {
               <tr><td style={{ fontWeight: 600 }}>Gestión:</td><td>{selected.academicPeriod?.periodName ?? selected.academicPeriod?.year ?? '—'}</td></tr>
               <tr><td style={{ fontWeight: 600 }}>Semestre:</td><td>{selected.semester}º</td></tr>
               <tr><td style={{ fontWeight: 600 }}>Materia:</td><td>{selected.subject?.name ?? '—'}</td></tr>
-              <tr><td style={{ fontWeight: 600 }}>Docente:</td><td>{selected.teacher?.fullName ?? '———'}</td></tr>
+              <tr><td style={{ fontWeight: 600 }}>Docente:</td><td>{selected.employee ? personName(selected.employee.persona) : '———'}</td></tr>
               <tr><td style={{ fontWeight: 600 }}>Paralelo:</td><td>{selected.parallel}</td></tr>
             </tbody>
           </table>

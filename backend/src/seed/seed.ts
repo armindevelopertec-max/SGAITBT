@@ -347,7 +347,6 @@ async function seedDemoData(dataSource: DataSource, passHash: string) {
         email: data.email,
         fullName: data.fullName,
         passwordHash: passHash,
-        role: data.role,
         status: 'ACTIVE',
         mustChangePassword: false,
         studentId: data.studentId,
@@ -386,7 +385,7 @@ async function seedDemoData(dataSource: DataSource, passHash: string) {
   });
   console.log('✅ Usuario secretaría: secretaria / demo2026');
 
-  const teacherUsers: Array<Record<string, unknown>> = [];
+  const teacherEmployees: any[] = [];
   for (const t of TEACHERS) {
     const u = await ensureUser({
       username: t.username,
@@ -396,7 +395,13 @@ async function seedDemoData(dataSource: DataSource, passHash: string) {
       employeeType: EmployeeType.DOCENTE,
       position: 'Docente',
     });
-    teacherUsers.push(u);
+    const freshUser = await userRepo.findOne({ where: { id: u.id } });
+    const employee = freshUser?.personaId
+      ? await employeeRepo.findOne({
+          where: { personId: freshUser.personaId, employeeType: EmployeeType.DOCENTE },
+        })
+      : null;
+    teacherEmployees.push(employee);
     console.log(`✅ Docente ${t.username} / demo2026`);
   }
 
@@ -584,7 +589,7 @@ async function seedDemoData(dataSource: DataSource, passHash: string) {
               classroom: 'Lab. ' + ['A', 'B', 'C'][hashStr(subject.code + period.year) % 3],
               schedule: { day: 'LUN', start: '18:00', end: '21:00' },
               subjectId: subject.id,
-              teacherId: teacherUsers[hashStr(subject.code) % teacherUsers.length].id,
+              employeeId: teacherEmployees[hashStr(subject.code) % teacherEmployees.length]?.id,
               academicPeriodId: period.id,
               semester: subject.semester,
             });
@@ -729,16 +734,6 @@ async function migrateExistingData(dataSource: DataSource) {
 
   const users = await userRepo.find({ relations: ['student'] });
   for (const user of users) {
-    if (!user.role) continue;
-    const mapped = LEGACY_ROLE_MAP[user.role] ?? user.role;
-    const hasRole = await userRoleRepo.findOne({
-      where: { userId: user.id },
-      relations: { role: true },
-    });
-    if (!hasRole) {
-      await rbac.assignRole(user.id, mapped);
-    }
-
     if (!user.personaId) {
       let person = await personRepo.findOne({ where: { email: user.email } });
       if (!person) {
@@ -846,7 +841,6 @@ export async function runSeed() {
       email: 'admin@itbt.edu.bo',
       fullName: 'Administrador del Sistema',
       passwordHash,
-      role: 'ADMIN',
       status: 'ACTIVE',
       mustChangePassword: true,
     });

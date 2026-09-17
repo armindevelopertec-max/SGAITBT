@@ -5,6 +5,27 @@ import { usePathname, useRouter } from 'next/navigation';
 import { AppSidebar } from '@/components/layout/sidebar';
 import { Topbar } from '@/components/layout/topbar';
 import { getToken, getSessionUser } from '@/lib/session';
+import { NAV_SECTIONS } from '@/lib/nav';
+import { hasAnyPermission } from '@/lib/permissions';
+
+const ROUTE_PERMISSIONS: Record<string, string[]> = {};
+for (const section of NAV_SECTIONS) {
+  for (const item of section.items) {
+    if (item.permissions && item.permissions.length > 0) {
+      ROUTE_PERMISSIONS[item.href] = item.permissions;
+    }
+  }
+}
+
+function routeDenied(pathname: string): boolean {
+  const entry = Object.entries(ROUTE_PERMISSIONS).find(
+    ([href]) => pathname === href || pathname.startsWith(`${href}/`),
+  );
+  if (!entry) return false;
+  const user = getSessionUser();
+  if (!user) return true;
+  return !hasAnyPermission(user, entry[1]);
+}
 
 export default function ShellLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
@@ -17,12 +38,28 @@ export default function ShellLayout({ children }: { children: ReactNode }) {
     }
   }, [router, pathname]);
 
+  const denied = routeDenied(pathname);
+
   return (
     <div className="app-shell">
       <AppSidebar />
       <div className="main-area">
         <Topbar />
-        <main className="content-area">{children}</main>
+        <main className="content-area">
+          {denied ? (
+            <div className="card">
+              <div className="empty-state">
+                <div className="empty-state-icon">🚫</div>
+                <div style={{ fontWeight: 600, fontSize: 15, marginBottom: 4 }}>
+                  Acceso denegado
+                </div>
+                <div>No tienes permisos para ver esta sección.</div>
+              </div>
+            </div>
+          ) : (
+            children
+          )}
+        </main>
       </div>
     </div>
   );

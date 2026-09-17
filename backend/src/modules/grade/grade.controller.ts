@@ -42,26 +42,31 @@ export class GradeController {
   }
 
   @Get()
+  @RequirePermission(PERMISSIONS.GRADES_VIEW, PERMISSIONS.REPORTS_VIEW)
   findAll(@Query() query: GradeQueryDto) {
     return this.gradeService.findAll(query);
   }
 
   @Get('assignment/:assignmentId')
+  @RequirePermission(PERMISSIONS.GRADES_VIEW, PERMISSIONS.REPORTS_VIEW)
   findByAssignment(@Param('assignmentId') assignmentId: string) {
     return this.gradeService.findForAssignment(assignmentId);
   }
 
   @Get('student/:studentId')
+  @RequirePermission(PERMISSIONS.GRADES_VIEW, PERMISSIONS.REPORTS_VIEW)
   findByStudent(@Param('studentId') studentId: string) {
     return this.gradeService.findForStudent(studentId);
   }
 
   @Get(':id')
+  @RequirePermission(PERMISSIONS.GRADES_VIEW, PERMISSIONS.REPORTS_VIEW)
   findOne(@Param('id') id: string) {
     return this.gradeService.findOne(id);
   }
 
   @Get('centralized/assignment/:assignmentId')
+  @RequirePermission(PERMISSIONS.GRADES_VIEW, PERMISSIONS.REPORTS_VIEW)
   centralized(@Param('assignmentId') assignmentId: string) {
     return this.gradeService.getCentralizedReport(assignmentId);
   }

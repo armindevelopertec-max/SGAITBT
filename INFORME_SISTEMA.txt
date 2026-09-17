@@ -1,0 +1,731 @@
+================================================================================
+INFORME EXHAUSTIVO DEL SISTEMA SGA ITBT
+Sistema de Gestión Académica · Instituto Tecnológico "Boliviana de Tecnología"
+================================================================================
+
+Proyecto: SGA · Sistema de Gestión Académica (monorepo)
+Ubicación: /home/armintec/Proyectos2026/SGAITBT
+Rama git: main
+
+
+--------------------------------------------------------------------------------
+1. RESUMEN Y STACK TECNOLÓGICO
+--------------------------------------------------------------------------------
+| Capa            | Tecnología                                     | Puerto |
+|-----------------|------------------------------------------------|--------|
+| Frontend        | Next.js 15.1.6 (App Router, Turbopack)          | 3000   |
+|                 | React 19 · TypeScript 5.7                      |        |
+| Backend         | NestJS 10 · TypeORM 0.3 · PostgreSQL 16        | 3001   |
+| Base de datos   | PostgreSQL 16 (sga_itbt)                       | 5432/5433 |
+| Cache/cola      | Redis 7                                        | 6379   |
+| Object storage  | MinIO (API 9000 · consola 9001)                | 9000/9001 |
+| Administración  | pgAdmin 4                                      | 5050   |
+| Documentos PDF  | jsPDF 4.2.1 · html-to-image 1.11.13 · qrcode   | --     |
+| Cliente HTTP    | Axios 1.7.9                                    | --     |
+
+Capas del sistema:
+- App (frontend web): Next.js, 100% client-side ('use client'), SPA con shell.
+- API (backend web): NestJS REST bajo http://localhost:3001/api, JWT Bearer 24h.
+- Infraestructura: Docker Compose (PostgreSQL, MinIO, pgAdmin, Redis) + backend y
+  frontend contenerizables, o en desarrollo local vía iniciar.sh.
+
+
+--------------------------------------------------------------------------------
+2. INFRAESTRUCTURA Y ORQUESTACIÓN
+--------------------------------------------------------------------------------
+2.1 docker-compose.yml (6 servicios, 4 volúmenes, red bridge sga_network)
+--------------------------------------------------------------------------------
+| Servicio | Imagen                    | Puertos host→contenedor       | Healthcheck     | depends_on                       |
+|----------|---------------------------|-------------------------------|-----------------|----------------------------------|
+| postgres | postgres:16-alpine        | ${DB_PORT:-5432}→5432         | pg_isready      | --                               |
+| minio    | minio/minio:latest        | 9000→9000 · 9001→9001         | mc ready local  | --                               |
+| pgadmin  | dpage/pgadmin4:latest     | ${PGADMIN_PORT:-5050}→80      | --              | postgres (service_healthy)       |
+| redis    | redis:7-alpine            | ${REDIS_PORT:-6379}→6379      | redis-cli ping  | --                               |
+| backend  | build ./backend            | ${BACKEND_PORT:-3001}→3001    | --              | postgres+minio+redis (healthy)   |
+| seed     | build ./backend (one-shot)| --                            | --              | postgres (service_healthy)       |
+| frontend | build ./frontend           | ${FRONTEND_PORT:-3000}→3000   | --              | backend                          |
+
+- Volúmenes: postgres_data, minio_data, pgadmin_data, redis_data.
+- Variables OBLIGATORIAS en .env (si faltan Compose falla con :?):
+  DB_USER, DB_PASSWORD, DB_NAME, MINIO_ROOT_USER, MINIO_ROOT_PASSWORD,
+  PGADMIN_PASSWORD, JWT_SECRET.
+- Con valor por defecto: DB_PORT, MINIO_API_PORT, MINIO_CONSOLE_PORT,
+  PGADMIN_EMAIL, PGADMIN_PORT, REDIS_PORT, BACKEND_PORT, FRONTEND_PORT,
+  NODE_ENV (development), JWT_EXPIRATION (24h).
+- Backend en modo dev: mount ./backend:/app (excluye /app/node_modules y /app/dist).
+- Frontend: mount ./frontend/src:/app/src; envs fijas NEXT_PUBLIC_API_URL
+  (http://localhost:3001/api) y NEXT_PUBLIC_MINIO_URL (http://localhost:9000).
+- database/init.sql (montado en postgres) crea extensiones: uuid-ossp, pgcrypto.
+
+Dockerfiles:
+- backend/Dockerfile: 1 etapa, node:20-alpine, npm install, npm run build
+  (nest build && tsc-alias), CMD node dist/main.js. El servicio seed reutiliza
+  la imagen sobreescribiendo CMD con "npm run seed".
+- frontend/Dockerfile: multi-etapa (deps/builder/runner) con output standalone
+  de Next.js; copia .next/standalone, .next/static y public.
+
+2.2 .env / .env.example
+--------------------------------------------------------------------------------
+Grupos de variables:
+- PostgreSQL: DB_USER, DB_PASSWORD, DB_NAME, DB_PORT (el .env local usa 5433).
+- MinIO: MINIO_ROOT_USER, MINIO_ROOT_PASSWORD, MINIO_API_PORT (9000),
+  MINIO_CONSOLE_PORT (9001), MINIO_ENDPOINT, MINIO_PORT, MINIO_PUBLIC_ENDPOINT.
+- pgAdmin: PGADMIN_EMAIL, PGADMIN_PASSWORD, PGADMIN_PORT (5050).
+- Redis: REDIS_PORT (6379).
+- Backend: BACKEND_PORT (3001), NODE_ENV, JWT_SECRET, JWT_EXPIRATION (24h).
+- Frontend: FRONTEND_PORT (3000).
+El .env de desarrollo usa los defaults documentados del proyecto.
+
+2.3 iniciar.sh (162 líneas, bash con set -euo pipefail)
+--------------------------------------------------------------------------------
+Flujo:
+ 1. Carga .env si existe (si no, usa defaults de dev).
+ 2. Verifica prerequisitos: docker, docker compose/docker-compose, node, npm.
+ 3. docker compose up -d postgres minio pgadmin redis.
+ 4. Espera healthchecks (60 intentos x 2s) de sga_postgres, sga_minio, sga_redis.
+ 5. npm install si falta node_modules (backend y frontend).
+ 6. npm run build (backend) y npm run seed (idempotente; si falla solo avisa).
+ 7. Libera puertos 3001/3000 con fuser si estuvieran ocupados.
+ 8. Arranca backend (nest start --watch, log .logs/backend.log) y frontend
+    (next dev -p 3000, log .logs/frontend.log).
+ 9. Imprime URLs y credenciales. Flags: ./iniciar.sh (primer plano, Ctrl+C) o
+    ./iniciar.sh --background (segundo plano).
+
+
+--------------------------------------------------------------------------------
+3. ARQUITECTURA DEL BACKEND (NestJS)
+--------------------------------------------------------------------------------
+- app.module.ts registra: Person, Employee, Rbac, Audit, Institution, Career,
+  AcademicPeriod, Subject, Student, Deposit, Enrollment, User, Auth,
+  SubjectAssignment, Attendance, Grade, AcademicHistory, Dashboard, Minio.
+- Config (src/config):
+  - typeorm.config.ts: postgres, synchronize = NODE_ENV !== 'production',
+    logging warn/error, ssl opcional.
+  - data-source.ts (migraciones/seed): synchronize: true.
+- main.ts: prefijo 'api', CORS origin:true + credentials:true, ValidationPipe
+  whitelist + forbidNonWhitelisted + transform + conversión implícita,
+  Swagger en /api/docs.
+
+3.1 Seguridad y jerarquía de autorización
+--------------------------------------------------------------------------------
+- Login: POST /api/auth/login (username o email + password mínimo 6).
+  Búsqueda username → fallback email. Verifica estado ACTIVE.
+- Contraseñas: bcryptjs con 10 salt rounds.
+- Bloqueo: 5 intentos fallidos → status BLOCKED; login exitoso resetea contador.
+- JWT: payload {sub, username, email, role, fullName, roles[], permissions[]},
+  HS256, expiración 24h (JWT_EXPIRATION).
+- Guías por request:
+  * JwtAuthGuard: valida firmas/token y usuario ACTIVE.
+  * PermissionsGuard: semántica OR sobre @RequirePermission; wildcard '*'.
+  * JwtStrategy.validate recarga roles y permisos desde BD en CADA request
+    → revocación de permisos inmediata.
+- Auditoría: decorador @Audit + AuditInterceptor (registra solo en éxito,
+  fail-safe, captura usuario, IP, entidad, valor anterior/nuevo en jsonb)
+  aplicado en persons, employees, roles.
+
+3.2 Validación global
+--------------------------------------------------------------------------------
+ValidationPipe estricto: whitelist, forbidNonWhitelisted, transform,
+enableImplicitConversion. Los DTOs usan class-validator (IsString, IsNotEmpty,
+IsDateString, @ValidateNested/@Type, IsEnum, IsObject, Min/Max, etc.).
+
+
+--------------------------------------------------------------------------------
+4. MODELO DE DATOS Y JERARQUÍA DE ENTIDADES
+--------------------------------------------------------------------------------
+Diagrama de jerarquía:
+
+  Institution (1) ──< Career (N) ──< AcademicPeriod (N)   [gestiones por carrera]
+                          ├──< Subject (N)
+                          │     └──< SubjectAssignment (N)   [paralelo+docente+aula]
+                          │           ├──< SubjectEnrollment (N) >── (N) Student
+                          │           ├──< Grade (N) >────────── (N) Student
+                          │           └──< Attendance (N) >───── (N) Student
+                          └──< Student (N) ──< Enrollment (N) ──> AcademicPeriod
+                                          ├──< Deposit (N)
+
+  Person (1) ──< Employee (N)
+          ├── (1:1) User ──< UserRole (N) >── Role (1) (self-FK parentId)
+          │                                      └──< RolePermission (N) >── Permission (1)
+          └── (1:1) Student
+
+  AcademicHistory (N) ──> Student · Career · AcademicPeriod · Subject
+
+Relaciones OneToOne: User.student↔Student.user, User.persona↔Person.user,
+                     Student.persona↔Person.student, Employee→Person(persona).
+Tablas puente PK compuesta: role_permissions(roleId,permissionId),
+                            user_roles(userId,roleId).
+
+Entidades por módulo (tabla → columnas clave):
+- Person (persons): ci (único), ciExtension, firstName, paternalSurname,
+  maternalSurname, lastName, birthDate, sex, phone, email (único), address,
+  photoUrl, status. Relaciones: user (1:1), student (1:1), employees (1:N).
+- Employee (employees): employeeCode (EMP-00001, único), hireDate,
+  employeeType (enum), position, personId → persona.
+- User (users): username (único), passwordHash, email (único), fullName,
+  role (legacy demo), status, lastLogin, failedAttempts, mustChangePassword,
+  photoUrl, studentId (1:1 Student), personaId (1:1 Person), userRoles (1:N).
+- Role (roles): name (clave), description, parentId (self-FK para herencia),
+  isSystem, isActive. RolePermission (roleId, permissionId).
+- Permission (permissions): key (ej. students.view), module, action, description.
+- UserRole (user_roles): userId, roleId.
+- Institution (institutions): name, slug, code, description, address, phone,
+  email, rectorName, academicRegulation, logoUrl, config (jsonb), isActive.
+- Career (careers): name, code, area, description, durationYears,
+  numberOfLevels (6), state, studyPlan (jsonb), institutionId.
+- AcademicPeriod (academic_periods): year, periodName (I/2026), sequence, careerId,
+  startDate, endDate, status OPEN/CLOSED.
+- Subject (subjects): code, name, semester, weeklyHours, totalHours,
+  prerequisites (jsonb de códigos), isElective, careerId.
+- Student (students): studentCode (EST-2026-0001), firstName, paternalSurname,
+  maternalSurname, lastName, ci, ciExtension, birthDate, sex, phone, email,
+  address, photo, photoUrl, status (AcademicStatus), careerId,
+  currentPeriodId, personaId, user (1:1).
+- Deposit (deposits): depositNumber (DEP-2026-0001), depositDate, amount,
+  concept, status, voucherUrl (MinIO), verificationComment, verificationDate,
+  verifiedBy, studentId.
+- Enrollment (enrollments): enrollmentNumber (MAT-2026-00001), enrollmentDate,
+  status, semester, totalAmount, observations, studentId, careerId,
+  academicPeriodId.
+- SubjectAssignment (subject_assignments): parallel (A), classroom, schedule
+  (jsonb {day,start,end}), subjectId, teacherId (User), academicPeriodId,
+  semester. Relaciones: grades, attendanceRecords, enrollments.
+- SubjectEnrollment (subject_enrollments): studentId ↔ assignmentId (matrícula
+  por materia).
+- Grade (grades): firstPartial, secondPartial, practices, finalExam, finalGrade
+  (numeric 5,2), status (APPROVED/FAILED/PENDING), studentId, assignmentId,
+  índice único (studentId, assignmentId).
+- Attendance (attendances): attendanceDate, status (PRESENT/ABSENT/LATE/
+  JUSTIFIED), observations, studentId, assignmentId.
+- AcademicHistory (academic_history): studentId, careerId, academicPeriodId,
+  subjectId, semester, finalGrade, status, isReevaluation.
+- AuditLog (audit_logs): userId, username, action, module, entityType, entityId,
+  previousValue (jsonb), newValue (jsonb), ip, description.
+
+Enums (src/common/enums/index.ts):
+- UserRole: ADMIN, SECRETARY, TEACHER, STUDENT.
+- AcademicStatus: PRE_ENROLLED, ACTIVE, WITHDRAWN, GRADUATE, TITLED, INACTIVE.
+- DepositStatus: PENDING, VERIFIED, APPROVED, REJECTED, OBSERVED.
+- EnrollmentStatus: ACTIVE, INACTIVE, CANCELLED.
+- PeriodStatus: OPEN, CLOSED.
+- AttendanceStatus: PRESENT, ABSENT, LATE, JUSTIFIED.
+- GradeStatus: APPROVED, FAILED, PENDING.
+- StudyConclusionStatus: COMPLETED, IN_PROGRESS, GRADUATE.
+- CareerState: ACTIVE, INACTIVE.
+- Sex: MALE, FEMALE.
+- UserStatus: ACTIVE, INACTIVE, BLOCKED.
+- EmployeeType: DIRECTIVO, DOCENTE, ADMINISTRATIVO, APOYO.
+- PersonStatus: ACTIVE, INACTIVE.
+- PermissionAction: ALL, VIEW, CREATE, UPDATE, DELETE, OTHER.
+
+
+--------------------------------------------------------------------------------
+5. CATÁLOGO DE PERMISOS (src/common/permissions.ts)
+--------------------------------------------------------------------------------
+61 permisos con formato <módulo>.<acción>:
+- dashboard.view
+- students.view / .create / .update / .delete
+- careers.view / .create / .update / .delete
+- subjects.view / .create / .update / .delete
+- periods.view / .create / .update / .delete
+- enrollments.view / .create / .update / .delete
+- deposits.view / .create / .update / .delete
+- users.view / .create / .update / .delete
+- assignments.view / .create / .update / .delete
+- attendance.view / .create / .update / .delete
+- grades.view / .create / .update / .delete / .verify
+- history.view
+- reports.view
+- institution.view / .update
+- persons.view / .create / .update / .delete
+- employees.view / .create / .update / .delete
+- roles.view / .manage
+- audit.view
+- files.upload / .delete
+Wildcard '*' = todos los permisos.
+
+ÁRBOL DE ROLES Y HERENCIA (rbac.service.ts — ROLE_TREE)
+--------------------------------------------------------------------------------
+| Rol            | Padre          | Permisos propios (adicionales a la herencia)          |
+|----------------|----------------|--------------------------------------------------------|
+| ADMIN          | --             | TODOS los permisos (ALL_PERMISSIONS)                   |
+| APOYO          | --             | dashboard.view, history.view, reports.view             |
+| DIRECTIVO      | APOYO          | reports.view, students.view, grades.view, history.view,|
+|                |                | institution.view, audit.view                           |
+| RECTOR         | DIRECTIVO      | institution.update, users.*, employees.*, roles.*      |
+| DOCENTE        | APOYO          | assignments.view, attendance.*, grades.*, files.upload |
+| COORDINADOR    | DOCENTE        | subjects.*, periods create/update, grades.verify,      |
+|                |                | reports.view                                           |
+| ADMINISTRATIVO | APOYO          | students.*, deposits.*, enrollments.*, periods.view,   |
+|                |                | reports.view, files.upload                             |
+| SECRETARIA     | ADMINISTRATIVO | students.*, careers.*, subjects.view, assignments.*,   |
+|                |                | attendance.view/update, grades.view/update,            |
+|                |                | enrollments.*, deposits.update, periods.view,          |
+|                |                | users.view, institution.view, files.upload             |
+| ESTUDIANTE     | APOYO          | dashboard.view, history.view, grades.view              |
+
+- La herencia multiplica permisos vía ancestros (collectWithAncestors).
+- Mapeos legacy: ADMIN→ADMIN, SECRETARY→SECRETARIA, TEACHER→DOCENTE,
+  STUDENT→ESTUDIANTE; e inversos NEW_ROLE_TO_LEGACY.
+
+
+--------------------------------------------------------------------------------
+6. API COMPLETA POR MÓDULO (backend, prefijo /api)
+--------------------------------------------------------------------------------
+Guard global en todos los controladores: JwtAuthGuard + PermissionsGuard.
+Columna PERMISO = @RequirePermission. "—" = cualquier usuario autenticado
+(sin permiso específico).
+
+AUTH
+  POST /auth/login                         (público)
+
+INSTITUTIONS
+  POST /institutions                       institution.update
+  GET  /institutions                       —
+  GET  /institutions/:id                   —
+  PATCH /institutions/:id                  institution.update
+  PATCH /institutions/:id/config           institution.update
+  PATCH /institutions/:id/logo             institution.update
+  PATCH /institutions/:id/deactivate       institution.update
+
+CAREERS
+  POST /careers                            careers.create
+  GET  /careers                            —
+  GET  /careers/:id                        —
+  PATCH /careers/:id                       careers.update
+  PATCH /careers/:id/toggle-state          careers.update
+  PATCH /careers/:id/deactivate            careers.delete
+
+SUBJECTS
+  POST /subjects                           subjects.create
+  GET  /subjects                           —
+  GET  /subjects/career/:careerId          —
+  GET  /subjects/career/:careerId/semester/:semester —
+  GET  /subjects/:id                       —
+  PATCH /subjects/:id                      subjects.update
+  PATCH /subjects/:id/toggle-state         subjects.update
+
+ACADEMIC PERIODS
+  POST /academic-periods                   periods.create
+  GET  /academic-periods                   —
+  GET  /academic-periods/:id               —
+  PATCH /academic-periods/:id              periods.update
+  PATCH /academic-periods/:id/open|close   periods.update
+  DELETE /academic-periods/:id             periods.delete
+
+STUDENTS
+  POST /students                           students.create
+  GET  /students                           —
+  GET  /students/by-ci/:ci                 —
+  GET  /students/by-code/:code             —
+  GET  /students/by-status/counts          —
+  GET  /students/by-career/counts          —
+  GET  /students/me                        students.view (@CurrentUser)
+  GET  /students/:id                       —
+  PATCH /students/:id                      students.update
+  PATCH /students/:id/status               students.update
+  PATCH /students/:id/current-period/:periodId  students.update
+
+DEPOSITS
+  POST /deposits                           deposits.create
+  GET  /deposits                           —
+  GET  /deposits/counts/by-status          —
+  GET  /deposits/total                     —
+  GET  /deposits/:id                       —
+  PATCH /deposits/:id                      deposits.update
+  PATCH /deposits/:id/verify               deposits.update (verifiedBy = fullName)
+
+ENROLLMENTS
+  POST /enrollments                        enrollments.create
+  POST /enrollments/enroll-student         enrollments.create (requiere depósito)
+  GET  /enrollments                        —
+  GET  /enrollments/counts/by-period       —
+  GET  /enrollments/counts/total           —
+  GET  /enrollments/by-number/:n           —
+  GET  /enrollments/:id                    —
+  PATCH /enrollments/:id                   enrollments.update
+  PATCH /enrollments/:id/cancel            enrollments.update
+
+USERS
+  POST /users                              users.create
+  POST /users/student/:studentId           users.create
+  GET  /users                              users.view
+  GET  /users/role/:role                   users.view
+  GET  /users/counts/by-role               users.view
+  GET  /users/roles                        roles.view OR users.view
+  GET  /users/me                           —
+  GET  /users/:id                          users.view
+  PATCH /users/:id                         users.update
+  PATCH /users/:id/roles                   users.update (roleKeys[])
+  PATCH /users/:id/reset-password          users.update
+
+ROLES
+  GET  /roles/permissions                  roles.view
+  GET  /roles                              roles.view
+  GET  /roles/:id                          roles.view
+  POST /roles                              roles.manage
+  PATCH /roles/:id                         roles.manage
+  PATCH /roles/:id/permissions             roles.manage
+  DELETE /roles/:id                        roles.manage
+
+PERSONS
+  POST /persons                            persons.create
+  GET  /persons                            persons.view
+  GET  /persons/:id                        persons.view
+  PATCH /persons/:id                       persons.update
+  DELETE /persons/:id                      persons.delete (deshabilita)
+
+EMPLOYEES
+  POST /employees                          employees.create
+  GET  /employees                          employees.view
+  GET  /employees/:id                      employees.view
+  PATCH /employees/:id                     employees.update
+  DELETE /employees/:id                    employees.delete (deshabilita)
+
+AUDIT
+  GET  /audit?module=&action=&take=&skip=  audit.view  → {items,total}
+
+SUBJECT ASSIGNMENTS
+  POST /subject-assignments                        assignments.create
+  POST /subject-assignments/auto-assign            assignments.create
+  GET  /subject-assignments/teacher/:teacherId     —
+  GET  /subject-assignments                        —
+  GET  /subject-assignments/:id                    —
+  GET  /subject-assignments/:id/students           —
+  PATCH /subject-assignments/:id                   assignments.update
+  POST /subject-assignments/:id/enroll-student     assignments.update
+  DELETE /subject-assignments/:id/students/:studentId  assignments.update
+
+ATTENDANCE
+  POST /attendance                                 attendance.create (masivo)
+  GET  /attendance                                 —
+  GET  /attendance/assignment/:assignmentId        —
+  GET  /attendance/summary/assignment/:assignmentId — (% y lowAttendance<75)
+  PATCH /attendance/:id                            attendance.update
+  DELETE /attendance/:id                           attendance.delete
+
+GRADES
+  POST /grades                     grades.create/update/verify (OR)
+  POST /grades/bulk                grades.create/update/verify (OR)
+  GET  /grades                     —
+  GET  /grades/assignment/:id      —
+  GET  /grades/student/:id         —
+  GET  /grades/centralized/assignment/:id  —
+  GET  /grades/:id                 —
+  PATCH /grades/:id                grades.create/update/verify (OR)
+  DELETE /grades/:id               grades.delete
+
+ACADEMIC HISTORY
+  GET /academic-history/student/:studentId              —
+  GET /academic-history/student/:studentId/summary      —
+  GET /academic-history/career/:careerId                history.view
+  GET /academic-history/period/:academicPeriodId        history.view
+  GET /academic-history/stats/overall                   history.view OR dashboard.view
+
+DASHBOARD
+  GET /dashboard/admin      dashboard.view
+  GET /dashboard/teacher    dashboard.view
+  GET /dashboard/student    dashboard.view OR history.view
+
+UPLOADS (MinIO) — todos usan FileInterceptor('file'), devuelven {url}
+  POST /uploads/photo       bucket student-photos    files.upload
+  POST /uploads/voucher     bucket deposit-vouchers  files.upload
+  POST /uploads/logo        bucket logos             files.upload AND institution.update
+  POST /uploads/document    bucket documents         files.upload
+
+MinIO: los buckets se crean automáticamente al arrancar; objeto con nombre
+{fechaISO}/{uuid}{ext}. URL pública = MINIO_PUBLIC_ENDPOINT/bucket/objectName.
+
+
+--------------------------------------------------------------------------------
+7. REGLAS DE NEGOCIO CLAVE
+--------------------------------------------------------------------------------
+1. Códigos correlativos:
+   - Estudiante : EST-{año}-{NNNN}
+   - Matrícula  : MAT-{año}-{NNNNN}
+   - Depósito   : DEP-{año}-{NNNN}
+   - Empleado   : EMP-{NNNNN}
+2. Matrícula requiere depósito habilitado: enroll-student solo acepta estudiantes
+   con depósito VERIFIED o APPROVED (ranking APPROVED > VERIFIED).
+3. Calificaciones:
+   - 1er parcial 25% + 2do parcial 25% + prácticas 20% + examen final 30%.
+   - Escala 0–100; NOTA MÍNIMA = 51 para aprobar (APPROVED/FAILED).
+   - No duplica: índice único (studentId, assignmentId).
+   - El estudiante debe estar inscrito en la materia (SubjectEnrollment).
+   - createBulk y update recalcular y sincronizan el historial (syncHistory).
+4. Sincronización historial: GradeService.syncHistory crea/actualiza
+   academic_history por estudiante+materia+gestión; delete de la nota borra su
+   historial.
+5. Conclusión de estudios: el summary, al completar el último nivel
+   (career.numberOfLevels) con 0 reprobadas y 0 pendientes →
+   StudyConclusionStatus.COMPLETED y marca al estudiante como GRADUATE
+   automáticamente.
+6. Asistencia: registro masivo; no permite dos registros para la misma
+   fecha+asignación; percentage = (present+late)/total*100; <75 → lowAttendance.
+7. Asignaciones: rechaza duplicado (materia+gestión+paralelo); paralelo default
+   'A'; auto-assign inscribe a todos los matriculados ACTIVE de la gestión (o a
+   studentIds dados).
+8. Períodos: nombre en secuencia romana (I/2026, II/2026); estados OPEN/CLOSED;
+   open/close por endpoint específico.
+9. Usuarios: username y email únicos; createStudentUser usa CI como username y
+   password inicial; asignación de roles vía replaceRoles (reemplazo total).
+10. Periodo current del estudiante: currentPeriodId (período en curso).
+
+
+--------------------------------------------------------------------------------
+8. SEED Y DATOS DEMO (src/seed/seed.ts) — idempotente, npm run seed
+--------------------------------------------------------------------------------
+1. Institución ITBT (código ITBT-2026, R.M. 1049/2023, sede El Alto).
+2. Usuario admin / admin2026 (bcrypt 10, mustChangePassword=true) + persona +
+   empleado EMP-00001 DIRECTIVO "Rector".
+3. Permisos (ensurePermissions) y roles (seedRoles); asigna ADMIN.
+4. Carreras: Autotrónica (AUT) y Mecánica Automotriz (MEC), 3 años / 6 niveles,
+   plan de estudios jsonb (3600 h, 30 h/semana, 120 h/mes, 600 h/semestre);
+   ~39 materias por carrera con códigos (SOM-100, MAA-100...) y prerequisitos;
+   totalHours = weeklyHours × 20 semanas.
+5. Gestiones por carrera (PERIODS_TEMPLATE):
+   - I/2025 (CLOSED) 2025-02-03 → 2025-07-04
+   - II/2025 (CLOSED) 2025-08-04 → 2025-12-19
+   - I/2026 (OPEN)   2026-02-02 → 2026-07-03
+   - II/2026 (OPEN)  2026-08-03 → 2026-12-18
+6. 12 estudiantes demo (6 AUT + 6 MEC) con niveles según año/seq de ingreso,
+   personas vinculadas, códigos EST-2026-NNNN, y por cada gestión cursada:
+   - Depósito DEP-{año}-NNNN de 850 Bs APPROVED (verificado por secretaría).
+   - Matrícula MAT-{año}-NNNNN ACTIVE (semestre = nivel).
+   - Asignaciones por materia del semestre (paralelo A, aula Lab. A/B/C,
+     horario LUN 18:00-21:00, docente por hash del código).
+   - Inscripción a materias (SubjectEnrollment).
+   - Calificaciones determinísticas (PRNG mulberry32): ~12% reprobados,
+     peso 25/25/20/30, nota mínima 51; historial sincronizado.
+   - Asistencias gestión vigente: fechas día 10 y 24; 80% PRESENT, 10% ABSENT,
+     10% LATE.
+7. Usuarios demo:
+   - Secretaría: secretaria / demo2026 (empleado ADMINISTRATIVO).
+   - Docentes: jquispe, mchoque, carana, lflores / demo2026 (empleados DOCENTE).
+   - Estudiantes: username = CI del estudiante / demo2026 (4 cuentas).
+8. Migración de datos existentes (migrateExistingData): asigna roles legacy a
+   usuarios existentes, crea personas faltantes para usuarios y estudiantes.
+
+CREDENCIALES DEMO
+--------------------------------------------------------------------------------
+| Rol        | Usuario                           | Contraseña |
+|------------|-----------------------------------|------------|
+| Admin      | admin                             | admin2026  |
+| Secretaría | secretaria                        | demo2026   |
+| Docentes   | jquispe, mchoque, carana, lflores | demo2026   |
+| Estudiantes| <CI del estudiante> (ej. 15938731)| demo2026   |
+| BD         | sga_admin (db sga_itbt)           | (default)  |
+| MinIO      | minioadmin                        | (default)  |
+| pgAdmin    | admin@sga-itbt.com                | (default)  |
+
+
+--------------------------------------------------------------------------------
+9. FRONTEND (Next.js 15 · App Router · React 19 · 100% client-side)
+--------------------------------------------------------------------------------
+9.1 Configuración base
+- next.config.js: reactStrictMode, output 'standalone', images.remotePatterns
+  permite http://localhost:9000/** (MinIO local).
+- package.json scripts: dev, build (--turbopack), start, lint (--max-warnings=20).
+- layout.tsx global: AuthProvider; fuentes Inter + Noto Serif Italic (fonts.tsx);
+  globals.css (887 líneas, variables de color, .app-shell, .sidebar, .topbar,
+  .cred-card 340px 85:55, .modal, .stat-card).
+- Iconos: Icon component con 21 SVGs (dashboard, institution, career, calendar,
+  students, deposit, enrollment, users, subjects, assignment, attendance,
+  grades, history, reports, centralizer, certificate, graduation, person,
+  employee, role, audit).
+
+9.2 Rutas y navegación
+--------------------------------------------------------------------------------
+| Ruta              | Página                      | Permisos de menú              |
+|-------------------|-----------------------------|-------------------------------|
+| /login            | Iniciar sesión              | público                       |
+| /                 | Dashboard                   | dashboard.view                |
+| /institution      | Institución                 | institution.view              |
+| /careers          | Carreras                    | careers.view                  |
+| /subjects         | Materias                    | subjects.view                 |
+| /academic-periods | Gestión Académica           | periods.view                  |
+| /students         | Estudiantes                 | students.view                 |
+| /deposits         | Depósitos                   | deposits.view                 |
+| /enrollments      | Matrículas                  | enrollments.view              |
+| /users            | Usuarios                    | users.view                    |
+| /persons          | Personas                    | persons.view                  |
+| /employees        | Empleados                   | employees.view                |
+| /roles            | Roles y permisos            | roles.view                    |
+| /audit            | Auditoría                   | audit.view                    |
+| /assignments      | Asignación de Materias      | assignments.view              |
+| /attendance       | Asistencia                  | attendance.view OR create     |
+| /grades           | Calificaciones              | grades.view                   |
+| /academic-history | Historial Académico         | history.view                  |
+| /reports          | Reportes                    | reports.view                  |
+| /centralizers     | Centralizadores             | grades.view AND reports.view  |
+| /certificates     | Certificados y Documentos   | reports.view                  |
+| /graduation       | Conclusión de Estudios      | reports.view                  |
+
+9.3 Sesión y autenticación (frontend)
+--------------------------------------------------------------------------------
+- session.ts: localStorage 'sga_token' y 'sga_user' (AuthUser). clearAuth().
+  AuthUser {id, username, email, fullName, role, roles?, permissions?,
+  studentId?, photoUrl?}.
+- auth.tsx: AuthProvider hidrata el user desde localStorage; login() hace POST
+  /auth/login, guarda token+user y navega a '/'; logout() limpia y va a /login.
+- api.ts: axios con baseURL NEXT_PUBLIC_API_URL (default 3001/api); interceptor
+  de request añade Authorization Bearer; interceptor de response: ante 401, si
+  no hay usuario y no está en /login, limpia y fuerza /login. Helpers
+  apiGet/apiPost/apiPatch/apiDelete + extractError.
+- permissions.ts: hasPermission (permissions===undefined → true por compat.
+  con sesiones viejas; '*' → true), hasAnyPermission, hasRole, primaryRoleKey.
+- layout (dashboard): verifica token+user en cada cambio de pathname; si faltan
+  redirige a /login. El SIDEBAR filtra items por hasAnyPermission y elimina
+  secciones vacías; oculto <860px. TOPBAR: avatar (foto o iniciales), nombre,
+  rol traducido (MICROLEGEND) y menú Salir.
+- MICROLEGEND: ADMIN→Administrador, RECTOR→Rector, DIRECTIVO→Directivo,
+  COORDINADOR→Coordinador académico, DOCENTE/SECRETARIA/ESTUDIANTE (y legacy
+  SECRETARY/TEACHER/STUDENT), ADMINISTRATIVO→Administrativo, APOYO→Empleado.
+
+9.4 Funcionalidad por página
+--------------------------------------------------------------------------------
+- Dashboard (/): 3 vistas por rol. Docente → /dashboard/teacher (placeholder
+  "Mis materias"); Estudiante → /dashboard/student (perfil académico);
+  resto → /dashboard/admin: 11 tarjetas (total/activos/nuevos estudiantes,
+  matrículas del año, depósitos pendientes, docentes, materias activas,
+  carreras, aprobados, reprobados, egresados) + tarjeta "Operador del sistema".
+- Institution: CRUD (crear/editar; sin borrar).
+- Careers: CRUD + toggle estado.
+- Subjects: CRUD + filtros por carrera/semestre.
+- Academic Periods: CRUD + abrir/cerrar; nombre romano calculado en servidor.
+- Students: CRUD + "Crear usuario de estudiante" (POST /users/student/:id).
+- Deposits: CRUD + verificación con comentario (VERIFIED/APPROVED/OBSERVED/
+  REJECTED) y enlace al comprobante.
+- Enrollments: selección de estudiante HABILITADO (depósito VERIFIED/APPROVED);
+  "Registrar matrícula e imprimir" → crea matrícula y genera credencial PDF.
+- Users: CRUD + asignación de rol por select (PATCH /users/:id/roles) + generar
+  cuentas de estudiante.
+- Persons / Employees: CRUD + deshabilitar (DELETE).
+- Roles: tabla de roles (clave, hereda de, nº permisos, tipo sistema/personal),
+  crear rol personalizado, editar permisos con chips agrupados por módulo;
+  los roles de sistema solo permiten "Ver permisos".
+- Audit: tabla paginada (50/página), filtros módulo (roles, persons, employees,
+  users, institution, careers, subjects, periods, students, deposits,
+  enrollments, grades) y acción (CREATE/UPDATE/UPDATE_PERMISSIONS/DELETE);
+  modal de detalle con JSON de valor anterior/nuevo.
+- Assignments: CRUD de asignaciones, inscribir estudiante, autoasignar, listar
+  estudiantes.
+- Attendance: registro masivo por asignación+fecha (P/R/A/J) y resumen con
+  totales, % y lowAttendance.
+- Grades: registro masivo de notas (P1 25, P2 25, prácticas 20, final 30, nota
+  mínima 51) por asignación; tabla general de notas.
+- Academic History: selección de estudiante → materias cursadas + resumen
+  (aprobadas, reprobadas, pendientes, semestres completados, conclusión).
+- Graduation: tabla por estudiante de conclusión (COMPLETED/GRADUATE/
+  IN_PROGRESS) con contadores globales.
+- Reports: 9 reportes en pantalla (estudiantes, matrículas, depósitos, materias,
+  asignaciones, calificaciones, estudiantes por carrera, retirados, egresados).
+- Centralizers: centralizador imprimible con cabecera institucional, título
+  editable, datos de asignación y tabla de notas con firmas (docente,
+  secretaría, dirección); salida window.print() con aislamiento CSS.
+- Certificates: 6 documentos institucionales con doble salida (imprimir CSS +
+  PDF jsPDF).
+
+9.5 Documentos generados (frontend)
+--------------------------------------------------------------------------------
+generation: jsPDF 4.2.1 · html-to-image → PNG · qrcode, desde src/lib:
+- documents.ts (generateInstitutionalDocument, CertificateDocType = NOTES |
+  STUDIES | REGULAR | ENROLLMENT | HISTORY | ASIGNACION):
+  * Membretes doble línea navy [20,33,61], nombre institucional, línea
+    "SISTEMA DE GESTIÓN ACADÉMICA INSTITUCIONAL – SIGAI", R.M. 1049/2023,
+    numeración DOC-####-SGA, fechas es-BO (dd/mm/aaaa).
+  * NOTES   → Certificado de notas (vertical): grilla de datos + tabla
+              Gestión/Semestre/Materia/Nota/Estado + promedio + firmas.
+  * STUDIES → Certificado de estudios (vertical): párrafo narrativo.
+  * REGULAR → Estudiante regular (vertical).
+  * ENROLLMENT → Constancia de matrícula (vertical).
+  * HISTORY → Historial académico (A4 HORIZONTAL): matriz de calificaciones
+              por año (año|secuencia|código), colores A/R/H, leyenda, páginas.
+  * ASIGNACION → Boleta de asignación (vertical): subtítulo "ORIGINAL PARA
+              ESTUDIANTE", QR con datos del estudiante, tabla de materias del
+              periodo, datos de acceso (cuenta=CI, contraseña inicial=CI),
+              firmas estudiante + sello.
+  * Nombres de archivo: Certificado-de-Notas-{studentCode}.pdf, etc.
+- credential.ts (Credencial de matrícula):
+  * Tarjeta 85×55 mm landscape. Frente: fondo crema, borde navy, banda con logo,
+    sello dorado "GESTIÓN {período}", foto 30×30 (placeholder silueta),
+    campos (N.º matrícula, apellidos, nombres, carrera, fecha). Reverso: dos
+    columnas de datos + QR de verificación (22.5 mm) + pie institucional.
+  * downloadEnrollmentCredentialFromDom: html-to-image (pixelRatio 4, inline
+    images) → jsPDF; fallback downloadEnrollmentCredential (jsPDF programático).
+  * Preview CSS .cred-card con marca de agua del logo, zoom adaptativo, e
+    impresión por window.print() (aísla #credential-document).
+- Centralizador (#centralizer-document) y Certificados (#certificate-document):
+  salida por impresión con @media print (oculta el resto de la app).
+
+9.6 UI Kit
+- PageHeader {title, subtitle?, actions?}
+- Modal {open, title, onClose, children, footer?} (backdrop + escape)
+- Badge {label, color} / StatusBadge {value} — STATUS_MAP traduce estados a
+  etiquetas en español y colores (Activo, Inscrito, Aprobado, Reprobado,
+  Pendiente, Verificado, Aprobado, Rechazado, Observado, Abierta, Cerrada,
+  Presente, Falta, Atraso, Justificado, Preinscrito, Retirado, Egresado,
+  Titulado, Bloqueado, Cancelado, Completado, En curso).
+- LoadingState / ErrorState / EmptyState.
+- hooks/useData.ts: hook genérico {data, loading, error, reload} — no usado por
+  las páginas actuales (usan useEffect propio).
+
+
+--------------------------------------------------------------------------------
+10. TESTS Y CALIDAD
+--------------------------------------------------------------------------------
+Backend:
+- npm run lint (ESLint TS) ✓
+- npm run typecheck (tsc --noEmit) ✓
+- npm test (Jest, 4 suites / 19 tests: auth.service, rbac.service,
+  grade.service, enrollment.service) ✓
+- npm run test:e2e (smoke: app compila, Swagger /api/docs 200, 404 en rutas
+  desconocidas; requiere PostgreSQL local).
+Frontend:
+- npx tsc --noEmit ✓
+- npm run lint (eslint next/core-web-vitals + typescript, max 20 warnings)
+  → 0 errores, 7 warnings menores preexistentes (<img> genérico, exhaustive-deps,
+  fuente custom).
+
+
+--------------------------------------------------------------------------------
+11. ESTADO ACTUAL VERIFICADO (fecha de la revisión)
+--------------------------------------------------------------------------------
+- Contenedores Docker healthy: sga_postgres, sga_minio, sga_redis, sga_pgadmin.
+- Backend dev en :3001 y frontend dev en :3000 respondiendo.
+- Fixes aplicados durante la revisión:
+  1) Crash de arranque por dependencia: AuditService no disponible en
+     PersonModule/EmployeeModule/RbacModule → se importó AuditModule en los
+     tres módulos. Backend vuelto a arrancar OK.
+  2) Página de Auditoría faltante (menú → /audit daba 404): se creó
+     src/app/(dashboard)/audit/page.tsx (tabla + filtros + paginación +
+     detalle JSON) y tipo AuditLog en src/lib/types.ts.
+- Endpoints nuevos verificados con token admin (200): /roles, /roles/permissions,
+  /persons, /employees, /audit, /users/roles.
+
+OBSERVACIONES TÉCNICAS / PENDIENTES
+--------------------------------------------------------------------------------
+1. GET "de lectura" sin @RequirePermission quedan accesibles a ANY usuario
+   autenticado (by-design implícito; convendría acotar por rol).
+2. dashboard/teacher es placeholder parcial (mySubjects: 0, estudiantes globales
+   en vez de propios).
+3. subject-assignments/auto-assign busca materia+gestión SIN paralelo → con
+   varios paralelos solo asigna al primero encontrado.
+4. TypeORM synchronize: true en dev → esquema derivado de entidades; no hay
+   migraciones reales en backend/database/migrations (scripts migration:* no
+   encontrarían nada).
+5. JWT_SECRET tiene fallback hardcodeado en código (jwt.strategy.ts y config)
+   además del ejemplo de dev.
+6. Conclusión de estudios no maneja el estado TITLED (solo GRADUATE).
+7. No hay endpoints de refresh-token ni cambio de contraseña propio
+   (existen DTOs sin usar); reset es vía PATCH /users/:id/reset-password.
+8. Frontend no tiene guardas de ruta por permiso por página: la protección real
+   está en la API (interceptor 401) y en el menú por permisos.
+9. Token JWT en localStorage (XSS) y CORS origin:true con credentials — riesgo
+   asumido en desarrollo, revisar para producción.
+10. Códigos de estudiante en el seed empiezan por EST-2026 para todos los
+    ingresos (no por año de ingreso).
+
+================================================================================
+FIN DEL INFORME
+================================================================================

@@ -1,8 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { apiGet, apiPost, extractError } from '@/lib/api';
-import { User, Student } from '@/lib/types';
+import { apiGet, apiPatch, apiPost, extractError } from '@/lib/api';
+import { RoleItem, User, Student } from '@/lib/types';
 import { PageHeader } from '@/components/ui/page-header';
 import { Modal } from '@/components/ui/modal';
 import { StatusBadge } from '@/components/ui/badge';
@@ -17,24 +17,14 @@ const EMPTY = {
   roleKeys: ['ESTUDIANTE'],
 };
 
-const ROLE_OPTIONS: { key: string; label: string }[] = [
-  { key: 'ADMIN', label: 'Administrador' },
-  { key: 'DIRECTIVO', label: 'Directivo' },
-  { key: 'COORDINADOR', label: 'Coordinador académico' },
-  { key: 'DOCENTE', label: 'Docente' },
-  { key: 'SECRETARIA', label: 'Secretaría' },
-  { key: 'ADMINISTRATIVO', label: 'Administrativo' },
-  { key: 'ESTUDIANTE', label: 'Estudiante' },
-];
-
-function roleLabel(u: User): string {
-  const key = u.roles?.[0] ?? u.role;
-  return MICROLEGEND[key] ?? key;
+function roleKeyLabel(key?: string): string {
+  return key ? (MICROLEGEND[key] ?? key) : '—';
 }
 
 export default function UsersPage() {
   const [users, setUsers] = useState<User[]>([]);
   const [students, setStudents] = useState<Student[]>([]);
+  const [roleOptions, setRoleOptions] = useState<RoleItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
@@ -43,12 +33,14 @@ export default function UsersPage() {
   async function load() {
     setLoading(true);
     try {
-      const [u, s] = await Promise.all([
+      const [u, s, rs] = await Promise.all([
         apiGet<User[]>('/users'),
         apiGet<Student[]>('/students'),
+        apiGet<RoleItem[]>('/users/roles'),
       ]);
       setUsers(u);
       setStudents(s);
+      setRoleOptions(rs);
     } catch (err) {
       setError(extractError(err));
     } finally {
@@ -59,6 +51,15 @@ export default function UsersPage() {
   useEffect(() => {
     load();
   }, []);
+
+  async function assignRole(u: User, roleKey: string) {
+    try {
+      await apiPatch(`/users/${u.id}/roles`, { roleKeys: [roleKey] });
+      await load();
+    } catch (err) {
+      setError(extractError(err));
+    }
+  }
 
   async function submit() {
     try {
@@ -108,12 +109,13 @@ export default function UsersPage() {
                 <th>Correo</th>
                 <th>Rol</th>
                 <th>Estado</th>
+                <th>Acciones</th>
               </tr>
             </thead>
             <tbody>
               {users.length === 0 && (
                 <tr>
-                  <td colSpan={5}>
+                  <td colSpan={6}>
                     <div className="empty-state">
                       <div className="empty-state-icon">🔑</div>
                       No hay usuarios registrados.
@@ -126,8 +128,34 @@ export default function UsersPage() {
                   <td><strong>{u.username}</strong></td>
                   <td>{u.fullName}</td>
                   <td>{u.email}</td>
-                  <td><StatusBadge value={roleLabel(u)} /></td>
+                  <td>
+                    <div className="flex gap-1" style={{ flexWrap: 'wrap', gap: 4 }}>
+                      {(u.roles ?? []).map((r) => (
+                        <span key={r} className="badge badge-soft">{roleKeyLabel(r)}</span>
+                      ))}
+                      {(u.roles?.length ?? 0) === 0 && (
+                        <span className="badge badge-neutral">{roleKeyLabel(u.role)}</span>
+                      )}
+                    </div>
+                  </td>
                   <td><StatusBadge value={u.status} /></td>
+                  <td>
+                    <div className="flex gap-2" style={{ alignItems: 'center' }}>
+                      <select
+                        className="select"
+                        style={{ minWidth: 150 }}
+                        value={u.roles?.[0] ?? ''}
+                        onChange={(e) => {
+                          if (e.target.value) assignRole(u, e.target.value);
+                        }}
+                      >
+                        <option value="">Asignar rol…</option>
+                        {roleOptions.map((r) => (
+                          <option key={r.id} value={r.name}>{roleKeyLabel(r.name)}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -201,8 +229,8 @@ export default function UsersPage() {
           <div className="form-group">
             <label className="form-label">Rol</label>
             <select className="select" value={form.roleKeys[0]} onChange={(e) => setForm({ ...form, roleKeys: [e.target.value] })}>
-              {ROLE_OPTIONS.map((r) => (
-                <option key={r.key} value={r.key}>{r.label}</option>
+              {roleOptions.map((r) => (
+                <option key={r.id} value={r.name}>{roleKeyLabel(r.name)}</option>
               ))}
             </select>
           </div>

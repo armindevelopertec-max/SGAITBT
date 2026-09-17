@@ -1,10 +1,3 @@
-export enum UserRole {
-  ADMIN = 'ADMIN',
-  SECRETARY = 'SECRETARY',
-  TEACHER = 'TEACHER',
-  STUDENT = 'STUDENT',
-}
-
 export enum AcademicStatus {
   PRE_ENROLLED = 'PRE_ENROLLED',
   ACTIVE = 'ACTIVE',

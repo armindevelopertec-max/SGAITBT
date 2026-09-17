@@ -4,14 +4,13 @@ import { JwtService } from '@nestjs/jwt';
 import { AuthService } from './auth.service';
 import { UserService } from '@modules/user/user.service';
 import { RbacService } from '@modules/rbac/rbac.service';
-import { UserRole, UserStatus } from '@common/enums';
+import { UserStatus } from '@common/enums';
 
 const activeUser = {
   id: 'u-1',
   username: 'admin',
   email: 'admin@itbt.edu.bo',
   fullName: 'Administrador del Sistema',
-  role: UserRole.ADMIN,
   status: UserStatus.ACTIVE,
   mustChangePassword: true,
   studentId: null,

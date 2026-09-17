@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { apiGet, extractError } from '@/lib/api';
-import { Enrollment, Deposit, Student, SubjectAssignment, Grade, Career } from '@/lib/types';
+import { Enrollment, Deposit, Student, SubjectAssignment, Grade, Career, Person } from '@/lib/types';
 import { PageHeader } from '@/components/ui/page-header';
 import { StatusBadge } from '@/components/ui/badge';
 import { LoadingState, ErrorState } from '@/components/ui/state';
@@ -64,6 +64,9 @@ export default function ReportsPage() {
       setLoading(false);
     }
   }
+
+  const personName = (p?: Person) =>
+    p ? [p.firstName, p.paternalSurname, p.maternalSurname].filter(Boolean).join(' ') || p.lastName || '—' : '—';
 
   useEffect(() => {
     load();
@@ -211,7 +214,7 @@ export default function ReportsPage() {
                     <td>{a.subject?.name}</td>
                     <td>{a.academicPeriod?.periodName ?? '—'}</td>
                     <td>{a.parallel}</td>
-                    <td>{a.teacher?.fullName ?? '—'}</td>
+                    <td>{a.employee ? personName(a.employee.persona) : '—'}</td>
                     <td>{(a.enrollments ?? []).length}</td>
                   </tr>
                 ))}

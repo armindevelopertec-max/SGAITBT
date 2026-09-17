@@ -7,6 +7,7 @@ import { SubjectAssignmentController } from './subject-assignment.controller';
 import { Subject } from '@modules/subject/entities/subject.entity';
 import { AcademicPeriod } from '@modules/academic-period/entities/academic-period.entity';
 import { Enrollment } from '@modules/enrollment/entities/enrollment.entity';
+import { Employee } from '@modules/employee/entities/employee.entity';
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { Enrollment } from '@modules/enrollment/entities/enrollment.entity';
       Subject,
       AcademicPeriod,
       Enrollment,
+      Employee,
     ]),
   ],
   controllers: [SubjectAssignmentController],

@@ -8,7 +8,7 @@ import {
 } from 'typeorm';
 import { BaseEntity } from '@common/entities/base.entity';
 import { Subject } from '@modules/subject/entities/subject.entity';
-import { User } from '@modules/user/entities/user.entity';
+import { Employee } from '@modules/employee/entities/employee.entity';
 import { AcademicPeriod } from '@modules/academic-period/entities/academic-period.entity';
 import { Grade } from '@modules/grade/entities/grade.entity';
 import { Attendance } from '@modules/attendance/entities/attendance.entity';
@@ -34,12 +34,13 @@ export class SubjectAssignment extends BaseEntity {
   @Index('IDX_assignment_subject_id')
   subjectId: string;
 
-  @ManyToOne(() => User, { nullable: true })
-  @JoinColumn({ name: 'teacher_id' })
-  teacher?: User;
+  @ManyToOne(() => Employee, { nullable: true })
+  @JoinColumn({ name: 'employee_id' })
+  employee?: Employee;
 
-  @Column({ name: 'teacher_id', type: 'uuid', nullable: true })
-  teacherId?: string;
+  @Column({ name: 'employee_id', type: 'uuid', nullable: true })
+  @Index('IDX_assignment_employee_id')
+  employeeId?: string;
 
   @ManyToOne(() => AcademicPeriod)
   @JoinColumn({ name: 'academic_period_id' })

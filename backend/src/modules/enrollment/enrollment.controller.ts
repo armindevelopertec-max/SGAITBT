@@ -41,26 +41,31 @@ export class EnrollmentController {
   }
 
   @Get()
+  @RequirePermission(PERMISSIONS.ENROLLMENTS_VIEW, PERMISSIONS.REPORTS_VIEW)
   findAll(@Query() query: EnrollmentQueryDto) {
     return this.enrollmentService.findAll(query);
   }
 
   @Get('counts/by-period')
+  @RequirePermission(PERMISSIONS.ENROLLMENTS_VIEW, PERMISSIONS.REPORTS_VIEW)
   countByPeriod() {
     return this.enrollmentService.countByPeriod();
   }
 
   @Get('counts/total')
+  @RequirePermission(PERMISSIONS.ENROLLMENTS_VIEW, PERMISSIONS.REPORTS_VIEW)
   countTotal() {
     return this.enrollmentService.countTotal();
   }
 
   @Get('by-number/:enrollmentNumber')
+  @RequirePermission(PERMISSIONS.ENROLLMENTS_VIEW, PERMISSIONS.REPORTS_VIEW)
   findByNumber(@Param('enrollmentNumber') enrollmentNumber: string) {
     return this.enrollmentService.findByNumber(enrollmentNumber);
   }
 
   @Get(':id')
+  @RequirePermission(PERMISSIONS.ENROLLMENTS_VIEW, PERMISSIONS.REPORTS_VIEW)
   findOne(@Param('id') id: string) {
     return this.enrollmentService.findOne(id);
   }

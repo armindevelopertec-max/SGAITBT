@@ -42,22 +42,45 @@ export class SubjectAssignmentController {
     return this.assignmentService.autoAssignStudents(dto);
   }
 
-  @Get('teacher/:teacherId')
-  findByTeacher(@Param('teacherId') teacherId: string) {
-    return this.assignmentService.findByTeacher(teacherId);
+  @Get('teacher/:employeeId')
+  @RequirePermission(
+    PERMISSIONS.ASSIGNMENTS_VIEW,
+    PERMISSIONS.ATTENDANCE_VIEW,
+    PERMISSIONS.GRADES_VIEW,
+    PERMISSIONS.REPORTS_VIEW,
+  )
+  findByEmployee(@Param('employeeId') employeeId: string) {
+    return this.assignmentService.findByEmployee(employeeId);
   }
 
   @Get()
+  @RequirePermission(
+    PERMISSIONS.ASSIGNMENTS_VIEW,
+    PERMISSIONS.ATTENDANCE_VIEW,
+    PERMISSIONS.GRADES_VIEW,
+    PERMISSIONS.REPORTS_VIEW,
+  )
   findAll(@Query() query: AssignmentQueryDto) {
     return this.assignmentService.findAll(query);
   }
 
   @Get(':id')
+  @RequirePermission(
+    PERMISSIONS.ASSIGNMENTS_VIEW,
+    PERMISSIONS.ATTENDANCE_VIEW,
+    PERMISSIONS.GRADES_VIEW,
+    PERMISSIONS.REPORTS_VIEW,
+  )
   findOne(@Param('id') id: string) {
     return this.assignmentService.findOne(id);
   }
 
   @Get(':id/students')
+  @RequirePermission(
+    PERMISSIONS.ASSIGNMENTS_VIEW,
+    PERMISSIONS.ATTENDANCE_VIEW,
+    PERMISSIONS.GRADES_VIEW,
+  )
   getStudents(@Param('id') id: string) {
     return this.assignmentService.getStudents(id);
   }

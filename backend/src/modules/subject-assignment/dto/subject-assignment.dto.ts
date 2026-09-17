@@ -16,7 +16,7 @@ export class CreateSubjectAssignmentDto {
   academicPeriodId: string;
 
   @IsOptional()
-  teacherId?: string;
+  employeeId?: string;
 
   @IsOptional()
   @IsString()
@@ -39,7 +39,7 @@ export class CreateSubjectAssignmentDto {
 
 export class UpdateSubjectAssignmentDto {
   @IsOptional()
-  teacherId?: string;
+  employeeId?: string;
 
   @IsOptional()
   @IsString()
@@ -93,7 +93,7 @@ export class AssignmentQueryDto {
   academicPeriodId?: string;
 
   @IsOptional()
-  teacherId?: string;
+  employeeId?: string;
 
   @IsOptional()
   parallel?: string;

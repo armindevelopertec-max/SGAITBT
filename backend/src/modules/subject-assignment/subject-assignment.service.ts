@@ -13,6 +13,7 @@ import {
 import { Subject } from '@modules/subject/entities/subject.entity';
 import { AcademicPeriod } from '@modules/academic-period/entities/academic-period.entity';
 import { Enrollment } from '@modules/enrollment/entities/enrollment.entity';
+import { Employee } from '@modules/employee/entities/employee.entity';
 
 @Injectable()
 export class SubjectAssignmentService {
@@ -27,6 +28,8 @@ export class SubjectAssignmentService {
     private readonly periodRepository: Repository<AcademicPeriod>,
     @InjectRepository(Enrollment)
     private readonly matriculaRepository: Repository<Enrollment>,
+    @InjectRepository(Employee)
+    private readonly employeeRepository: Repository<Employee>,
   ) {}
 
   async create(createDto: CreateSubjectAssignmentDto): Promise<SubjectAssignment> {
@@ -42,6 +45,15 @@ export class SubjectAssignmentService {
     });
     if (!period) {
       throw new NotFoundException('Gestión académica no encontrada');
+    }
+
+    if (createDto.employeeId) {
+      const employee = await this.employeeRepository.findOne({
+        where: { id: createDto.employeeId },
+      });
+      if (!employee) {
+        throw new BadRequestException('El docente no existe');
+      }
     }
 
     const existing = await this.assignmentRepository.findOne({
@@ -65,16 +77,22 @@ export class SubjectAssignmentService {
   }
 
   async findAll(query?: AssignmentQueryDto): Promise<SubjectAssignment[]> {
-    const { subjectId, academicPeriodId, teacherId, parallel } = query || {};
+    const { subjectId, academicPeriodId, employeeId, parallel } = query || {};
     const where: Record<string, unknown> = {};
     if (subjectId) where.subjectId = subjectId;
     if (academicPeriodId) where.academicPeriodId = academicPeriodId;
-    if (teacherId) where.teacherId = teacherId;
+    if (employeeId) where.employeeId = employeeId;
     if (parallel) where.parallel = parallel;
 
     return this.assignmentRepository.find({
       where,
-      relations: ['subject', 'academicPeriod', 'teacher', 'enrollments'],
+      relations: [
+        'subject',
+        'academicPeriod',
+        'employee',
+        'employee.persona',
+        'enrollments',
+      ],
       order: { createdAt: 'DESC' },
     });
   }
@@ -82,7 +100,14 @@ export class SubjectAssignmentService {
   async findOne(id: string): Promise<SubjectAssignment> {
     const assignment = await this.assignmentRepository.findOne({
       where: { id },
-      relations: ['subject', 'academicPeriod', 'teacher', 'enrollments', 'enrollments.student'],
+      relations: [
+        'subject',
+        'academicPeriod',
+        'employee',
+        'employee.persona',
+        'enrollments',
+        'enrollments.student',
+      ],
     });
     if (!assignment) {
       throw new NotFoundException('Asignación no encontrada');
@@ -90,9 +115,9 @@ export class SubjectAssignmentService {
     return assignment;
   }
 
-  async findByTeacher(teacherId: string): Promise<SubjectAssignment[]> {
+  async findByEmployee(employeeId: string): Promise<SubjectAssignment[]> {
     return this.assignmentRepository.find({
-      where: { teacherId },
+      where: { employeeId },
       relations: ['subject', 'academicPeriod'],
       order: { createdAt: 'DESC' },
     });
@@ -100,6 +125,14 @@ export class SubjectAssignmentService {
 
   async update(id: string, updateDto: UpdateSubjectAssignmentDto): Promise<SubjectAssignment> {
     const assignment = await this.findOne(id);
+    if (updateDto.employeeId) {
+      const employee = await this.employeeRepository.findOne({
+        where: { id: updateDto.employeeId },
+      });
+      if (!employee) {
+        throw new BadRequestException('El docente no existe');
+      }
+    }
     Object.assign(assignment, updateDto);
     return this.assignmentRepository.save(assignment);
   }

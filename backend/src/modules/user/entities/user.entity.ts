@@ -7,7 +7,7 @@ import {
   Index,
 } from 'typeorm';
 import { BaseEntity } from '@common/entities/base.entity';
-import { UserRole as UserRoleEnum, UserStatus } from '@common/enums';
+import { UserStatus } from '@common/enums';
 import { Student } from '@modules/student/entities/student.entity';
 import { Person } from '@modules/person/entities/person.entity';
 import { UserRole } from '@modules/rbac/entities/user-role.entity';
@@ -27,14 +27,6 @@ export class User extends BaseEntity {
 
   @Column({ type: 'varchar', length: 150 })
   fullName: string;
-
-  // Deprecated: se migra a roles via user_roles. Se elimina en pasos posteriores.
-  @Column({
-    type: 'enum',
-    enum: UserRoleEnum,
-    default: UserRoleEnum.STUDENT,
-  })
-  role: UserRoleEnum;
 
   @Column({
     type: 'enum',

@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { APP_GUARD } from '@nestjs/core';
 import { typeOrmConfig } from './config/typeorm.config';
 import { AppConfigService } from './config/config.service';
 import { InstitutionModule } from './modules/institution/institution.module';
@@ -30,6 +32,15 @@ import { AuditModule } from './modules/audit/audit.module';
       envFilePath: ['.env', '../.env'],
     }),
     TypeOrmModule.forRoot(typeOrmConfig),
+    ThrottlerModule.forRoot({
+      throttlers: [
+        {
+          ttl: 60000,
+          limit: 120,
+          blockDuration: 60000,
+        },
+      ],
+    }),
     PersonModule,
     EmployeeModule,
     RbacModule,
@@ -50,6 +61,9 @@ import { AuditModule } from './modules/audit/audit.module';
     DashboardModule,
     MinioModule,
   ],
-  providers: [AppConfigService],
+  providers: [
+    AppConfigService,
+    { provide: APP_GUARD, useClass: ThrottlerGuard },
+  ],
 })
 export class AppModule {}

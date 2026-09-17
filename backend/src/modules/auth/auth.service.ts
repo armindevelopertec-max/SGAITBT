@@ -13,7 +13,7 @@ export interface JwtPayload {
   sub: string;
   username: string;
   email: string;
-  role: string;
+  role?: string;
   fullName: string;
   roles: string[];
   permissions: string[];
@@ -74,12 +74,13 @@ export class AuthService {
     await this.userService.recordLogin(user.id);
 
     const authorities = await this.resolveAuthorities(user);
+    const primaryRole = authorities.roles[0];
 
     const payload: JwtPayload = {
       sub: user.id,
       username: user.username,
       email: user.email,
-      role: user.role,
+      role: primaryRole,
       fullName: user.fullName,
       roles: authorities.roles,
       permissions: authorities.permissions,
@@ -92,7 +93,7 @@ export class AuthService {
         username: user.username,
         email: user.email,
         fullName: user.fullName,
-        role: user.role,
+        role: primaryRole,
         roles: authorities.roles,
         permissions: authorities.permissions,
         studentId: user.studentId,

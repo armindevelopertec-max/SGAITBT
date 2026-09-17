@@ -35,11 +35,21 @@ export class AcademicPeriodController {
   }
 
   @Get()
+  @RequirePermission(
+    PERMISSIONS.PERIODS_VIEW,
+    PERMISSIONS.ASSIGNMENTS_VIEW,
+    PERMISSIONS.ENROLLMENTS_VIEW,
+  )
   findAll(@Query() query: AcademicPeriodQueryDto) {
     return this.periodService.findAll(query);
   }
 
   @Get(':id')
+  @RequirePermission(
+    PERMISSIONS.PERIODS_VIEW,
+    PERMISSIONS.ASSIGNMENTS_VIEW,
+    PERMISSIONS.ENROLLMENTS_VIEW,
+  )
   findOne(@Param('id') id: string) {
     return this.periodService.findOne(id);
   }

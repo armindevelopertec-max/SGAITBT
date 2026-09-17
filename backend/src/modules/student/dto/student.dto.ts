@@ -8,7 +8,7 @@ import {
   IsString,
   MaxLength,
 } from 'class-validator';
-import { AcademicStatus, Sex, UserRole } from '@common/enums';
+import { AcademicStatus, Sex } from '@common/enums';
 
 export class CreateStudentDto {
   @IsString()
@@ -165,9 +165,4 @@ export class StudentQueryDto {
 
   @IsOptional()
   search?: string;
-}
-
-export class CreateStudentUserDto {
-  @IsOptional()
-  role?: UserRole = UserRole.STUDENT;
 }

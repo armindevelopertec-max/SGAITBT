@@ -14,10 +14,16 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
     private readonly userService: UserService,
     private readonly rbacService: RbacService,
   ) {
+    const secret = configService.get<string>('JWT_SECRET');
+    if (!secret) {
+      throw new Error(
+        'JWT_SECRET is required. Configure it in the environment or .env before starting the backend.',
+      );
+    }
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
-      secretOrKey: configService.get<string>('JWT_SECRET', 'sga_itbt_jwt_secret_key_2026'),
+      secretOrKey: secret,
     });
   }
 

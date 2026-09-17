@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { apiGet, apiPost, extractError } from '@/lib/api';
-import { SubjectAssignment, Subject, AcademicPeriod, AcademicPeriod as Period, User, Student } from '@/lib/types';
+import { SubjectAssignment, Subject, AcademicPeriod, AcademicPeriod as Period, Employee, Student } from '@/lib/types';
 import { PageHeader } from '@/components/ui/page-header';
 import { Modal } from '@/components/ui/modal';
 import { LoadingState, ErrorState } from '@/components/ui/state';
@@ -11,12 +11,12 @@ export default function AssignmentsPage() {
   const [assignments, setAssignments] = useState<SubjectAssignment[]>([]);
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [periods, setPeriods] = useState<AcademicPeriod[]>([]);
-  const [teachers, setTeachers] = useState<User[]>([]);
+  const [teachers, setTeachers] = useState<Employee[]>([]);
   const [students, setStudents] = useState<Student[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
-  const [form, setForm] = useState({ subjectId: '', academicPeriodId: '', teacherId: '', parallel: 'A', classroom: '' });
+  const [form, setForm] = useState({ subjectId: '', academicPeriodId: '', employeeId: '', parallel: 'A', classroom: '' });
   const [selected, setSelected] = useState<SubjectAssignment | null>(null);
   const [studentId, setStudentId] = useState('');
 
@@ -27,7 +27,7 @@ export default function AssignmentsPage() {
         apiGet<SubjectAssignment[]>('/subject-assignments'),
         apiGet<Subject[]>('/subjects'),
         apiGet<Period[]>('/academic-periods'),
-        apiGet<User[]>('/users/role/TEACHER'),
+        apiGet<Employee[]>('/employees?employeeType=DOCENTE'),
         apiGet<Student[]>('/students'),
       ]);
       setAssignments(a);
@@ -47,7 +47,7 @@ export default function AssignmentsPage() {
   }, []);
 
   function openCreate() {
-    setForm({ subjectId: subjects[0]?.id ?? '', academicPeriodId: periods[0]?.id ?? '', teacherId: '', parallel: 'A', classroom: '' });
+    setForm({ subjectId: subjects[0]?.id ?? '', academicPeriodId: periods[0]?.id ?? '', employeeId: '', parallel: 'A', classroom: '' });
     setModalOpen(true);
   }
 
@@ -92,6 +92,9 @@ export default function AssignmentsPage() {
       setError(extractError(err));
     }
   }
+
+  const personName = (p?: { firstName?: string; paternalSurname?: string; maternalSurname?: string; lastName?: string }) =>
+    p ? [p.firstName, p.paternalSurname, p.maternalSurname].filter(Boolean).join(' ') || p.lastName || '—' : '—';
 
   if (loading) return <LoadingState />;
 
@@ -144,7 +147,7 @@ export default function AssignmentsPage() {
                   <td>{a.semester}º</td>
                   <td>{a.academicPeriod?.periodName ?? a.academicPeriod?.year ?? '—'}</td>
                   <td>{a.parallel}</td>
-                  <td>{a.teacher?.fullName ?? '—'}</td>
+                  <td>{a.employee ? personName(a.employee.persona) : '—'}</td>
                   <td>{a.classroom ?? '—'}</td>
                   <td>{(a.enrollments ?? []).length}</td>
                   <td>
@@ -183,9 +186,9 @@ export default function AssignmentsPage() {
           </div>
           <div className="form-group">
             <label className="form-label">Docente</label>
-            <select className="select" value={form.teacherId} onChange={(e) => setForm({ ...form, teacherId: e.target.value })}>
+            <select className="select" value={form.employeeId} onChange={(e) => setForm({ ...form, employeeId: e.target.value })}>
               <option value="">—</option>
-              {teachers.map((t) => <option key={t.id} value={t.id}>{t.fullName}</option>)}
+              {teachers.map((t) => <option key={t.id} value={t.id}>{personName(t.persona)}</option>)}
             </select>
           </div>
           <div className="form-group">

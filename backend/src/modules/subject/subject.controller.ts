@@ -29,21 +29,25 @@ export class SubjectController {
   }
 
   @Get()
+  @RequirePermission(PERMISSIONS.SUBJECTS_VIEW, PERMISSIONS.ASSIGNMENTS_VIEW, PERMISSIONS.REPORTS_VIEW)
   findAll() {
     return this.subjectService.findAll();
   }
 
   @Get('career/:careerId')
+  @RequirePermission(PERMISSIONS.SUBJECTS_VIEW, PERMISSIONS.ASSIGNMENTS_VIEW, PERMISSIONS.REPORTS_VIEW)
   findByCareer(@Param('careerId') careerId: string) {
     return this.subjectService.findByCareer(careerId);
   }
 
   @Get('career/:careerId/semester/:semester')
+  @RequirePermission(PERMISSIONS.SUBJECTS_VIEW, PERMISSIONS.ASSIGNMENTS_VIEW, PERMISSIONS.REPORTS_VIEW)
   findBySemester(@Param('careerId') careerId: string, @Param('semester') semester: number) {
     return this.subjectService.findBySemester(careerId, semester);
   }
 
   @Get(':id')
+  @RequirePermission(PERMISSIONS.SUBJECTS_VIEW, PERMISSIONS.ASSIGNMENTS_VIEW, PERMISSIONS.REPORTS_VIEW)
   findOne(@Param('id') id: string) {
     return this.subjectService.findOne(id);
   }

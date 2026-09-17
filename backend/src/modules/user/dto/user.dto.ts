@@ -8,7 +8,7 @@ import {
   MaxLength,
   MinLength,
 } from 'class-validator';
-import { UserRole, UserStatus } from '@common/enums';
+import { UserStatus } from '@common/enums';
 
 export class CreateUserDto {
   @IsString()
@@ -29,10 +29,6 @@ export class CreateUserDto {
   @IsNotEmpty()
   @MaxLength(150)
   fullName: string;
-
-  @IsEnum(UserRole)
-  @IsOptional()
-  role?: UserRole;
 
   @IsOptional()
   @IsArray()
@@ -62,10 +58,6 @@ export class UpdateUserDto {
   @IsOptional()
   @IsEmail()
   email?: string;
-
-  @IsOptional()
-  @IsEnum(UserRole)
-  role?: UserRole;
 
   @IsOptional()
   @IsEnum(UserStatus)
@@ -100,10 +92,6 @@ export class ResetPasswordDto {
 }
 
 export class UserQueryDto {
-  @IsOptional()
-  @IsEnum(UserRole)
-  role?: UserRole;
-
   @IsOptional()
   @IsEnum(UserStatus)
   status?: UserStatus;

@@ -35,16 +35,19 @@ export class AttendanceController {
   }
 
   @Get()
+  @RequirePermission(PERMISSIONS.ATTENDANCE_VIEW)
   findAll(@Query() query: AttendanceQueryDto) {
     return this.attendanceService.findAll(query);
   }
 
   @Get('assignment/:assignmentId')
+  @RequirePermission(PERMISSIONS.ATTENDANCE_VIEW)
   findByAssignment(@Param('assignmentId') assignmentId: string) {
     return this.attendanceService.findForAssignment(assignmentId);
   }
 
   @Get('summary/assignment/:assignmentId')
+  @RequirePermission(PERMISSIONS.ATTENDANCE_VIEW)
   getSummary(
     @Param('assignmentId') assignmentId: string,
     @Query('studentId') studentId?: string,

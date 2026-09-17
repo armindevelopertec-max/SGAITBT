@@ -21,7 +21,6 @@ import { PermissionsGuard } from '@common/guards/permissions.guard';
 import { RequirePermission } from '@common/decorators/require-permission.decorator';
 import { CurrentUser } from '@common/decorators/current-user.decorator';
 import { PERMISSIONS } from '@common/permissions';
-import { UserRole } from '@common/enums';
 import { User } from './entities/user.entity';
 import { RbacService } from '@modules/rbac/rbac.service';
 
@@ -54,8 +53,12 @@ export class UserController {
   }
 
   @Get('role/:role')
-  @RequirePermission(PERMISSIONS.USERS_VIEW)
-  findByRole(@Param('role') role: UserRole) {
+  @RequirePermission(
+    PERMISSIONS.USERS_VIEW,
+    PERMISSIONS.ASSIGNMENTS_VIEW,
+    PERMISSIONS.GRADES_VIEW,
+  )
+  findByRole(@Param('role') role: string) {
     return this.userService.findByRole(role);
   }
 
@@ -67,8 +70,18 @@ export class UserController {
 
   @Get('roles')
   @RequirePermission(PERMISSIONS.ROLES_VIEW, PERMISSIONS.USERS_VIEW)
-  listRoles() {
-    return this.rbacService.getRolesWithPermissions();
+  async listRoles() {
+    const roles = await this.rbacService.getRolesWithPermissions();
+    return roles.map((role) => ({
+      id: role.id,
+      name: role.name,
+      description: role.description,
+      parentId: role.parentId,
+      parentName: role.parent?.name ?? null,
+      isSystem: role.isSystem,
+      isActive: role.isActive,
+      permissions: (role.rolePermissions ?? []).map((rp) => rp.permission.key),
+    }));
   }
 
   @Get('me')

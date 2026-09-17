@@ -32,21 +32,41 @@ export class DepositController {
   }
 
   @Get()
+  @RequirePermission(
+    PERMISSIONS.DEPOSITS_VIEW,
+    PERMISSIONS.ENROLLMENTS_VIEW,
+    PERMISSIONS.REPORTS_VIEW,
+  )
   findAll(@Query() query: DepositQueryDto) {
     return this.depositService.findAll(query);
   }
 
   @Get('counts/by-status')
+  @RequirePermission(
+    PERMISSIONS.DEPOSITS_VIEW,
+    PERMISSIONS.ENROLLMENTS_VIEW,
+    PERMISSIONS.REPORTS_VIEW,
+  )
   countByStatus() {
     return this.depositService.countByStatus();
   }
 
   @Get('total')
+  @RequirePermission(
+    PERMISSIONS.DEPOSITS_VIEW,
+    PERMISSIONS.ENROLLMENTS_VIEW,
+    PERMISSIONS.REPORTS_VIEW,
+  )
   totalDeposits() {
     return this.depositService.totalDeposits();
   }
 
   @Get(':id')
+  @RequirePermission(
+    PERMISSIONS.DEPOSITS_VIEW,
+    PERMISSIONS.ENROLLMENTS_VIEW,
+    PERMISSIONS.REPORTS_VIEW,
+  )
   findOne(@Param('id') id: string) {
     return this.depositService.findOne(id);
   }

@@ -33,32 +33,76 @@ export class StudentController {
   }
 
   @Get()
+  @RequirePermission(
+    PERMISSIONS.STUDENTS_VIEW,
+    PERMISSIONS.ENROLLMENTS_VIEW,
+    PERMISSIONS.DEPOSITS_VIEW,
+    PERMISSIONS.ATTENDANCE_VIEW,
+    PERMISSIONS.ASSIGNMENTS_VIEW,
+    PERMISSIONS.USERS_VIEW,
+    PERMISSIONS.REPORTS_VIEW,
+  )
   findAll(@Query() query: StudentQueryDto) {
     return this.studentService.findAll(query);
   }
 
   @Get('by-ci/:ci')
+  @RequirePermission(
+    PERMISSIONS.STUDENTS_VIEW,
+    PERMISSIONS.ENROLLMENTS_VIEW,
+    PERMISSIONS.DEPOSITS_VIEW,
+    PERMISSIONS.ATTENDANCE_VIEW,
+    PERMISSIONS.ASSIGNMENTS_VIEW,
+    PERMISSIONS.USERS_VIEW,
+    PERMISSIONS.REPORTS_VIEW,
+  )
   findByCi(@Param('ci') ci: string) {
     return this.studentService.findByCi(ci);
   }
 
   @Get('by-code/:code')
+  @RequirePermission(
+    PERMISSIONS.STUDENTS_VIEW,
+    PERMISSIONS.ENROLLMENTS_VIEW,
+    PERMISSIONS.DEPOSITS_VIEW,
+    PERMISSIONS.ATTENDANCE_VIEW,
+    PERMISSIONS.ASSIGNMENTS_VIEW,
+    PERMISSIONS.USERS_VIEW,
+    PERMISSIONS.REPORTS_VIEW,
+  )
   findByStudentCode(@Param('code') code: string) {
     return this.studentService.findByStudentCode(code);
   }
 
   @Get('by-status/counts')
+  @RequirePermission(
+    PERMISSIONS.STUDENTS_VIEW,
+    PERMISSIONS.ENROLLMENTS_VIEW,
+    PERMISSIONS.DEPOSITS_VIEW,
+    PERMISSIONS.ATTENDANCE_VIEW,
+    PERMISSIONS.ASSIGNMENTS_VIEW,
+    PERMISSIONS.USERS_VIEW,
+    PERMISSIONS.REPORTS_VIEW,
+  )
   countByStatus() {
     return this.studentService.countByStatus();
   }
 
   @Get('by-career/counts')
+  @RequirePermission(
+    PERMISSIONS.STUDENTS_VIEW,
+    PERMISSIONS.ENROLLMENTS_VIEW,
+    PERMISSIONS.DEPOSITS_VIEW,
+    PERMISSIONS.ATTENDANCE_VIEW,
+    PERMISSIONS.ASSIGNMENTS_VIEW,
+    PERMISSIONS.USERS_VIEW,
+    PERMISSIONS.REPORTS_VIEW,
+  )
   countByCareer() {
     return this.studentService.countByCareer();
   }
 
   @Get('me')
-  @RequirePermission(PERMISSIONS.STUDENTS_VIEW)
   findMe(@CurrentUser() user: User) {
     if (!user.studentId) {
       throw new Error('El usuario no tiene estudiante asociado');
@@ -67,6 +111,15 @@ export class StudentController {
   }
 
   @Get(':id')
+  @RequirePermission(
+    PERMISSIONS.STUDENTS_VIEW,
+    PERMISSIONS.ENROLLMENTS_VIEW,
+    PERMISSIONS.DEPOSITS_VIEW,
+    PERMISSIONS.ATTENDANCE_VIEW,
+    PERMISSIONS.ASSIGNMENTS_VIEW,
+    PERMISSIONS.USERS_VIEW,
+    PERMISSIONS.REPORTS_VIEW,
+  )
   findOne(@Param('id') id: string) {
     return this.studentService.findOne(id);
   }
