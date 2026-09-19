@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useLayoutEffect, useRef, useState, type RefObject } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import { apiGet, apiPost, extractError } from '@/lib/api';
 import { Enrollment, Student, AcademicPeriod, Institution, Deposit } from '@/lib/types';
+import { initialsOf } from '@/lib/utils';
 import {
   downloadEnrollmentCredential,
   downloadEnrollmentCredentialFromDom,
@@ -380,31 +381,48 @@ export default function EnrollmentsPage() {
     };
   }, [enrollment]);
 
-  const studentIdByPersona = new Map<string, string>();
-  for (const s of students) {
-    if (s.personaId) studentIdByPersona.set(s.personaId, s.id);
-  }
-  const bestDepositByStudent = new Map<string, Deposit>();
-  for (const d of deposits) {
-    if (!HABILITADO_STATUSES.has(d.status)) continue;
-    // Depósito directo o hecho como aspirante (ligado a la persona).
-    const key = d.studentId ?? (d.personId ? studentIdByPersona.get(d.personId) : undefined);
-    if (!key) continue;
-    const current = bestDepositByStudent.get(key);
-    if (!current || depositRank(d.status) > depositRank(current.status)) {
-      bestDepositByStudent.set(key, d);
+  const studentIdByPersona = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const s of students) {
+      if (s.personaId) map.set(s.personaId, s.id);
     }
-  }
+    return map;
+  }, [students]);
 
-  const habilitated = students.filter((s) => bestDepositByStudent.has(s.id));
-
-  const enrolledKey = (sid: string, pid: string) => `${sid}|${pid}`;
-  const enrolledBy = new Map<string, Enrollment>();
-  for (const e of enrollments) {
-    if (!enrolledBy.has(enrolledKey(e.studentId, e.academicPeriodId))) {
-      enrolledBy.set(enrolledKey(e.studentId, e.academicPeriodId), e);
+  const bestDepositByStudent = useMemo(() => {
+    const map = new Map<string, Deposit>();
+    for (const d of deposits) {
+      if (!HABILITADO_STATUSES.has(d.status)) continue;
+      const key = d.studentId ?? (d.personId ? studentIdByPersona.get(d.personId) : undefined);
+      if (!key) continue;
+      const current = map.get(key);
+      if (!current || depositRank(d.status) > depositRank(current.status)) {
+        map.set(key, d);
+      }
     }
-  }
+    return map;
+  }, [deposits, studentIdByPersona]);
+
+  const enrolledKey = useMemo(() => (sid: string, pid: string) => `${sid}|${pid}`, []);
+
+  const enrolledBy = useMemo(() => {
+    const map = new Map<string, Enrollment>();
+    for (const e of enrollments) {
+      const key = enrolledKey(e.studentId, e.academicPeriodId);
+      if (!map.has(key)) map.set(key, e);
+    }
+    return map;
+  }, [enrollments, enrolledKey]);
+
+  const habilitated = useMemo(
+    () => students.filter((s) => bestDepositByStudent.has(s.id)),
+    [students, bestDepositByStudent]
+  );
+
+  const enrolledInPeriod = useMemo(
+    () => enrollments.filter((e) => e.academicPeriodId === periodId),
+    [enrollments, periodId]
+  );
 
   const student = students.find((s) => s.id === studentId);
 
@@ -452,10 +470,12 @@ export default function EnrollmentsPage() {
       : 'Sin matrícula en esta gestión'
     : '';
 
-  const enrolledInPeriod = enrollments.filter((e) => e.academicPeriodId === periodId);
-  const selectedPeriod = periods.find((p) => p.id === periodId);
+  const selectedPeriod = useMemo(
+    () => periods.find((p) => p.id === periodId),
+    [periods, periodId]
+  );
 
-  const studentMatches = (() => {
+  const studentMatches = useMemo(() => {
     const q = studentQuery.trim().toLowerCase();
     const base = habilitated;
     if (!q) return base.slice(0, 8);
@@ -467,7 +487,7 @@ export default function EnrollmentsPage() {
           `${s.firstName} ${s.lastName}`.toLowerCase().includes(q),
       )
       .slice(0, 8);
-  })();
+  }, [studentQuery, habilitated]);
 
   if (loading) return <LoadingState />;
 
@@ -710,14 +730,4 @@ function fmtShortRange(start?: string | null, end?: string | null): string {
   const e = f(end);
   if (s && e) return `${s} – ${e}`;
   return s || e || '';
-}
-
-function initialsOf(firstName?: string, lastName?: string): string {
-  return `${firstName ?? ''} ${lastName ?? ''}`
-    .trim()
-    .split(' ')
-    .map((n) => n[0])
-    .join('')
-    .slice(0, 2)
-    .toUpperCase();
 }
