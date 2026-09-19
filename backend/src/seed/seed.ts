@@ -1,7 +1,7 @@
 import { DataSource, type DeepPartial } from 'typeorm';
 import * as bcrypt from 'bcryptjs';
 import * as dotenv from 'dotenv';
-import { EmployeeType, PersonStatus, Sex } from '@common/enums';
+import { EmployeeType, PersonStatus, Sex, DepositConcept } from '@common/enums';
 import { Person } from '@modules/person/entities/person.entity';
 import { Employee } from '@modules/employee/entities/employee.entity';
 import { Role } from '@modules/rbac/entities/role.entity';
@@ -13,6 +13,7 @@ import {
   LEGACY_ROLE_MAP,
   DEFAULT_ROLE_KEYS,
 } from '@modules/rbac/rbac.service';
+import { generateRandomPassword } from '@common/utils/password.util';
 
 dotenv.config();
 dotenv.config({ path: '../.env', override: true });
@@ -200,6 +201,30 @@ const STUDENTS_BY_CAREER: Record<'AUT' | 'MEC', DemoStudent[]> = {
     { firstName: 'Andrea', paternalSurname: 'Callisaya', maternalSurname: 'Choque', ci: '7654321', ciExtension: 'SC', sex: 'FEMALE', birthYear: 2005, phone: '79004512', email: 'andrea.callisaya@itbt.edu.bo', address: 'Santa Cruz, Centro', entry: { year: '2026', seq: 1, level: 1 } },
     { firstName: 'Luis', paternalSurname: 'Machaca', maternalSurname: 'Rodríguez', ci: '6543210', ciExtension: 'LP', sex: 'MALE', birthYear: 2004, phone: '76223344', email: 'luis.machaca@itbt.edu.bo', address: 'El Alto, Z. Ciudad Satélite', entry: { year: '2025', seq: 2, level: 1 } },
     { firstName: 'Gabriela', paternalSurname: 'Vino', maternalSurname: 'Nina', ci: '12345678', ciExtension: 'LP', sex: 'FEMALE', birthYear: 2006, phone: '71223335', email: 'gabriela.vino@itbt.edu.bo', address: 'El Alto, Z. Senkata', entry: { year: '2026', seq: 1, level: 1 } },
+    { firstName: 'Guido', paternalSurname: 'Condori', maternalSurname: 'Loza', ci: '45321001', ciExtension: 'LP', sex: 'MALE', birthYear: 1999, phone: '71100101', email: 'guido.condori@itbt.edu.bo', address: 'El Alto, Z. 12 de Octubre', entry: { year: '2023', seq: 2, level: 1 } },
+    { firstName: 'Patricia', paternalSurname: 'Yucra', maternalSurname: 'Maquera', ci: '45321002', ciExtension: 'LP', sex: 'FEMALE', birthYear: 2000, phone: '71100102', email: 'patricia.yucra@itbt.edu.bo', address: 'El Alto, Z.哄哄', entry: { year: '2023', seq: 2, level: 1 } },
+    { firstName: 'Marco', paternalSurname: 'Choque', maternalSurname: 'Paco', ci: '45321003', ciExtension: 'CB', sex: 'MALE', birthYear: 1998, phone: '71100103', email: 'marco.choque@itbt.edu.bo', address: 'Cochabamba, Sacaba', entry: { year: '2023', seq: 2, level: 1 } },
+    { firstName: 'Silvia', paternalSurname: 'Mamani', maternalSurname: 'Huanca', ci: '45321004', ciExtension: 'LP', sex: 'FEMALE', birthYear: 2001, phone: '71100104', email: 'silvia.mamani@itbt.edu.bo', address: 'El Alto, Z. Ciudad Satélite', entry: { year: '2023', seq: 2, level: 1 } },
+    { firstName: 'Roberto', paternalSurname: 'Flores', maternalSurname: 'Chura', ci: '45321005', ciExtension: 'SC', sex: 'MALE', birthYear: 1999, phone: '71100105', email: 'roberto.flores@itbt.edu.bo', address: 'Santa Cruz, El Trompillo', entry: { year: '2023', seq: 2, level: 1 } },
+    { firstName: 'Carmen', paternalSurname: 'Condor', maternalSurname: 'Ajata', ci: '45321006', ciExtension: 'LP', sex: 'FEMALE', birthYear: 2000, phone: '71100106', email: 'carmen.condor@itbt.edu.bo', address: 'El Alto, Z. Senkata', entry: { year: '2023', seq: 2, level: 1 } },
+    { firstName: 'Luis', paternalSurname: 'Aquise', maternalSurname: 'Mamani', ci: '45321007', ciExtension: 'LP', sex: 'MALE', birthYear: 2000, phone: '71100107', email: 'luis.aquise@itbt.edu.bo', address: 'El Alto, Z. Ferropetrol', entry: { year: '2023', seq: 2, level: 1 } },
+    { firstName: 'Elena', paternalSurname: 'Ramos', maternalSurname: 'Flores', ci: '45321008', ciExtension: 'CB', sex: 'FEMALE', birthYear: 2001, phone: '71100108', email: 'elena.ramos@itbt.edu.bo', address: 'Cochabamba, Colcapirhua', entry: { year: '2023', seq: 2, level: 1 } },
+    { firstName: 'Jorge', paternalSurname: 'Ticona', maternalSurname: 'Quispe', ci: '45321009', ciExtension: 'LP', sex: 'MALE', birthYear: 1999, phone: '71100109', email: 'jorge.ticona@itbt.edu.bo', address: 'El Alto, Z. 16 de Julio', entry: { year: '2023', seq: 2, level: 1 } },
+    { firstName: 'María', paternalSurname: 'Yucra', maternalSurname: 'Mendoza', ci: '45321010', ciExtension: 'LP', sex: 'FEMALE', birthYear: 2000, phone: '71100110', email: 'maria.yucra@itbt.edu.bo', address: 'El Alto, Z.哄哄', entry: { year: '2023', seq: 2, level: 1 } },
+    { firstName: 'Carlos', paternalSurname: 'Mendoza', maternalSurname: 'Choque', ci: '45321011', ciExtension: 'SC', sex: 'MALE', birthYear: 1998, phone: '71100111', email: 'carlos.mendoza@itbt.edu.bo', address: 'Santa Cruz, Plan 3000', entry: { year: '2023', seq: 2, level: 1 } },
+    { firstName: 'Ana', paternalSurname: 'Huanca', maternalSurname: 'Ajata', ci: '45321012', ciExtension: 'LP', sex: 'FEMALE', birthYear: 2001, phone: '71100112', email: 'ana.huanca@itbt.edu.bo', address: 'El Alto, Z.哄哄', entry: { year: '2023', seq: 2, level: 1 } },
+    { firstName: 'Pedro', paternalSurname: 'Condori', maternalSurname: 'Flores', ci: '45421001', ciExtension: 'LP', sex: 'MALE', birthYear: 2002, phone: '71400101', email: 'pedro.condori@itbt.edu.bo', address: 'El Alto, Z.哄哄', entry: { year: '2024', seq: 1, level: 1 } },
+    { firstName: 'Lucía', paternalSurname: 'Aquise', maternalSurname: 'Mendoza', ci: '45421002', ciExtension: 'CB', sex: 'FEMALE', birthYear: 2003, phone: '71400102', email: 'lucia.aquise@itbt.edu.bo', address: 'Cochabamba, Quillacollo', entry: { year: '2024', seq: 1, level: 1 } },
+    { firstName: 'Diego', paternalSurname: 'Flores', maternalSurname: 'Ticona', ci: '45421003', ciExtension: 'LP', sex: 'MALE', birthYear: 2002, phone: '71400103', email: 'diego.flores@itbt.edu.bo', address: 'El Alto, Z.哄哄', entry: { year: '2024', seq: 1, level: 1 } },
+    { firstName: 'Rosa', paternalSurname: 'Choque', maternalSurname: 'Aquise', ci: '45421004', ciExtension: 'LP', sex: 'FEMALE', birthYear: 2003, phone: '71400104', email: 'rosa.choque@itbt.edu.bo', address: 'El Alto, Z.哄哄', entry: { year: '2024', seq: 1, level: 1 } },
+    { firstName: 'Juan', paternalSurname: 'Mamani', maternalSurname: 'Ramos', ci: '45421005', ciExtension: 'SC', sex: 'MALE', birthYear: 2002, phone: '71400105', email: 'juan.mamani@itbt.edu.bo', address: 'Santa Cruz, La Guardia', entry: { year: '2024', seq: 1, level: 1 } },
+    { firstName: 'Andrea', paternalSurname: 'Quispe', maternalSurname: 'Huanca', ci: '45421006', ciExtension: 'LP', sex: 'FEMALE', birthYear: 2003, phone: '71400106', email: 'andrea.quisque@itbt.edu.bo', address: 'El Alto, Z.哄哄', entry: { year: '2024', seq: 1, level: 1 } },
+    { firstName: 'Miguel', paternalSurname: 'Ticona', maternalSurname: 'Flores', ci: '45421007', ciExtension: 'LP', sex: 'MALE', birthYear: 2003, phone: '71400107', email: 'miguel.ticona@itbt.edu.bo', address: 'El Alto, Z.哄哄', entry: { year: '2024', seq: 2, level: 1 } },
+    { firstName: 'Karina', paternalSurname: 'Mendoza', maternalSurname: 'Condori', ci: '45421008', ciExtension: 'CB', sex: 'FEMALE', birthYear: 2004, phone: '71400108', email: 'karina.mendoza@itbt.edu.bo', address: 'Cochabamba, Tiquipaya', entry: { year: '2024', seq: 2, level: 1 } },
+    { firstName: 'Luis', paternalSurname: 'Huanca', maternalSurname: 'Choque', ci: '45421009', ciExtension: 'LP', sex: 'MALE', birthYear: 2003, phone: '71400109', email: 'luis.huanca@itbt.edu.bo', address: 'El Alto, Z.哄哄', entry: { year: '2024', seq: 2, level: 1 } },
+    { firstName: 'Paola', paternalSurname: 'Flores', maternalSurname: 'Aquise', ci: '45421010', ciExtension: 'LP', sex: 'FEMALE', birthYear: 2004, phone: '71400110', email: 'paola.flores@itbt.edu.bo', address: 'El Alto, Z.哄哄', entry: { year: '2024', seq: 2, level: 1 } },
+    { firstName: 'René', paternalSurname: 'Ramos', maternalSurname: 'Mamani', ci: '45421011', ciExtension: 'SC', sex: 'MALE', birthYear: 2003, phone: '71400111', email: 'rene.ramos@itbt.edu.bo', address: 'Santa Cruz, El Trompillo', entry: { year: '2024', seq: 2, level: 1 } },
+    { firstName: 'Verónica', paternalSurname: 'Choque', maternalSurname: 'Ticona', ci: '45421012', ciExtension: 'LP', sex: 'FEMALE', birthYear: 2004, phone: '71400112', email: 'veronica.choque@itbt.edu.bo', address: 'El Alto, Z.哄哄', entry: { year: '2024', seq: 2, level: 1 } },
   ],
   MEC: [
     { firstName: 'Pedro', paternalSurname: 'Ramos', maternalSurname: 'Condori', ci: '5432109', ciExtension: 'CB', sex: 'MALE', birthYear: 2002, phone: '77112233', email: 'pedro.ramos@itbt.edu.bo', address: 'Cochabamba, Quillacollo', entry: { year: '2025', seq: 1, level: 1 } },
@@ -411,13 +436,17 @@ async function seedDemoData(dataSource: DataSource, passHash: string) {
     if (!career) continue;
 
     const periods = await periodRepo.find({
-      where: { careerId: career.id },
       order: { year: 'ASC', sequence: 'ASC' },
     });
     const periodByKey = new Map(periods.map((p) => [`${p.year}|${p.sequence}`, p]));
     const byYearSeq = (year: string, seq: number) => periodByKey.get(`${year}|${seq}`);
 
-    const openPeriod = byYearSeq('2026', 1);
+    const openPeriod = periods
+      .filter((p) => p.status === 'OPEN')
+      .sort((a, b) => {
+        if (a.year !== b.year) return Number(b.year) - Number(a.year);
+        return b.sequence - a.sequence;
+      })[0] ?? byYearSeq('2026', 1);
     const subjects = await subjectRepo.find({ where: { careerId: career.id } });
 
     careerRepos[code as 'AUT' | 'MEC'] = {
@@ -474,70 +503,79 @@ async function seedDemoData(dataSource: DataSource, passHash: string) {
     const studentList = students as DemoStudent[];
 
     for (const demo of studentList) {
-      const currentLevel = demo.entry.level + (2026 - Number(demo.entry.year)) * 2 + (1 - demo.entry.seq);
+      const currentYear = 2026;
+      const currentSeq = 1;
+      const elapsed = (currentYear - Number(demo.entry.year)) * 2 + (currentSeq - demo.entry.seq);
+      const currentLevel = Math.max(1, Math.min(6, demo.entry.level + elapsed));
 
       const existingStudent = await studentRepo.findOne({ where: { ci: demo.ci } });
+      let student: any;
       if (existingStudent) {
         await studentRepo.update(existingStudent.id, {
           status: 'ACTIVE',
           currentLevel,
           currentPeriodId: openPeriod.id,
         });
-        continue;
-      }
+        await subjectEnrollmentRepo.delete({ studentId: existingStudent.id });
+        await gradeRepo.delete({ studentId: existingStudent.id });
+        await historyRepo.delete({ studentId: existingStudent.id });
+        await depositRepo.delete({ studentId: existingStudent.id });
+        await enrollmentRepo.delete({ studentId: existingStudent.id });
+        student = existingStudent;
+      } else {
+        studentCounter += 1;
+        const studentCode = `EST-2026-${String(studentCounter).padStart(4, '0')}`;
+        const birthDate = `${demo.birthYear}-${String((hashStr(demo.ci) % 12) + 1).padStart(2, '0')}-${String((hashStr(demo.email) % 27) + 1).padStart(2, '0')}`;
 
-      studentCounter += 1;
-      const studentCode = `EST-2026-${String(studentCounter).padStart(4, '0')}`;
-      const birthDate = `${demo.birthYear}-${String((hashStr(demo.ci) % 12) + 1).padStart(2, '0')}-${String((hashStr(demo.email) % 27) + 1).padStart(2, '0')}`;
+        student = await studentRepo.save({
+          firstName: demo.firstName,
+          paternalSurname: demo.paternalSurname,
+          maternalSurname: demo.maternalSurname,
+          lastName: `${demo.paternalSurname} ${demo.maternalSurname}`,
+          ci: demo.ci,
+          ciExtension: demo.ciExtension,
+          birthDate,
+          sex: demo.sex,
+          phone: demo.phone,
+          address: demo.address,
+          email: demo.email,
+          studentCode,
+          status: 'ACTIVE',
+          currentLevel,
+          careerId: career.id,
+          currentPeriodId: openPeriod.id,
+        });
 
-      const student = await studentRepo.save({
-        firstName: demo.firstName,
-        paternalSurname: demo.paternalSurname,
-        maternalSurname: demo.maternalSurname,
-        lastName: `${demo.paternalSurname} ${demo.maternalSurname}`,
-        ci: demo.ci,
-        ciExtension: demo.ciExtension,
-        birthDate,
-        sex: demo.sex,
-        phone: demo.phone,
-        address: demo.address,
-        email: demo.email,
-        studentCode,
-        status: 'ACTIVE',
-        currentLevel,
-        careerId: career.id,
-        currentPeriodId: openPeriod.id,
-      });
-
-      const existingPerson = await personRepo.findOne({ where: { ci: demo.ci } });
-      let person = existingPerson;
-      if (!person) {
-        person = await personRepo.findOne({ where: { email: demo.email } });
+        const existingPerson = await personRepo.findOne({ where: { ci: demo.ci } });
+        let person = existingPerson;
+        if (!person) {
+          person = await personRepo.findOne({ where: { email: demo.email } });
+        }
+        if (!person) {
+          person = await personRepo.save(
+            createPerson(personRepo, {
+              ci: demo.ci,
+              ciExtension: demo.ciExtension,
+              firstName: demo.firstName,
+              paternalSurname: demo.paternalSurname,
+              maternalSurname: demo.maternalSurname,
+              lastName: `${demo.paternalSurname} ${demo.maternalSurname}`,
+              birthDate,
+              sex: demo.sex,
+              phone: demo.phone,
+              address: demo.address,
+              email: demo.email,
+            }),
+          );
+        }
+        await studentRepo.update(student.id, { personaId: person.id });
       }
-      if (!person) {
-        person = await personRepo.save(
-          createPerson(personRepo, {
-            ci: demo.ci,
-            ciExtension: demo.ciExtension,
-            firstName: demo.firstName,
-            paternalSurname: demo.paternalSurname,
-            maternalSurname: demo.maternalSurname,
-            lastName: `${demo.paternalSurname} ${demo.maternalSurname}`,
-            birthDate,
-            sex: demo.sex,
-            phone: demo.phone,
-            address: demo.address,
-            email: demo.email,
-          }),
-        );
-      }
-      await studentRepo.update(student.id, { personaId: person.id });
 
       for (const period of periods) {
         const periodY = Number(period.year);
         const entryY = Number(demo.entry.year);
         const isAfterEntry = periodY > entryY || (periodY === entryY && period.sequence >= demo.entry.seq);
-        const isBeforeOrCurrent = periodY < 2026 || (periodY === 2026 && period.sequence <= 1);
+        const isBeforeOrCurrent = periodY < Number(openPeriod.year) || (periodY === Number(openPeriod.year) && period.sequence <= openPeriod.sequence);
         if (!isAfterEntry || !isBeforeOrCurrent) continue;
 
         const elapsed = (periodY - entryY) * 2 + (period.sequence - demo.entry.seq);
@@ -550,7 +588,7 @@ async function seedDemoData(dataSource: DataSource, passHash: string) {
             depositNumber,
             depositDate: period.startDate,
             amount: 850,
-            concept: `Matrícula ${period.periodName}`,
+            concept: DepositConcept.MATRICULA,
             status: 'APPROVED',
             verificationComment: 'Verificado por Secretaría Académica',
             verificationDate: period.startDate,
@@ -596,85 +634,71 @@ async function seedDemoData(dataSource: DataSource, passHash: string) {
           }
 
           const existingSe = await subjectEnrollmentRepo.findOne({
-            where: { studentId: student.id, assignmentId: assignment.id },
+            where: { studentId: student.id, assignmentId: assignment.id, academicPeriodId: period.id },
           });
           if (!existingSe) {
-            await subjectEnrollmentRepo.save({ studentId: student.id, assignmentId: assignment.id });
-          }
-
-          const existingGrade = await gradeRepo.findOne({
-            where: { studentId: student.id, assignmentId: assignment.id },
-          });
-          if (!existingGrade) {
-            const rng = mulberry32(hashStr(`${student.studentCode}|${subject.code}|${period.year}`));
-            const likelyFail = rng() < 0.12;
-            const comp = () => Math.round((likelyFail ? 20 + rng() * 30 : 40 + rng() * 58) * 100) / 100;
-            const firstPartial = comp();
-            const secondPartial = comp();
-            const practices = comp();
-            const finalExam = comp();
-            const finalGrade = Math.round((firstPartial * 0.25 + secondPartial * 0.25 + practices * 0.2 + finalExam * 0.3) * 100) / 100;
-            const status = finalGrade >= 51 ? 'APPROVED' : 'FAILED';
-            await gradeRepo.save({
-              studentId: student.id,
-              assignmentId: assignment.id,
-              firstPartial,
-              secondPartial,
-              practices,
-              finalExam,
-              finalGrade,
-              status,
-            });
-          }
-
-          const existingHist = await historyRepo.findOne({
-            where: { studentId: student.id, subjectId: subject.id, academicPeriodId: period.id },
-          });
-          if (!existingHist) {
-            const gradeForHist = await gradeRepo.findOne({
-              where: { studentId: student.id, assignmentId: assignment.id },
-            });
-            await historyRepo.save({
-              studentId: student.id,
-              careerId: career.id,
-              academicPeriodId: period.id,
-              subjectId: subject.id,
-              semester: subject.semester,
-              finalGrade: gradeForHist?.finalGrade ?? null,
-              status: gradeForHist?.status ?? 'PENDING',
-              isReevaluation: false,
-            });
+            await subjectEnrollmentRepo.save({ studentId: student.id, assignmentId: assignment.id, academicPeriodId: period.id });
           }
         }
       }
 
+      // Recalculate currentLevel based on actual latest enrollment period
+      const latestEnrollment = await enrollmentRepo
+        .createQueryBuilder('enrollment')
+        .innerJoinAndSelect('enrollment.academicPeriod', 'ap')
+        .where('enrollment.studentId = :studentId', { studentId: student.id })
+        .orderBy('ap.year', 'DESC')
+        .addOrderBy('ap.sequence', 'DESC')
+        .getOne();
+
+      let finalLevel = currentLevel;
+      if (latestEnrollment?.academicPeriod) {
+        const latestYear = Number(latestEnrollment.academicPeriod.year);
+        const latestSeq = latestEnrollment.academicPeriod.sequence;
+        const entryY = Number(demo.entry.year);
+        const elapsed = (latestYear - entryY) * 2 + (latestSeq - demo.entry.seq);
+        finalLevel = Math.max(1, Math.min(6, demo.entry.level + elapsed));
+      }
+
+      await studentRepo.update(student.id, { currentLevel: finalLevel });
+
       console.log(
-        `✅ Estudiante creado: ${studentCode} — ${demo.firstName} ${demo.paternalSurname} ${demo.maternalSurname} | Nivel ${currentLevel}`,
+        `✅ Estudiante creado: ${student.studentCode} — ${demo.firstName} ${demo.paternalSurname} ${demo.maternalSurname} | Nivel ${currentLevel}`,
       );
     }
   }
 
   const studentUsers = [1, 3, 7, 9];
-  console.log('  Usuarios de estudiantes (demo): <carnet> / demo2026');
+  console.log('  Usuarios de estudiantes (demo):');
   for (const [, repo] of Object.entries(careerRepos) as Array<[string, any]>) {
     const students = await studentRepo.find({
       where: { careerId: repo.career.id },
-      take: 8,
       order: { createdAt: 'ASC' },
     });
-    for (const [idx, s] of students.entries()) {
-      if (!studentUsers.includes(idx)) continue;
+    for (const s of students) {
       const freshStudent = await studentRepo.findOne({ where: { id: s.id } });
       if (!freshStudent) continue;
-      await ensureUser({
-        username: freshStudent.ci,
+      const username = `AUT${freshStudent.ci}`;
+      const existingUserByUsername = await userRepo.findOne({ where: { username } });
+      const existingUserByEmail = await userRepo.findOne({ where: { email: freshStudent.email } });
+      const existingUserByStudentId = await userRepo.findOne({ where: { studentId: freshStudent.id } });
+      if (existingUserByUsername || existingUserByEmail || existingUserByStudentId) {
+        console.log(`⏭️  Usuario existente: ${existingUserByUsername?.username || existingUserByEmail?.username || username} (${freshStudent.studentCode})`);
+        continue;
+      }
+      const plainPassword = generateRandomPassword();
+      const passwordHash = await bcrypt.hash(plainPassword, 10);
+      const savedUser = await userRepo.save({
+        username,
         email: freshStudent.email,
         fullName: `${freshStudent.firstName} ${freshStudent.lastName}`,
-        role: 'STUDENT',
+        passwordHash,
+        status: 'ACTIVE',
+        mustChangePassword: true,
         studentId: freshStudent.id,
-        personId: freshStudent.personaId,
       });
-      console.log(`✅ Usuario estudiante: ${freshStudent.ci} / demo2026 (${freshStudent.studentCode})`);
+      await ensureLegacyRoleAssigned(savedUser.id, 'STUDENT');
+      console.log(`✅ Usuario estudiante: ${username} / ${plainPassword} (${freshStudent.studentCode})`);
     }
   }
 
@@ -889,6 +913,30 @@ export async function runSeed() {
 
   await migrateExistingData(dataSource);
 
+  for (const template of PERIODS_TEMPLATE) {
+    const existingPeriod = await periodRepo.findOne({
+      where: { year: template.year, sequence: template.sequence },
+    });
+    if (!existingPeriod) {
+      await periodRepo.save({
+        year: template.year,
+        periodName: template.periodName,
+        sequence: template.sequence,
+        startDate: template.startDate,
+        endDate: template.endDate,
+        status: template.status,
+      });
+      console.log(`✅ Gestión ${template.periodName} creada`);
+    } else {
+      await periodRepo.update(existingPeriod.id, {
+        periodName: template.periodName,
+        startDate: template.startDate,
+        endDate: template.endDate,
+        status: template.status,
+      });
+    }
+  }
+
   for (const careerData of CAREERS) {
     const existingCareer = await careerRepo.findOne({
       where: { code: careerData.code },
@@ -916,31 +964,6 @@ export async function runSeed() {
     }
 
     if (career) {
-      for (const template of PERIODS_TEMPLATE) {
-        const existingPeriod = await periodRepo.findOne({
-          where: { year: template.year, sequence: template.sequence, careerId: career.id },
-        });
-        if (!existingPeriod) {
-          await periodRepo.save({
-            year: template.year,
-            periodName: template.periodName,
-            sequence: template.sequence,
-            startDate: template.startDate,
-            endDate: template.endDate,
-            status: template.status,
-            careerId: career.id,
-          });
-          console.log(`✅ Gestión ${template.periodName} creada para ${careerData.name}`);
-        } else {
-          await periodRepo.update(existingPeriod.id, {
-            periodName: template.periodName,
-            startDate: template.startDate,
-            endDate: template.endDate,
-            status: template.status,
-          });
-        }
-      }
-
       for (const subjectData of careerData.subjects) {
         const existingSubject = await subjectRepo.findOne({
           where: { code: subjectData.code, careerId: career.id },

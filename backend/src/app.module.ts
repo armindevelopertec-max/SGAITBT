@@ -8,6 +8,7 @@ import { AppConfigService } from './config/config.service';
 import { InstitutionModule } from './modules/institution/institution.module';
 import { CareerModule } from './modules/career/career.module';
 import { AcademicPeriodModule } from './modules/academic-period/academic-period.module';
+import { CalendarEventModule } from './modules/calendar-event/calendar-event.module';
 import { SubjectModule } from './modules/subject/subject.module';
 import { StudentModule } from './modules/student/student.module';
 import { DepositModule } from './modules/deposit/deposit.module';
@@ -24,6 +25,7 @@ import { PersonModule } from './modules/person/person.module';
 import { EmployeeModule } from './modules/employee/employee.module';
 import { RbacModule } from './modules/rbac/rbac.module';
 import { AuditModule } from './modules/audit/audit.module';
+import { ParallelModule } from './modules/parallel/parallel.module';
 
 @Module({
   imports: [
@@ -45,9 +47,11 @@ import { AuditModule } from './modules/audit/audit.module';
     EmployeeModule,
     RbacModule,
     AuditModule,
+    ParallelModule,
     InstitutionModule,
     CareerModule,
     AcademicPeriodModule,
+    CalendarEventModule,
     SubjectModule,
     StudentModule,
     DepositModule,

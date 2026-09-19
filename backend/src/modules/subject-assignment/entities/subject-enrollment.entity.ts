@@ -8,6 +8,7 @@ import {
 import { BaseEntity } from '@common/entities/base.entity';
 import { Student } from '@modules/student/entities/student.entity';
 import { SubjectAssignment } from './subject-assignment.entity';
+import { AcademicPeriod } from '@modules/academic-period/entities/academic-period.entity';
 
 @Entity('subject_enrollments')
 @Index('IDX_subject_enrollment_student', ['studentId'])
@@ -26,4 +27,11 @@ export class SubjectEnrollment extends BaseEntity {
 
   @Column({ name: 'assignment_id', type: 'uuid' })
   assignmentId: string;
+
+  @ManyToOne(() => AcademicPeriod)
+  @JoinColumn({ name: 'academic_period_id' })
+  academicPeriod: AcademicPeriod;
+
+  @Column({ name: 'academic_period_id', type: 'uuid' })
+  academicPeriodId: string;
 }

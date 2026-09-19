@@ -24,6 +24,9 @@ export class CreateSubjectAssignmentDto {
   parallel?: string;
 
   @IsOptional()
+  parallelId?: string;
+
+  @IsOptional()
   @IsString()
   @MaxLength(50)
   classroom?: string;
@@ -45,6 +48,9 @@ export class UpdateSubjectAssignmentDto {
   @IsString()
   @MaxLength(20)
   parallel?: string;
+
+  @IsOptional()
+  parallelId?: string;
 
   @IsOptional()
   @IsString()
@@ -83,6 +89,14 @@ export class EnrollStudentInAssignmentDto {
   @IsOptional()
   @IsInt()
   semester?: number;
+}
+
+export class AutoEnrollStudentDto {
+  @IsNotEmpty()
+  studentId: string;
+
+  @IsNotEmpty()
+  academicPeriodId: string;
 }
 
 export class AssignmentQueryDto {

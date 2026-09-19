@@ -5,13 +5,19 @@ import {
   IsNumber,
   IsOptional,
   IsString,
+  IsUUID,
   MaxLength,
 } from 'class-validator';
-import { DepositStatus } from '@common/enums';
+import { DepositConcept, DepositStatus } from '@common/enums';
 
 export class CreateDepositDto {
-  @IsNotEmpty()
-  studentId: string;
+  @IsOptional()
+  @IsUUID()
+  studentId?: string;
+
+  @IsOptional()
+  @IsUUID()
+  personId?: string;
 
   @IsString()
   @IsNotEmpty()
@@ -24,10 +30,13 @@ export class CreateDepositDto {
   @IsNumber()
   amount: number;
 
+  @IsEnum(DepositConcept)
+  concept: DepositConcept;
+
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
   @MaxLength(255)
-  concept: string;
+  conceptDetail?: string;
 
   @IsOptional()
   @IsString()
@@ -49,9 +58,13 @@ export class UpdateDepositDto {
   amount?: number;
 
   @IsOptional()
+  @IsEnum(DepositConcept)
+  concept?: DepositConcept;
+
+  @IsOptional()
   @IsString()
   @MaxLength(255)
-  concept?: string;
+  conceptDetail?: string;
 
   @IsOptional()
   @IsString()
@@ -67,6 +80,12 @@ export class VerifyDepositDto {
   verificationComment?: string;
 }
 
+export class ConvertDepositDto {
+  @IsNotEmpty()
+  @IsUUID()
+  studentId: string;
+}
+
 export class DepositQueryDto {
   @IsOptional()
   @IsEnum(DepositStatus)
@@ -74,4 +93,11 @@ export class DepositQueryDto {
 
   @IsOptional()
   studentId?: string;
+
+  @IsOptional()
+  personId?: string;
+
+  @IsOptional()
+  @IsEnum(DepositConcept)
+  concept?: DepositConcept;
 }

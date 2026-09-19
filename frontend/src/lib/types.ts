@@ -1,8 +1,9 @@
 export type UserRole = 'ADMIN' | 'SECRETARY' | 'TEACHER' | 'STUDENT';
 export type AcademicStatus = 'PRE_ENROLLED' | 'ACTIVE' | 'WITHDRAWN' | 'GRADUATE' | 'TITLED' | 'INACTIVE';
 export type DepositStatus = 'PENDING' | 'VERIFIED' | 'APPROVED' | 'REJECTED' | 'OBSERVED';
+export type DepositConcept = 'MATRICULA' | 'EXAMEN' | 'CERTIFICADO' | 'OTROS';
 export type EnrollmentStatus = 'ACTIVE' | 'INACTIVE' | 'CANCELLED';
-export type PeriodStatus = 'OPEN' | 'CLOSED';
+export type PeriodStatus = 'PLANNED' | 'OPEN' | 'CLOSED';
 export type GradeStatus = 'APPROVED' | 'FAILED' | 'PENDING';
 export type AttendanceStatus = 'PRESENT' | 'ABSENT' | 'LATE' | 'JUSTIFIED';
 export type Sex = 'MALE' | 'FEMALE';
@@ -43,11 +44,31 @@ export interface AcademicPeriod {
   year: string;
   periodName: string;
   sequence: number;
-  startDate: string;
-  endDate: string;
+  startDate: string | null;
+  endDate: string | null;
   status: PeriodStatus;
-  careerId: string;
-  career?: Career;
+}
+
+export type CalendarEventCategory =
+  | 'PERIODO'
+  | 'MATRICULA'
+  | 'ACTIVIDAD'
+  | 'EVALUACION'
+  | 'RECESO'
+  | 'CIERRE'
+  | 'OTHER';
+export type CalendarEventStatus = 'ACTIVE' | 'CANCELLED';
+
+export interface CalendarEvent {
+  id: string;
+  title: string;
+  category: CalendarEventCategory;
+  startDate: string;
+  endDate?: string | null;
+  description?: string;
+  status: CalendarEventStatus;
+  academicPeriodId: string;
+  academicPeriod?: AcademicPeriod;
 }
 
 export interface Subject {
@@ -85,6 +106,7 @@ export interface Student {
   career?: Career;
   currentPeriodId?: string;
   currentPeriod?: AcademicPeriod;
+  personaId?: string;
   createdAt: string;
 }
 
@@ -93,14 +115,17 @@ export interface Deposit {
   depositNumber: string;
   depositDate: string;
   amount: number;
-  concept: string;
+  concept: DepositConcept;
+  conceptDetail?: string;
   voucherUrl?: string;
   status: DepositStatus;
   verificationComment?: string;
   verificationDate?: string;
   verifiedBy?: string;
-  studentId: string;
+  studentId?: string | null;
   student?: Student;
+  personId?: string | null;
+  persona?: Person;
 }
 
 export interface Enrollment {
@@ -135,6 +160,8 @@ export interface User {
 export interface SubjectAssignment {
   id: string;
   parallel: string;
+  parallelId?: string;
+  parallelEntity?: Parallel;
   classroom?: string;
   schedule?: Record<string, unknown>;
   subjectId: string;
@@ -147,11 +174,19 @@ export interface SubjectAssignment {
   enrollments?: SubjectEnrollment[];
 }
 
+export interface Parallel {
+  id: string;
+  code: string;
+  shift: 'MANANA' | 'TARDE' | 'NOCHE';
+  academicPeriodId: string;
+}
+
 export interface SubjectEnrollment {
   id: string;
   studentId: string;
   student?: Student;
   assignmentId: string;
+  academicPeriodId?: string;
 }
 
 export interface Attendance {

@@ -6,8 +6,9 @@ import {
   Index,
 } from 'typeorm';
 import { BaseEntity } from '@common/entities/base.entity';
-import { DepositStatus } from '@common/enums';
+import { DepositConcept, DepositStatus } from '@common/enums';
 import { Student } from '@modules/student/entities/student.entity';
+import { Person } from '@modules/person/entities/person.entity';
 
 @Entity('deposits')
 @Index('IDX_deposit_student', ['studentId'])
@@ -22,8 +23,15 @@ export class Deposit extends BaseEntity {
   @Column({ name: 'amount', type: 'numeric', precision: 12, scale: 2 })
   amount: number;
 
-  @Column({ type: 'varchar', length: 255 })
-  concept: string;
+  @Column({
+    type: 'enum',
+    enum: DepositConcept,
+    default: DepositConcept.MATRICULA,
+  })
+  concept: DepositConcept;
+
+  @Column({ name: 'concept_detail', type: 'varchar', length: 255, nullable: true })
+  conceptDetail?: string;
 
   @Column({ name: 'voucher_url', type: 'text', nullable: true })
   voucherUrl?: string;
@@ -49,6 +57,15 @@ export class Deposit extends BaseEntity {
   @JoinColumn({ name: 'student_id' })
   student: Student;
 
-  @Column({ name: 'student_id', type: 'uuid' })
-  studentId: string;
+  @Column({ name: 'student_id', type: 'uuid', nullable: true })
+  studentId?: string;
+
+  // Aspirante: persona aún sin ficha de estudiante.
+  @ManyToOne(() => Person, { nullable: true })
+  @JoinColumn({ name: 'person_id' })
+  persona?: Person;
+
+  @Column({ name: 'person_id', type: 'uuid', nullable: true })
+  @Index('IDX_deposit_person')
+  personId?: string;
 }

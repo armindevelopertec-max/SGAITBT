@@ -27,8 +27,23 @@ const STATUS_MAP: Record<string, { label: string; color: BadgeProps['color'] }> 
   CANCELLED: { label: 'Cancelado', color: 'danger' },
 
   // Periods
+  PLANNED: { label: 'Planificado', color: 'info' },
   OPEN: { label: 'Abierta', color: 'success' },
   CLOSED: { label: 'Cerrada', color: 'neutral' },
+
+  // Calendar categories
+  PERIODO: { label: 'Período académico', color: 'info' },
+  ACTIVIDAD: { label: 'Actividad académica', color: 'purple' },
+  EVALUACION: { label: 'Evaluación', color: 'warning' },
+  RECESO: { label: 'Receso / Feriado', color: 'neutral' },
+  CIERRE: { label: 'Cierre', color: 'danger' },
+  OTHER: { label: 'Otro', color: 'neutral' },
+
+  // Deposit concepts
+  MATRICULA: { label: 'Matrícula', color: 'success' },
+  EXAMEN: { label: 'Examen', color: 'warning' },
+  CERTIFICADO: { label: 'Certificado', color: 'info' },
+  OTROS: { label: 'Otros', color: 'neutral' },
 
   // Study conclusion
   COMPLETED: { label: 'Completado', color: 'success' },

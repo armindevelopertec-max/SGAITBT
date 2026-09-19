@@ -50,11 +50,11 @@ export class StudentService {
 
     const saved = await this.studentRepository.save(student);
 
-    const user = await this.userService.createStudentUser(saved.id);
+    const { user, password } = await this.userService.createStudentUser(saved.id);
     const result = saved as Student & {
       credentials?: { username: string; password: string };
     };
-    result.credentials = { username: user.username, password: saved.ci };
+    result.credentials = { username: user.username, password };
 
     return result;
   }

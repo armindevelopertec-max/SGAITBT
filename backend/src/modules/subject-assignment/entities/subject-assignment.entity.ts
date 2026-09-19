@@ -13,6 +13,7 @@ import { AcademicPeriod } from '@modules/academic-period/entities/academic-perio
 import { Grade } from '@modules/grade/entities/grade.entity';
 import { Attendance } from '@modules/attendance/entities/attendance.entity';
 import { SubjectEnrollment } from './subject-enrollment.entity';
+import { Parallel } from '@modules/parallel/entities/parallel.entity';
 
 @Entity('subject_assignments')
 @Index('IDX_assignment_subject_period', ['subjectId', 'academicPeriodId'])
@@ -49,6 +50,13 @@ export class SubjectAssignment extends BaseEntity {
   @Column({ name: 'academic_period_id', type: 'uuid' })
   @Index('IDX_assignment_period_id')
   academicPeriodId: string;
+
+  @ManyToOne(() => Parallel, { nullable: true, onDelete: 'SET NULL' })
+  @JoinColumn({ name: 'parallel_id' })
+  parallelEntity?: Parallel;
+
+  @Column({ name: 'parallel_id', type: 'uuid', nullable: true })
+  parallelId?: string;
 
   @Column({ name: 'semester', type: 'integer' })
   semester: number;

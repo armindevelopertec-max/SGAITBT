@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Injectable,
   ConflictException,
   NotFoundException,
@@ -16,6 +17,7 @@ import {
 import { UserStatus } from '@common/enums';
 import { Student } from '@modules/student/entities/student.entity';
 import { DEFAULT_ROLE_KEYS, LEGACY_ROLE_MAP, RbacService } from '@modules/rbac/rbac.service';
+import { generateRandomPassword } from '@common/utils/password.util';
 
 @Injectable()
 export class UserService {
@@ -75,7 +77,7 @@ export class UserService {
     return saved;
   }
 
-  async createStudentUser(studentId: string): Promise<User> {
+  async createStudentUser(studentId: string): Promise<{ user: User; password: string }> {
     const student = await this.studentRepository.findOne({
       where: { id: studentId },
     });
@@ -90,10 +92,9 @@ export class UserService {
       throw new ConflictException('El estudiante ya tiene un usuario');
     }
 
-    const defaultPassword = student.ci;
-    const username = student.ci;
-
-    const passwordHash = await bcrypt.hash(defaultPassword, 10);
+    const plainPassword = generateRandomPassword();
+    const username = `AUT${student.ci}`;
+    const passwordHash = await bcrypt.hash(plainPassword, 10);
 
     const user = this.userRepository.create({
       username,
@@ -107,7 +108,7 @@ export class UserService {
 
     const saved = await this.userRepository.save(user);
     await this.rbacService.assignRole(saved.id, DEFAULT_ROLE_KEYS.ESTUDIANTE);
-    return saved;
+    return { user: saved, password: plainPassword };
   }
 
   async findByUsername(username: string): Promise<User | null> {
@@ -124,6 +125,14 @@ export class UserService {
       .where('user.username = :identifier OR user.email = :identifier', { identifier })
       .orWhere('student.ci = :ci', { ci: identifier })
       .getOne();
+  }
+
+  async findByStudentId(studentId: string): Promise<{ username: string } | null> {
+    const user = await this.userRepository.findOne({
+      where: { studentId },
+      select: ['username'],
+    });
+    return user ? { username: user.username } : null;
   }
 
   async findByEmail(email: string): Promise<User | null> {
@@ -185,7 +194,7 @@ export class UserService {
     await this.userRepository.save(user);
 
     if (roleKeys && roleKeys.length > 0) {
-      await this.rbacService.replaceRoles(id, roleKeys);
+      await this.updateUserRoles(id, roleKeys);
     }
 
     return this.findOne(id);
@@ -239,6 +248,26 @@ export class UserService {
   }
 
   async updateUserRoles(id: string, roleKeys: string[]): Promise<User> {
+    const user = await this.findOne(id);
+    // Las cuentas vinculadas a un estudiante conservan el rol Estudiante.
+    if (
+      user.studentId &&
+      (roleKeys.length !== 1 || roleKeys[0] !== DEFAULT_ROLE_KEYS.ESTUDIANTE)
+    ) {
+      throw new BadRequestException(
+        'La cuenta está vinculada a un estudiante y debe mantener el rol Estudiante',
+      );
+    }
+    // El rol Estudiante solo aplica a cuentas vinculadas a un estudiante.
+    if (
+      !user.studentId &&
+      roleKeys.length === 1 &&
+      roleKeys[0] === DEFAULT_ROLE_KEYS.ESTUDIANTE
+    ) {
+      throw new BadRequestException(
+        'El rol Estudiante solo puede asignarse a una cuenta vinculada a un estudiante',
+      );
+    }
     await this.rbacService.replaceRoles(id, roleKeys);
     return this.findOne(id);
   }

@@ -5,6 +5,7 @@ import { SubjectAssignment } from './entities/subject-assignment.entity';
 import { SubjectEnrollment } from './entities/subject-enrollment.entity';
 import {
   AutoAssignStudentsDto,
+  AutoEnrollStudentDto,
   CreateSubjectAssignmentDto,
   EnrollStudentInAssignmentDto,
   UpdateSubjectAssignmentDto,
@@ -14,6 +15,9 @@ import { Subject } from '@modules/subject/entities/subject.entity';
 import { AcademicPeriod } from '@modules/academic-period/entities/academic-period.entity';
 import { Enrollment } from '@modules/enrollment/entities/enrollment.entity';
 import { Employee } from '@modules/employee/entities/employee.entity';
+import { EmployeeType } from '@common/enums';
+import { Parallel } from '@modules/parallel/entities/parallel.entity';
+import { Student } from '@modules/student/entities/student.entity';
 
 @Injectable()
 export class SubjectAssignmentService {
@@ -30,6 +34,10 @@ export class SubjectAssignmentService {
     private readonly matriculaRepository: Repository<Enrollment>,
     @InjectRepository(Employee)
     private readonly employeeRepository: Repository<Employee>,
+    @InjectRepository(Parallel)
+    private readonly parallelRepository: Repository<Parallel>,
+    @InjectRepository(Student)
+    private readonly studentRepository: Repository<Student>,
   ) {}
 
   async create(createDto: CreateSubjectAssignmentDto): Promise<SubjectAssignment> {
@@ -56,21 +64,29 @@ export class SubjectAssignmentService {
       }
     }
 
+    if (createDto.parallelId) {
+      const parallel = await this.parallelRepository.findOne({
+        where: { id: createDto.parallelId },
+      });
+      if (!parallel) {
+        throw new BadRequestException('El paralelo no existe');
+      }
+    }
+
     const existing = await this.assignmentRepository.findOne({
       where: {
         subjectId: createDto.subjectId,
         academicPeriodId: createDto.academicPeriodId,
-        parallel: createDto.parallel ?? 'A',
+        parallelId: createDto.parallelId ?? undefined,
       },
     });
     if (existing) {
-      throw new BadRequestException('Ya existe una asignación para esa materia, gestión y paralelo');
+      throw new BadRequestException('Ya existe una asignación para esa materia y paralelo');
     }
 
     const assignment = this.assignmentRepository.create({
       ...createDto,
       semester: createDto.semester ?? subject.semester,
-      parallel: createDto.parallel ?? 'A',
     });
 
     return this.assignmentRepository.save(assignment);
@@ -88,10 +104,13 @@ export class SubjectAssignmentService {
       where,
       relations: [
         'subject',
+        'subject.career',
         'academicPeriod',
         'employee',
         'employee.persona',
+        'parallelEntity',
         'enrollments',
+        'enrollments.student',
       ],
       order: { createdAt: 'DESC' },
     });
@@ -105,6 +124,7 @@ export class SubjectAssignmentService {
         'academicPeriod',
         'employee',
         'employee.persona',
+        'parallelEntity',
         'enrollments',
         'enrollments.student',
       ],
@@ -203,6 +223,7 @@ export class SubjectAssignmentService {
       where: {
         assignmentId,
         studentId: dto.studentId,
+        academicPeriodId: assignment.academicPeriodId,
       },
     });
     if (existing) {
@@ -212,14 +233,19 @@ export class SubjectAssignmentService {
     const enrollment = this.enrollmentRepository.create({
       assignmentId,
       studentId: dto.studentId,
+      academicPeriodId: assignment.academicPeriodId,
     });
 
     return this.enrollmentRepository.save(enrollment);
   }
 
   async removeStudent(assignmentId: string, studentId: string): Promise<void> {
+    const assignment = await this.assignmentRepository.findOne({ where: { id: assignmentId } });
+    if (!assignment) {
+      throw new NotFoundException('Asignación no encontrada');
+    }
     const enrollment = await this.enrollmentRepository.findOne({
-      where: { assignmentId, studentId },
+      where: { assignmentId, studentId, academicPeriodId: assignment.academicPeriodId },
     });
     if (!enrollment) {
       throw new NotFoundException('El estudiante no está asignado a esta materia');
@@ -233,5 +259,97 @@ export class SubjectAssignmentService {
       relations: ['student', 'student.career'],
       order: { createdAt: 'ASC' },
     });
+  }
+
+  async delete(id: string): Promise<void> {
+    const assignment = await this.findOne(id);
+    await this.assignmentRepository.softDelete(assignment.id);
+  }
+
+  async autoEnrollStudent(dto: AutoEnrollStudentDto): Promise<{ assigned: number; subjects: string[] }> {
+    const student = await this.studentRepository.findOne({ where: { id: dto.studentId } });
+    if (!student) {
+      throw new NotFoundException('Estudiante no encontrado');
+    }
+
+    const period = await this.periodRepository.findOne({ where: { id: dto.academicPeriodId } });
+    if (!period) {
+      throw new NotFoundException('Gestión académica no encontrada');
+    }
+
+    const currentLevel = student.currentLevel || 1;
+
+    const subjects = await this.subjectRepository.find({
+      where: { careerId: student.careerId, semester: currentLevel },
+    });
+
+    if (subjects.length === 0) {
+      return { assigned: 0, subjects: [] };
+    }
+
+    const parallelA = await this.parallelRepository.findOne({
+      where: { code: 'A' },
+    });
+    if (!parallelA) {
+      throw new BadRequestException('No existe paralelo A en el sistema');
+    }
+
+    const teachers = await this.employeeRepository.find({
+      where: { employeeType: EmployeeType.DOCENTE },
+      take: 1,
+    });
+    const teacher = teachers[0];
+    if (!teacher) {
+      throw new BadRequestException('No hay docentes disponibles');
+    }
+
+    let assigned = 0;
+    const assignedSubjects: string[] = [];
+
+    for (const subject of subjects) {
+      let assignment = await this.assignmentRepository.findOne({
+        where: {
+          subjectId: subject.id,
+          academicPeriodId: dto.academicPeriodId,
+          parallelId: parallelA.id,
+        },
+      });
+
+      if (!assignment) {
+        assignment = await this.assignmentRepository.save(
+          this.assignmentRepository.create({
+            subjectId: subject.id,
+            academicPeriodId: dto.academicPeriodId,
+            parallelId: parallelA.id,
+            parallel: 'A',
+            employeeId: teacher.id,
+            semester: subject.semester,
+            schedule: { day: 'LUN', start: '18:00', end: '21:00' },
+          }),
+        );
+      }
+
+      const existing = await this.enrollmentRepository.findOne({
+        where: {
+          studentId: dto.studentId,
+          assignmentId: assignment.id,
+          academicPeriodId: dto.academicPeriodId,
+        },
+      });
+
+      if (!existing) {
+        await this.enrollmentRepository.save(
+          this.enrollmentRepository.create({
+            studentId: dto.studentId,
+            assignmentId: assignment.id,
+            academicPeriodId: dto.academicPeriodId,
+          }),
+        );
+        assigned++;
+        assignedSubjects.push(subject.name);
+      }
+    }
+
+    return { assigned, subjects: assignedSubjects };
   }
 }

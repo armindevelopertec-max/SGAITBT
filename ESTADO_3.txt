@@ -1,0 +1,128 @@
+=================================================================================
+ESTADO DE TRABAJO — SGA ITBT (corte durante Fase 3)
+Fecha: 2026-09-18 ~17:05
+Proyecto: /home/armintec/Proyectos2026/SGAITBT
+=================================================================================
+
+DATOS CLAVE
+- .env raíz: /home/armintec/Proyectos2026/SGAITBT/.env (DB_USER, DB_NAME, DB_PASSWORD, DB_PORT)
+- Acceso BD: docker exec sga_postgres psql -U $DB_USER -d $DB_NAME
+- Backend :3001 (nest start --watch)
+- Frontend :3000
+- Login: admin/admin2026 · Docentes jquispe/mchoque/carana/lflores/demo2026
+- Student test EST: 9876543/demo2026
+
+=================================================================================
+RESUMEN DE FASES COMPLETADAS
+=================================================================================
+
+FASE 1 — COMPLETA
+- Roles recalibrados (APOYO=only dashboard.view; ESTUDIANTE=dashboard.view+history.view)
+- seedRoles() reconcilia roles de sistema al arrancar
+- Matrices OR en 11 controllers + /users/role/:role
+- Guard frontal de rutas en (dashboard)/layout.tsx + permisos.frontend
+- Tests backend 19/19, e2e 3/3, tsc+lint ok; frontend tsc+lint ok
+
+FASE 2a — COMPLETA
+- Se quitó columna role de la entidad User, enums, DTOs, service (RBAC-only)
+- Tests 19/19 ok
+
+FASE 2b — COMPLETA
+- SubjectAssignment: teacher_id(User) -> employee_id(Employee DOCENTE)
+- employee_id uuid nullable con FK a employees
+- 77 asignaciones con docente asignado (round-robin entre 4 docentes)
+- Smoke 2b TODO OK (2026-09-18)
+
+=================================================================================
+ESTADO ACTUAL — Fase 3 (en desarrollo)
+=================================================================================
+
+NUEVOS MÓDULOS AGREGADOS:
+
+1. Calendar Event (backend/src/modules/calendar-event/)
+   - Entidad: CalendarEvent
+   - API: /api/calendar-events
+   - Gestión de eventos del calendario académico
+   - Permisos: CALENDAR_VIEW, CALENDAR_CREATE, CALENDAR_UPDATE, CALENDAR_DELETE
+
+2. Parallel (backend/src/modules/parallel/)
+   - Entidad: Parallel
+   - API: /api/parallels
+   - Gestión de paralelos (A, B, C) por turno
+   - Permisos: PARALLELS_VIEW, PARALLELS_CREATE, PARALLELS_UPDATE, PARALLELS_DELETE
+
+NUEVAS PÁGINAS FRONTEND:
+
+1. Academic Management (/academic-management/)
+   - Gestión académica integrada
+
+2. Student Subject Assignments (/student-subject-assignments/)
+   - Asignación de materias por estudiante
+
+3. Subject Designations (/subject-designations/)
+   - Designación de materias
+
+=================================================================================
+FRONTEND — Estructura de páginas
+=================================================================================
+
+/academic-history        - Historial académico
+/academic-management    - Gestión académica (NUEVO)
+/academic-periods       - Períodos académicos
+/attendance             - Asistencia
+/audit                  - Auditoría
+/careers                - Carreras
+/centralizers           - Centralizadores
+/certificates           - Certificados
+/deposits               - Depósitos
+/employees              - Empleados
+/enrollments            - Matrículas
+/grades                 - Calificaciones
+/graduation             - Graduación/Egreso
+/institution            - Institución
+/layout.tsx             - Layout del dashboard
+/page.tsx               - Dashboard principal
+/persons                - Personas
+/reports                - Reportes
+/roles                  - Roles y permisos
+/students               - Estudiantes
+/student-subject-assignments - Asignaciones estudiante (NUEVO)
+/subject-designations   - Designaciones de materia (NUEVO)
+/subjects               - Materias
+/users                  - Usuarios
+
+=================================================================================
+BACKEND — Módulos (21 total)
+================================================================================
+
+academic-history, academic-period, attendance, audit, auth,
+calendar-event (NUEVO), career, dashboard, deposit, employee,
+enrollment, grade, institution, minio, parallel (NUEVO), person,
+rbac, student, subject, subject-assignment, user
+
+=================================================================================
+PENDIENTE PARA COMPLETAR FASE 3
+================================================================================
+
+FASE 3 — Sesión HttpOnly + Refresh Token (auth)
+- access token CORTÍSIMO (ej. 15 min) + refresh token (ej. 7 días)
+- Cookies HttpOnly en vez de localStorage
+- Endpoints: /auth/refresh, /auth/logout
+- Frontend: api.ts con credentials:'include', sesión por cookies
+- CSRF protection
+
+FASE 4 — Autoasignación por paralelo, Dashboard docente, EGRESADO->TITULADO
+
+FASE 5 — MinIO: URLs presignadas
+
+FASE 6 — Ampliar @Audit a todos los endpoints mutantes
+
+=================================================================================
+COMANDOS ÚTILES
+================================================================================
+- Backend: cd backend && npm run start:dev
+- Tests: cd backend && npm test
+- e2e: cd backend && npm run test:e2e
+- tsc: npx tsc --noEmit
+- lint: npm run lint --prefix backend && npm run lint --prefix frontend
+=================================================================================

@@ -36,7 +36,7 @@ export class CareerService {
   async findOne(id: string): Promise<Career> {
     const career = await this.careerRepository.findOne({
       where: { id },
-      relations: ['subjects', 'academicPeriods'],
+      relations: ['subjects'],
     });
     if (!career) {
       throw new NotFoundException('Carrera no encontrada');

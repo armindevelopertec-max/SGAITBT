@@ -1,6 +1,6 @@
 import { jsPDF } from 'jspdf';
 import QRCode from 'qrcode';
-import { Student, AcademicHistoryRecord, Subject, Institution } from '@/lib/types';
+import { Student, AcademicHistoryRecord, Subject, Institution, SubjectAssignment } from '@/lib/types';
 
 export type CertificateDocType = 'NOTES' | 'STUDIES' | 'REGULAR' | 'ENROLLMENT' | 'HISTORY' | 'ASIGNACION';
 
@@ -10,6 +10,8 @@ export interface CertificateData {
   history: AcademicHistoryRecord[];
   subjects: Subject[];
   institution?: Institution;
+  assignments?: SubjectAssignment[];
+  credentials?: { username: string; password: string };
 }
 
 const NAVY: [number, number, number] = [20, 33, 61];
@@ -365,7 +367,7 @@ function buildQrDataUrl(student: Student): Promise<string | null> {
 }
 
 export async function generateInstitutionalDocument(data: CertificateData): Promise<void> {
-  const { docType, student, history, subjects, institution } = data;
+  const { docType, student, history, subjects, institution, assignments, credentials } = data;
   const instName = institution?.name || 'Instituto Tecnológico \u201CBoliviana de Tecnología\u201D';
   const address = institution?.address || 'El Alto, Av. de los Héroes, Z. Ferropetrol N.º 11';
   const phone = institution?.phone || institution?.phoneSecondary || '75252479';
@@ -394,12 +396,14 @@ export async function generateInstitutionalDocument(data: CertificateData): Prom
     drawBoleta(doc, pg, {
       student,
       history,
+      assignments,
       address,
       phone,
       instName,
       year: student.currentPeriod?.year || String(new Date().getFullYear()),
       entryLabel: entryLabelFor(student, history),
       qrUrl,
+      credentials,
     });
   } else if (docType === 'HISTORY') {
     drawHistorial(doc, pg, { student, history, subjects, docNumber });
@@ -434,15 +438,17 @@ function drawBoleta(
   data: {
     student: Student;
     history: AcademicHistoryRecord[];
+    assignments?: SubjectAssignment[];
     address: string;
     phone: string;
     instName: string;
     year: string;
     entryLabel: string;
     qrUrl: string | null;
+    credentials?: { username: string; password: string };
   },
 ): void {
-  const { student, history, address, phone, instName, year, entryLabel, qrUrl } = data;
+  const { student, history, assignments, address, phone, instName, year, entryLabel, qrUrl, credentials } = data;
 
   sectionTitle(doc, pg, 'DATOS DEL ESTUDIANTE');
   drawDataGrid(doc, pg, [
@@ -459,8 +465,11 @@ function drawBoleta(
   ], pg.getY());
 
   sectionTitle(doc, pg, 'DATOS DE ACCESO POR SISTEMA');
+  const accountLabel = credentials?.username || `AUT${student.ci || '—'}`;
+  const passwordLabel = credentials?.password || 'Consultar en secretaría';
   drawDataGrid(doc, pg, [
-    { label: 'CUENTA:', value: student.ci || '—' },
+    { label: 'CUENTA:', value: accountLabel },
+    { label: 'CONTRASEÑA:', value: passwordLabel },
     {
       label: 'FECHA DE INSCRIPCIÓN:',
       value: new Date().toLocaleString('es-BO', {
@@ -473,31 +482,53 @@ function drawBoleta(
       }),
     },
   ], pg.getY());
-  pg.ensure(8);
+  pg.ensure(10);
   doc.setFont('helvetica', 'italic');
   doc.setFontSize(7.5);
   doc.setTextColor(110, 110, 110);
   doc.text(
-    'La contraseña inicial es su número de C.I. y deberá cambiarla en el primer ingreso al sistema.',
+    'La contraseña es personal e intransferible. Cámbiela en su primer ingreso al sistema.',
     MARGIN_X,
     pg.getY(),
   );
   pg.down(6);
 
   sectionTitle(doc, pg, 'MATERIAS INSCRITAS');
-  const cp = student.currentPeriod;
-  const currentHist = history
-    .filter(
-      (h) =>
-        h.academicPeriod &&
-        Number(h.academicPeriod.year) === Number(cp?.year) &&
-        h.academicPeriod.sequence === cp?.sequence,
-    )
-    .sort(
-      (a, b) =>
-        a.semester - b.semester ||
-        (a.subject?.code ?? '').localeCompare(b.subject?.code ?? ''),
-    );
+  
+  // Use assignments if provided, otherwise fall back to history filtering
+  let currentAssignments: Array<{ subject?: Subject; semester: number; parallel?: string; parallelEntity?: { shift?: string }; employee?: { persona?: { firstName?: string; paternalSurname?: string } } }> = [];
+
+  if (assignments && assignments.length > 0) {
+    currentAssignments = assignments.map((a) => ({
+      subject: a.subject,
+      semester: a.semester,
+      parallel: a.parallel,
+      parallelEntity: a.parallelEntity,
+      employee: a.employee,
+    }));
+  } else {
+    // Fallback: filter history by current period
+    const cp = student.currentPeriod;
+    currentAssignments = history
+      .filter(
+        (h) =>
+          h.academicPeriod &&
+          Number(h.academicPeriod.year) === Number(cp?.year) &&
+          h.academicPeriod.sequence === cp?.sequence,
+      )
+      .map((h) => ({
+        subject: h.subject,
+        semester: h.semester,
+        parallel: 'A',
+        parallelEntity: undefined,
+        employee: undefined,
+      }))
+      .sort(
+        (a, b) =>
+          a.semester - b.semester ||
+          (a.subject?.code ?? '').localeCompare(b.subject?.code ?? ''),
+      );
+  }
 
   const W = pg.W;
   const cols = [
@@ -510,7 +541,7 @@ function drawBoleta(
   ];
   tableHeader(doc, pg, cols);
 
-  if (currentHist.length === 0) {
+  if (currentAssignments.length === 0) {
     pg.ensure(8);
     doc.setFont('helvetica', 'italic');
     doc.setFontSize(8.5);
@@ -518,7 +549,7 @@ function drawBoleta(
     doc.text('Sin materias asignadas para la gestión.', MARGIN_X, pg.getY());
     pg.down(8);
   } else {
-    currentHist.forEach((h, i) => {
+    currentAssignments.forEach((h, i) => {
       const rowH = 7;
       pg.ensure(rowH);
       const y = pg.getY();
@@ -536,13 +567,10 @@ function drawBoleta(
       x += cols[2].w;
       doc.text(String(h.semester), x + cols[3].w / 2, y, { align: 'center' });
       x += cols[3].w;
-      doc.text('A', x + cols[4].w / 2, y, { align: 'center' });
+      doc.text(h.parallel ?? 'A', x + cols[4].w / 2, y, { align: 'center' });
       x += cols[4].w;
-      doc.text('T', x + cols[5].w / 2, y, { align: 'center' });
-      if (i % 2 === 1) {
-        doc.setFillColor(248, 249, 251);
-        doc.rect(MARGIN_X, y - 4, W - MARGIN_X * 2, rowH, 'F');
-      }
+      const shiftLabel = h.parallelEntity?.shift === 'MANANA' ? 'M' : h.parallelEntity?.shift === 'TARDE' ? 'T' : h.parallelEntity?.shift === 'NOCHE' ? 'N' : '—';
+      doc.text(shiftLabel, x + cols[5].w / 2, y, { align: 'center' });
       pg.down(rowH);
     });
   }

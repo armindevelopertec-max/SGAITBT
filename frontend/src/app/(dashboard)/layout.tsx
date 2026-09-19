@@ -1,6 +1,6 @@
 'use client';
 
-import { ReactNode, useEffect } from 'react';
+import { ReactNode, useEffect, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { AppSidebar } from '@/components/layout/sidebar';
 import { Topbar } from '@/components/layout/topbar';
@@ -30,6 +30,14 @@ function routeDenied(pathname: string): boolean {
 export default function ShellLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
+  // La sesión vive en localStorage: solo existe en el cliente. Hasta el
+  // montaje se renderizan los hijos para que el HTML del servidor coincida
+  // con el primer render del cliente (evita hydration mismatch).
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     const token = getToken();
@@ -38,7 +46,7 @@ export default function ShellLayout({ children }: { children: ReactNode }) {
     }
   }, [router, pathname]);
 
-  const denied = routeDenied(pathname);
+  const denied = mounted && routeDenied(pathname);
 
   return (
     <div className="app-shell">

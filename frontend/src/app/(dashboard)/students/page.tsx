@@ -1,10 +1,11 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { apiGet, apiPatch, apiPost, extractError } from '@/lib/api';
 import { Student, Career } from '@/lib/types';
 import { PageHeader } from '@/components/ui/page-header';
 import { Modal } from '@/components/ui/modal';
+import { Badge } from '@/components/ui/badge';
 import { StatusBadge } from '@/components/ui/badge';
 import { LoadingState, ErrorState } from '@/components/ui/state';
 
@@ -25,6 +26,19 @@ const EMPTY = {
   currentLevel: 1,
 };
 
+function fullName(s: Student): string {
+  return `${s.firstName} ${s.lastName}`.trim();
+}
+
+function initialsOf(s: Student): string {
+  return fullName(s)
+    .split(' ')
+    .map((n) => n[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase();
+}
+
 export default function StudentsPage() {
   const [students, setStudents] = useState<Student[]>([]);
   const [careers, setCareers] = useState<Career[]>([]);
@@ -35,6 +49,7 @@ export default function StudentsPage() {
   const [form, setForm] = useState(EMPTY);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [careerFilter, setCareerFilter] = useState('');
 
   async function load() {
     setLoading(true);
@@ -45,6 +60,7 @@ export default function StudentsPage() {
       ]);
       setStudents(s);
       setCareers(c);
+      setCareerFilter((prev) => prev || c[0]?.id || '');
     } catch (err) {
       setError(extractError(err));
     } finally {
@@ -58,7 +74,7 @@ export default function StudentsPage() {
 
   function openCreate() {
     setEditing(null);
-    setForm({ ...EMPTY, careerId: careers[0]?.id ?? '' });
+    setForm({ ...EMPTY, careerId: careerFilter || careers[0]?.id || '' });
     setModalOpen(true);
   }
 
@@ -110,16 +126,37 @@ export default function StudentsPage() {
     }
   }
 
-  const filtered = students.filter((s) => {
+  const countsByCareer = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const s of students) {
+      if (s.careerId) map.set(s.careerId, (map.get(s.careerId) ?? 0) + 1);
+    }
+    return map;
+  }, [students]);
+
+  const inCareer = useMemo(
+    () => students.filter((s) => !careerFilter || s.careerId === careerFilter),
+    [students, careerFilter],
+  );
+
+  const activeCount = useMemo(
+    () => inCareer.filter((s) => s.status === 'ACTIVE').length,
+    [inCareer],
+  );
+
+  const filtered = inCareer.filter((s) => {
+    const q = search.toLowerCase();
     const matchesSearch =
-      !search ||
-      s.firstName.toLowerCase().includes(search.toLowerCase()) ||
-      s.lastName.toLowerCase().includes(search.toLowerCase()) ||
+      !q ||
+      s.firstName.toLowerCase().includes(q) ||
+      s.lastName.toLowerCase().includes(q) ||
       s.ci.includes(search) ||
-      s.studentCode.toLowerCase().includes(search.toLowerCase());
+      s.studentCode.toLowerCase().includes(q);
     const matchesStatus = !statusFilter || s.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
+
+  const activeCareer = careers.find((c) => c.id === careerFilter);
 
   if (loading) return <LoadingState />;
 
@@ -127,7 +164,11 @@ export default function StudentsPage() {
     <div>
       <PageHeader
         title="Estudiantes"
-        subtitle="Registro de estudiantes del instituto"
+        subtitle={
+          activeCareer
+            ? `Registro de estudiantes · ${activeCareer.name}`
+            : 'Registro de estudiantes del instituto'
+        }
         actions={
           <button className="btn btn-primary" onClick={openCreate}>
             Nuevo estudiante
@@ -136,6 +177,57 @@ export default function StudentsPage() {
       />
 
       {error && <ErrorState message={error} />}
+
+      <div className="card card-pad mb-3">
+        <div className="flex gap-2" style={{ flexWrap: 'wrap' }}>
+          {careers.map((c) => (
+            <button
+              key={c.id}
+              className={`btn btn-sm ${careerFilter === c.id ? 'btn-primary' : 'btn-outline'}`}
+              onClick={() => setCareerFilter(c.id)}
+            >
+              {c.name}
+              <span
+                style={{
+                  marginLeft: 8,
+                  fontSize: 11,
+                  fontWeight: 700,
+                  background: careerFilter === c.id ? 'rgba(255,255,255,.25)' : 'var(--primary-soft)',
+                  color: careerFilter === c.id ? '#fff' : 'var(--primary)',
+                  borderRadius: 999,
+                  padding: '1px 8px',
+                }}
+              >
+                {countsByCareer.get(c.id) ?? 0}
+              </span>
+            </button>
+          ))}
+          <button
+            className={`btn btn-sm ${!careerFilter ? 'btn-primary' : 'btn-outline'}`}
+            onClick={() => setCareerFilter('')}
+          >
+            Todos
+          </button>
+        </div>
+      </div>
+
+      <div
+        className="mb-3"
+        style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12 }}
+      >
+        <div className="stat-card">
+          <div className="stat-value">{inCareer.length}</div>
+          <div className="stat-label">Estudiantes</div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-value">{activeCount}</div>
+          <div className="stat-label">Activos</div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-value">{filtered.length}</div>
+          <div className="stat-label">En vista</div>
+        </div>
+      </div>
 
       <div className="card card-pad mb-3">
         <div className="flex gap-3 items-center" style={{ flexWrap: 'wrap' }}>
@@ -158,56 +250,82 @@ export default function StudentsPage() {
         </div>
       </div>
 
-      <div className="card">
-        <div className="table-wrap">
-          <table className="table">
-            <thead>
-              <tr>
-                <th>Código</th>
-                <th>Estudiante</th>
-                <th>CI</th>
-                <th>Carrera</th>
-                <th>Nivel</th>
-                <th>Correo</th>
-                <th>Estado</th>
-                <th>Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.length === 0 && (
-                <tr>
-                  <td colSpan={8}>
-                    <div className="empty-state">
-                      <div className="empty-state-icon">👤</div>
-                      No se encontraron estudiantes.
-                    </div>
-                  </td>
-                </tr>
-              )}
-              {filtered.map((s) => (
-                <tr key={s.id}>
-                  <td>{s.studentCode}</td>
-                  <td>
-                    <strong>{s.firstName} {s.lastName}</strong>
-                  </td>
-                  <td>{s.ci} {s.ciExtension ? `(${s.ciExtension})` : ''}</td>
-                  <td>{s.career?.name ?? '—'}</td>
-                  <td>{s.currentLevel}º</td>
-                  <td>{s.email}</td>
-                  <td><StatusBadge value={s.status} /></td>
-                  <td>
-                    <div className="flex gap-2">
-                      <button className="btn btn-soft btn-sm" onClick={() => openEdit(s)}>Editar</button>
-                      <button className="btn btn-outline btn-sm" onClick={() => createUser(s)} title="Crear cuenta de usuario">
-                        Usuario
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      {filtered.length === 0 && (
+        <div className="card card-pad">
+          <div className="empty-state">
+            <div className="empty-state-icon">👤</div>
+            No se encontraron estudiantes.
+          </div>
         </div>
+      )}
+
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))',
+          gap: 12,
+        }}
+      >
+        {filtered.map((s) => (
+          <div
+            key={s.id}
+            className="card-pad"
+            style={{
+              border: '1px solid var(--border)',
+              borderRadius: 12,
+              background: 'var(--bg-card)',
+              display: 'flex',
+              gap: 12,
+            }}
+          >
+            {s.photoUrl ? (
+              <img
+                src={s.photoUrl}
+                alt={fullName(s)}
+                style={{ width: 56, height: 56, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }}
+              />
+            ) : (
+              <div
+                style={{
+                  width: 56,
+                  height: 56,
+                  borderRadius: '50%',
+                  background: 'var(--primary-soft)',
+                  color: 'var(--primary)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontWeight: 800,
+                  fontSize: 18,
+                  flexShrink: 0,
+                }}
+              >
+                {initialsOf(s)}
+              </div>
+            )}
+            <div style={{ minWidth: 0, flex: 1 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                <strong style={{ fontSize: 14 }}>{fullName(s)}</strong>
+                <StatusBadge value={s.status} />
+              </div>
+              <div style={{ marginTop: 4 }}>
+                <Badge label={s.studentCode} color="info" />
+              </div>
+              <div className="text-muted text-sm" style={{ marginTop: 4 }}>
+                CI {s.ci}{s.ciExtension ? ` (${s.ciExtension})` : ''} · {s.currentLevel}º nivel
+              </div>
+              {!careerFilter && (
+                <div className="text-muted text-sm">{s.career?.name ?? '—'}</div>
+              )}
+              <div className="flex gap-2" style={{ marginTop: 8 }}>
+                <button className="btn btn-soft btn-sm" onClick={() => openEdit(s)}>Editar</button>
+                <button className="btn btn-outline btn-sm" onClick={() => createUser(s)} title="Crear cuenta de usuario">
+                  Usuario
+                </button>
+              </div>
+            </div>
+          </div>
+        ))}
       </div>
 
       <Modal

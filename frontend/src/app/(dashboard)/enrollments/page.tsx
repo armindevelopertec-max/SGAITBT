@@ -320,6 +320,7 @@ export default function EnrollmentsPage() {
   const [error, setError] = useState('');
   const [periodId, setPeriodId] = useState('');
   const [studentId, setStudentId] = useState('');
+  const [studentQuery, setStudentQuery] = useState('');
   const [enrollment, setEnrollment] = useState<Enrollment | null>(null);
   const [qr, setQr] = useState<string | null>(null);
   const [generating, setGenerating] = useState(false);
@@ -360,6 +361,7 @@ export default function EnrollmentsPage() {
 
   useEffect(() => {
     setStudentId('');
+    setStudentQuery('');
     setEnrollment(null);
     setQr(null);
   }, [periodId]);
@@ -378,12 +380,19 @@ export default function EnrollmentsPage() {
     };
   }, [enrollment]);
 
+  const studentIdByPersona = new Map<string, string>();
+  for (const s of students) {
+    if (s.personaId) studentIdByPersona.set(s.personaId, s.id);
+  }
   const bestDepositByStudent = new Map<string, Deposit>();
   for (const d of deposits) {
     if (!HABILITADO_STATUSES.has(d.status)) continue;
-    const current = bestDepositByStudent.get(d.studentId);
+    // Depósito directo o hecho como aspirante (ligado a la persona).
+    const key = d.studentId ?? (d.personId ? studentIdByPersona.get(d.personId) : undefined);
+    if (!key) continue;
+    const current = bestDepositByStudent.get(key);
     if (!current || depositRank(d.status) > depositRank(current.status)) {
-      bestDepositByStudent.set(d.studentId, d);
+      bestDepositByStudent.set(key, d);
     }
   }
 
@@ -443,6 +452,23 @@ export default function EnrollmentsPage() {
       : 'Sin matrícula en esta gestión'
     : '';
 
+  const enrolledInPeriod = enrollments.filter((e) => e.academicPeriodId === periodId);
+  const selectedPeriod = periods.find((p) => p.id === periodId);
+
+  const studentMatches = (() => {
+    const q = studentQuery.trim().toLowerCase();
+    const base = habilitated;
+    if (!q) return base.slice(0, 8);
+    return base
+      .filter(
+        (s) =>
+          s.studentCode.toLowerCase().includes(q) ||
+          s.ci.toLowerCase().includes(q) ||
+          `${s.firstName} ${s.lastName}`.toLowerCase().includes(q),
+      )
+      .slice(0, 8);
+  })();
+
   if (loading) return <LoadingState />;
 
   return (
@@ -469,33 +495,166 @@ export default function EnrollmentsPage() {
       {error && <ErrorState message={error} />}
 
       <div className="card card-pad mb-3">
-        <div className="flex gap-3 items-center" style={{ flexWrap: 'wrap' }}>
-          <select
-            className="select"
-            style={{ flex: 1, minWidth: 240 }}
-            value={periodId}
-            onChange={(e) => setPeriodId(e.target.value)}
-          >
-            {periods.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.periodName}{p.status === 'OPEN' ? ' (Abierta)' : ' (Cerrada)'}
-              </option>
-            ))}
-          </select>
-          <select
-            className="select"
-            style={{ flex: 1.5, minWidth: 260 }}
-            value={studentId}
-            onChange={(e) => e.target.value && selectStudent(e.target.value)}
-          >
-            <option value="">Seleccionar estudiante habilitado…</option>
-            {habilitated.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.studentCode} — {s.firstName} {s.lastName} · CI {s.ci}
-              </option>
-            ))}
-          </select>
+        <div className="flex gap-2 items-center" style={{ flexWrap: 'wrap' }}>
+          {[
+            { n: 1, label: 'Gestión', done: !!periodId },
+            { n: 2, label: 'Estudiante', done: !!student },
+            { n: 3, label: 'Credencial', done: !!enrollment },
+          ].map((s, i, arr) => (
+            <span key={s.n} className="flex gap-2 items-center">
+              <span
+                style={{
+                  width: 26,
+                  height: 26,
+                  borderRadius: '50%',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontWeight: 800,
+                  fontSize: 13,
+                  background: s.done ? 'var(--success)' : 'var(--primary-soft)',
+                  color: s.done ? '#fff' : 'var(--primary)',
+                }}
+              >
+                {s.done ? '✓' : s.n}
+              </span>
+              <span className="text-sm" style={{ fontWeight: 600 }}>{s.label}</span>
+              {i < arr.length - 1 && (
+                <span style={{ width: 24, height: 2, background: 'var(--border)', borderRadius: 2 }} />
+              )}
+            </span>
+          ))}
         </div>
+      </div>
+
+      <div
+        className="mb-3"
+        style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12 }}
+      >
+        <div className="stat-card">
+          <div className="stat-value">{enrolledInPeriod.length}</div>
+          <div className="stat-label">Matriculados en gestión</div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-value">{habilitated.length}</div>
+          <div className="stat-label">Habilitados (depósito válido)</div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-value">{selectedPeriod?.periodName ?? '—'}</div>
+          <div className="stat-label">Gestión seleccionada</div>
+        </div>
+      </div>
+
+      <div className="card card-pad mb-3">
+        <div className="form-label" style={{ marginBottom: 8 }}>Gestión académica</div>
+        <div className="flex gap-2 mb-3" style={{ flexWrap: 'wrap' }}>
+          {periods.map((p) => {
+            const dot = p.status === 'OPEN' ? 'var(--success)' : p.status === 'PLANNED' ? 'var(--primary)' : 'var(--text-muted)';
+            const range = fmtShortRange(p.startDate, p.endDate);
+            return (
+              <button
+                key={p.id}
+                className={`btn btn-sm ${periodId === p.id ? 'btn-primary' : 'btn-outline'}`}
+                onClick={() => setPeriodId(p.id)}
+                title={`${p.startDate ?? ''} al ${p.endDate ?? ''}`}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+              >
+                <span style={{ width: 8, height: 8, borderRadius: '50%', background: periodId === p.id ? '#fff' : dot }} />
+                {p.periodName}
+                <span style={{ fontWeight: 400, opacity: 0.85, fontSize: 12 }}>
+                  {p.status === 'OPEN' ? 'Abierta' : p.status === 'PLANNED' ? 'Planificada' : 'Cerrada'}
+                  {range ? ` · ${range}` : ''}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="form-label" style={{ marginBottom: 8 }}>Estudiante habilitado</div>
+        {student ? (
+          <div
+            className="card card-pad"
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              background: 'var(--primary-soft)',
+              border: 'none',
+              padding: '8px 12px',
+              gap: 8,
+              flexWrap: 'wrap',
+            }}
+          >
+            <div className="flex items-center" style={{ gap: 10 }}>
+              {student.photoUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={student.photoUrl}
+                  alt=""
+                  style={{ width: 44, height: 44, borderRadius: '50%', objectFit: 'cover' }}
+                />
+              ) : (
+                <div
+                  style={{
+                    width: 44,
+                    height: 44,
+                    borderRadius: '50%',
+                    background: 'var(--primary)',
+                    color: '#fff',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontWeight: 800,
+                    fontSize: 15,
+                  }}
+                >
+                  {initialsOf(student.firstName, student.lastName)}
+                </div>
+              )}
+              <div>
+                <strong style={{ fontSize: 14 }}>
+                  {student.studentCode} — {student.firstName} {student.lastName}
+                </strong>
+                <div className="text-muted text-sm">
+                  CI {student.ci} · {student.currentLevel}º semestre
+                </div>
+              </div>
+            </div>
+            <button
+              className="btn btn-outline btn-sm"
+              onClick={() => { setStudentId(''); setStudentQuery(''); setEnrollment(null); }}
+            >
+              Cambiar
+            </button>
+          </div>
+        ) : (
+          <>
+            <input
+              className="form-control"
+              placeholder="Buscar por matrícula, CI o nombre…"
+              value={studentQuery}
+              onChange={(e) => setStudentQuery(e.target.value)}
+            />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 6, maxHeight: 240, overflowY: 'auto' }}>
+              {studentMatches.map((s) => (
+                <button
+                  key={s.id}
+                  className="btn btn-outline btn-sm"
+                  style={{ justifyContent: 'flex-start', textAlign: 'left' }}
+                  onClick={() => selectStudent(s.id)}
+                >
+                  {s.studentCode} — {s.firstName} {s.lastName} · CI {s.ci}
+                  {enrolledBy.get(enrolledKey(s.id, periodId)) ? ' · ✓ matriculado' : ''}
+                </button>
+              ))}
+              {studentMatches.length === 0 && (
+                <span className="text-muted text-sm">
+                  Sin estudiantes habilitados con ese criterio. Verifica el depósito en la página de Depósitos.
+                </span>
+              )}
+            </div>
+          </>
+        )}
 
         {student && (
           <div className="flex gap-3 items-center mt-3" style={{ flexWrap: 'wrap' }}>
@@ -523,10 +682,42 @@ export default function EnrollmentsPage() {
           backRef={backRef}
         />
       )}
+
+      {!student && (
+        <div className="card card-pad">
+          <div className="empty-state">
+            <div className="empty-state-icon">🎓</div>
+            Elige la gestión y busca un estudiante habilitado para registrar su matrícula y generar la credencial.
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
 function depositRank(status: string): number {
   return status === 'APPROVED' ? 2 : status === 'VERIFIED' ? 1 : 0;
+}
+
+function fmtShortRange(start?: string | null, end?: string | null): string {
+  const f = (iso?: string | null) => {
+    if (!iso) return '';
+    const d = new Date(`${iso.slice(0, 10)}T00:00:00`);
+    if (Number.isNaN(d.getTime())) return '';
+    return d.toLocaleDateString('es-BO', { day: 'numeric', month: 'short' });
+  };
+  const s = f(start);
+  const e = f(end);
+  if (s && e) return `${s} – ${e}`;
+  return s || e || '';
+}
+
+function initialsOf(firstName?: string, lastName?: string): string {
+  return `${firstName ?? ''} ${lastName ?? ''}`
+    .trim()
+    .split(' ')
+    .map((n) => n[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase();
 }

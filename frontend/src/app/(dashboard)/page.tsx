@@ -3,12 +3,11 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/lib/auth';
 import { apiGet, extractError } from '@/lib/api';
-import { AdminDashboard } from '@/lib/types';
+import { AdminDashboard, Employee } from '@/lib/types';
 import { PageHeader } from '@/components/ui/page-header';
-import { MICROLEGEND } from '@/lib/nav';
 import { Icon } from '@/components/ui/icons';
 import { LoadingState, ErrorState } from '@/components/ui/state';
-import { hasRole, primaryRoleKey } from '@/lib/permissions';
+import { hasPermission, hasRole } from '@/lib/permissions';
 
 interface Stat {
   label: string;
@@ -21,6 +20,7 @@ interface Stat {
 export default function DashboardPage() {
   const { user } = useAuth();
   const [data, setData] = useState<{ summary: AdminDashboard['summary'] } | null>(null);
+  const [staff, setStaff] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -41,7 +41,31 @@ export default function DashboardPage() {
       })
       .catch((err) => setError(extractError(err)))
       .finally(() => setLoading(false));
+
+    // Personal para el control de asistencia (vista estática por ahora).
+    if (hasPermission(user, 'employees.view')) {
+      apiGet<Employee[]>('/employees')
+        .then((res) => setStaff(res))
+        .catch(() => setStaff([]));
+    }
   }, [user]);
+
+  // --- Control de asistencia del personal (ESTÁTICO, demostración) ---
+  // Sin backend por ahora: horarios fijos de ejemplo por posición de lista.
+  function staffName(e: Employee): string {
+    const p = e.persona;
+    if (!p) return e.employeeCode;
+    return [p.firstName, p.paternalSurname, p.maternalSurname].filter(Boolean).join(' ') || e.employeeCode;
+  }
+  function staffCheckIn(i: number): string {
+    return `08:${String(2 + ((i * 7) % 20)).padStart(2, '0')}`;
+  }
+  function staffLeft(i: number): boolean {
+    return i % 3 === 2; // 1 de cada 3 figura como retirado (estático)
+  }
+  function staffCheckOut(i: number): string {
+    return `1${2 + (i % 4)}:${String((i * 13) % 60).padStart(2, '0')}`;
+  }
 
   if (loading) return <LoadingState label="Cargando panel principal…" />;
   if (error) return <ErrorState message={error} />;
@@ -87,34 +111,6 @@ export default function DashboardPage() {
       ]
     : [];
 
-  const initials = user?.fullName
-    ?.split(' ')
-    .map((n) => n[0])
-    .join('')
-    .slice(0, 2)
-    .toUpperCase();
-
-  const photo = user?.photoUrl;
-
-  const today = new Date();
-  const todayDate = today.toLocaleDateString('es-BO', {
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-  });
-  const todayTime = today.toLocaleTimeString('es-BO', {
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-
-  const actions = data?.summary
-    ? [
-        `Gestionó ${data.summary.totalStudents} estudiantes en el sistema`,
-        `Procesó ${data.summary.enrollmentsThisYear} matrículas de la gestión`,
-        `Administró ${data.summary.activeSubjects} materias y ${data.summary.careers} carreras`,
-      ]
-    : [`Ingresó al sistema de gestión académica como ${MICROLEGEND[primaryRoleKey(user) ?? ''] ?? user?.role}`];
-
   return (
     <div>
       <PageHeader
@@ -134,45 +130,121 @@ export default function DashboardPage() {
         ))}
       </div>
 
-      <div className="operator-card">
-        <div className="card-title" style={{ textAlign: 'center' }}>
-          Operador del sistema
-        </div>
-
-        <div className="operator-avatar">
-          {photo ? (
-            <img
-              src={photo}
-              alt={user?.fullName}
-              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-            />
-          ) : (
-            initials
-          )}
-        </div>
-
-        <div className="operator-name">{user?.fullName}</div>
-        <div className="operator-role">
-          {MICROLEGEND[primaryRoleKey(user) ?? ''] ?? user?.role}
-        </div>
-        <div className="text-muted text-sm">{user?.email}</div>
-
-        <div className="operator-section">
-          <div className="operator-label">Fecha de operación</div>
-          <div className="operator-value">
-            {todayDate} · {todayTime}
+      {staff.length > 0 && (
+        <div className="card card-pad mt-4">
+          <div className="flex justify-between items-center mb-2" style={{ flexWrap: 'wrap', gap: 8 }}>
+            <div>
+              <h3 style={{ fontWeight: 700, fontSize: 16, margin: 0 }}>
+                Control de asistencia del personal
+              </h3>
+              <div className="text-muted text-sm">Hoy · vista estática de demostración</div>
+            </div>
+            <div className="flex gap-3 text-sm">
+              <span>
+                <Dot color="var(--success)" /> Presente
+              </span>
+              <span>
+                <Dot color="var(--danger)" /> Se retiró
+              </span>
+            </div>
+          </div>
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fill, minmax(230px, 1fr))',
+              gap: 12,
+            }}
+          >
+            {staff.map((e, i) => {
+              const left = staffLeft(i);
+              const name = staffName(e);
+              const initials = name
+                .split(' ')
+                .map((n) => n[0])
+                .join('')
+                .slice(0, 2)
+                .toUpperCase();
+              const photo = e.persona?.photoUrl;
+              return (
+                <div
+                  key={e.id}
+                  className="card-pad"
+                  style={{
+                    border: '1px solid var(--border)',
+                    borderRadius: 12,
+                    background: 'var(--bg-card)',
+                    borderTop: `4px solid ${left ? 'var(--danger)' : 'var(--success)'}`,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    textAlign: 'center',
+                    gap: 4,
+                  }}
+                >
+                  {photo ? (
+                    <img
+                      src={photo}
+                      alt={name}
+                      style={{ width: 72, height: 72, borderRadius: '50%', objectFit: 'cover' }}
+                    />
+                  ) : (
+                    <div
+                      style={{
+                        width: 72,
+                        height: 72,
+                        borderRadius: '50%',
+                        background: 'var(--primary-soft)',
+                        color: 'var(--primary)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontWeight: 800,
+                        fontSize: 22,
+                      }}
+                    >
+                      {initials}
+                    </div>
+                  )}
+                  <strong style={{ fontSize: 14 }}>{name}</strong>
+                  <span className="text-muted text-sm">
+                    {e.position ?? e.employeeType}
+                  </span>
+                  <span className="text-muted text-sm">
+                    Ingreso {staffCheckIn(i)} · Salida {left ? staffCheckOut(i) : '—'}
+                  </span>
+                  <span
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 6,
+                      fontWeight: 700,
+                      fontSize: 13,
+                      color: left ? 'var(--danger)' : 'var(--success)',
+                    }}
+                  >
+                    <Dot color={left ? 'var(--danger)' : 'var(--success)'} />
+                    {left ? 'Se retiró' : 'Presente'}
+                  </span>
+                </div>
+              );
+            })}
           </div>
         </div>
-
-        <div className="operator-section">
-          <div className="operator-label">¿Qué hizo?</div>
-          <ul className="operator-list">
-            {actions.map((a) => (
-              <li key={a}>{a}</li>
-            ))}
-          </ul>
-        </div>
-      </div>
+      )}
     </div>
+  );
+}
+
+function Dot({ color }: { color: string }) {
+  return (
+    <span
+      style={{
+        width: 10,
+        height: 10,
+        borderRadius: '50%',
+        background: color,
+        display: 'inline-block',
+      }}
+    />
   );
 }

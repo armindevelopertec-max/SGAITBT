@@ -46,6 +46,12 @@ export class UserController {
     return this.userService.createStudentUser(studentId);
   }
 
+  @Get('student/:studentId')
+  @RequirePermission(PERMISSIONS.USERS_VIEW)
+  getStudentCredentials(@Param('studentId') studentId: string) {
+    return this.userService.findByStudentId(studentId);
+  }
+
   @Get()
   @RequirePermission(PERMISSIONS.USERS_VIEW)
   findAll(@Query() query: UserQueryDto) {

@@ -13,6 +13,7 @@ import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { SubjectAssignmentService } from './subject-assignment.service';
 import {
   AutoAssignStudentsDto,
+  AutoEnrollStudentDto,
   CreateSubjectAssignmentDto,
   EnrollStudentInAssignmentDto,
   UpdateSubjectAssignmentDto,
@@ -40,6 +41,12 @@ export class SubjectAssignmentController {
   @RequirePermission(PERMISSIONS.ASSIGNMENTS_CREATE)
   autoAssign(@Body() dto: AutoAssignStudentsDto) {
     return this.assignmentService.autoAssignStudents(dto);
+  }
+
+  @Post('auto-enroll-student')
+  @RequirePermission(PERMISSIONS.ASSIGNMENTS_UPDATE)
+  autoEnrollStudent(@Body() dto: AutoEnrollStudentDto) {
+    return this.assignmentService.autoEnrollStudent(dto);
   }
 
   @Get('teacher/:employeeId')
@@ -104,5 +111,11 @@ export class SubjectAssignmentController {
   @RequirePermission(PERMISSIONS.ASSIGNMENTS_UPDATE)
   removeStudent(@Param('id') id: string, @Param('studentId') studentId: string) {
     return this.assignmentService.removeStudent(id, studentId);
+  }
+
+  @Post(':id/delete')
+  @RequirePermission(PERMISSIONS.ASSIGNMENTS_DELETE)
+  delete(@Param('id') id: string) {
+    return this.assignmentService.delete(id);
   }
 }

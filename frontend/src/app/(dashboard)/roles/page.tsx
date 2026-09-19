@@ -49,12 +49,13 @@ export default function RolesPage() {
       if (!map.has(key)) map.set(key, []);
       map.get(key)!.push(p);
     }
-    return Array.from(map.entries());
+    return Array.from(map.entries()).sort(([a], [b]) => a.localeCompare(b));
   }, [permissions]);
 
-const roleLabel = (key?: string | null) =>
-  key ? (MICROLEGEND[key] ?? key) : '—';
-const parentName = (r: RoleItem) => r.parentName ?? '—';
+  const roleLabel = (key?: string | null) => (key ? (MICROLEGEND[key] ?? key) : '—');
+
+  const systemRoles = useMemo(() => roles.filter((r) => r.isSystem).length, [roles]);
+  const customRoles = roles.length - systemRoles;
 
   function openEdit(r: RoleItem) {
     setEditing(r);
@@ -116,52 +117,97 @@ const parentName = (r: RoleItem) => r.parentName ?? '—';
 
       {error && <ErrorState message={error} />}
 
-      <div className="card">
-        <div className="table-wrap">
-          <table className="table">
-            <thead>
-              <tr>
-                <th>Rol</th>
-                <th>Hereda de</th>
-                <th>Permisos</th>
-                <th>Tipo</th>
-                <th>Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              {roles.map((r) => (
-                <tr key={r.id}>
-                  <td>
-                    <strong>{roleLabel(r.name)}</strong>
-                    <div className="text-muted text-sm">{r.description}</div>
-                    <div className="text-muted text-xs" style={{ fontSize: 11 }}>clave: {r.name}</div>
-                  </td>
-                  <td>{parentName(r)}</td>
-                  <td>
-                    <span className="text-sm">{r.permissions.length} permisos</span>
-                  </td>
-                  <td>
-                    {r.isSystem ? (
-                      <span className="badge badge-purple">Sistema</span>
-                    ) : (
-                      <span className="badge badge-soft">Personalizado</span>
-                    )}
-                  </td>
-                  <td>
-                    <div className="flex gap-2">
-                      <button className="btn btn-soft btn-sm" onClick={() => openEdit(r)}>
-                        {r.isSystem ? 'Ver permisos' : 'Editar permisos'}
-                      </button>
-                      {!r.isSystem && (
-                        <button className="btn btn-outline btn-sm" onClick={() => removeRole(r)}>Eliminar</button>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      <div className="mb-3" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12 }}>
+        <div className="stat-card">
+          <div className="stat-value">{roles.length}</div>
+          <div className="stat-label">Roles totales</div>
         </div>
+        <div className="stat-card">
+          <div className="stat-value">{systemRoles}</div>
+          <div className="stat-label">De sistema</div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-value">{customRoles}</div>
+          <div className="stat-label">Personalizados</div>
+        </div>
+      </div>
+
+      <div className="card card-pad mb-3">
+        <div className="flex gap-2 mb-3" style={{ flexWrap: 'wrap' }}>
+          {groups.map(([module, perms]) => (
+            <span
+              key={module}
+              className="badge badge-soft"
+              style={{ fontSize: 12, cursor: 'default' }}
+              title={`${perms.length} permisos`}
+            >
+              {module}
+              <span style={{ marginLeft: 6, fontSize: 10, fontWeight: 700, background: 'rgba(255,255,255,.2)', borderRadius: 999, padding: '0 6px' }}>
+                {perms.length}
+              </span>
+            </span>
+          ))}
+        </div>
+      </div>
+
+      {roles.length === 0 && (
+        <div className="card card-pad">
+          <div className="empty-state">
+            <div className="empty-state-icon">🔐</div>
+            No hay roles registrados.
+          </div>
+        </div>
+      )}
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 12 }}>
+        {roles.map((r) => (
+          <div
+            key={r.id}
+            className="card-pad"
+            style={{
+              border: '1px solid var(--border)',
+              borderRadius: 12,
+              background: 'var(--bg-card)',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 8,
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                  <strong style={{ fontSize: 14 }}>{roleLabel(r.name)}</strong>
+                  {r.isSystem ? (
+                    <span className="badge badge-purple">Sistema</span>
+                  ) : (
+                    <span className="badge badge-soft">Personalizado</span>
+                  )}
+                </div>
+                {r.description && <div className="text-muted text-sm" style={{ marginTop: 2 }}>{r.description}</div>}
+                <div className="text-muted text-xs" style={{ fontSize: 11, marginTop: 2 }}>clave: {r.name}</div>
+                {r.parentName && (
+                  <div className="text-muted text-xs" style={{ fontSize: 11 }}>
+                    Hereda de: {r.parentName}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="text-sm text-muted" style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+              <span>🔑 {r.permissions.length} permisos</span>
+              {r.parentName && <span>↳ {r.parentName}</span>}
+            </div>
+
+            <div className="flex gap-2" style={{ marginTop: 4, paddingTop: 8, borderTop: '1px solid var(--border)' }}>
+              <button className="btn btn-soft btn-sm" onClick={() => openEdit(r)}>
+                {r.isSystem ? 'Ver permisos' : 'Editar permisos'}
+              </button>
+              {!r.isSystem && (
+                <button className="btn btn-outline btn-sm" onClick={() => removeRole(r)}>Eliminar</button>
+              )}
+            </div>
+          </div>
+        ))}
       </div>
 
       <Modal
@@ -200,9 +246,7 @@ const parentName = (r: RoleItem) => r.parentName ?? '—';
 
       <Modal
         open={editOpen}
-        title={
-          editing ? (editing.isSystem ? `Permisos de ${roleLabel(editing.name)}` : `Permisos de ${roleLabel(editing.name)}`) : ''
-        }
+        title={editing ? `Permisos de ${roleLabel(editing.name)}` : ''}
         onClose={() => setEditOpen(false)}
         footer={
           editing?.isSystem ? (

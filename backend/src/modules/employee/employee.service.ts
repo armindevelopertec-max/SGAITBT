@@ -107,6 +107,16 @@ export class EmployeeService {
     return employee;
   }
 
+  async findByPersonaId(personaId?: string): Promise<Employee | null> {
+    if (!personaId) return null;
+    return this.employeeRepository.findOne({
+      where: { personId: personaId },
+      relations: {
+        persona: { user: true },
+      },
+    });
+  }
+
   async update(id: string, dto: UpdateEmployeeDto): Promise<Employee> {
     const employee = await this.findOne(id);
     const { hireDate, ...rest } = dto;

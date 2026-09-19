@@ -11,6 +11,21 @@ export enum BucketName {
   LOGOS = 'logos',
 }
 
+/** Política de solo lectura anónima para un bucket (GET público de objetos). */
+function publicReadPolicy(bucket: string): Record<string, unknown> {
+  return {
+    Version: '2012-10-17',
+    Statement: [
+      {
+        Effect: 'Allow',
+        Principal: { AWS: ['*'] },
+        Action: ['s3:GetObject'],
+        Resource: [`arn:aws:s3:::${bucket}/*`],
+      },
+    ],
+  };
+}
+
 @Injectable()
 export class MinioService implements OnModuleInit {
   private readonly logger = new Logger(MinioService.name);
@@ -42,6 +57,8 @@ export class MinioService implements OnModuleInit {
         await this.client.makeBucket(bucket, 'us-east-1');
         this.logger.log(`Bucket creado: ${bucket}`);
       }
+      // Lectura pública: el frontend muestra las imágenes por URL directa.
+      await this.client.setBucketPolicy(bucket, JSON.stringify(publicReadPolicy(bucket)));
     }
   }
 

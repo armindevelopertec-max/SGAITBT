@@ -40,9 +40,15 @@ export const NAV_SECTIONS: NavSection[] = [
       },
       {
         label: 'Gestión Académica',
-        href: '/academic-periods',
+        href: '/academic-management',
         icon: 'calendar',
         permissions: ['periods.view'],
+      },
+      {
+        label: 'Designación de Materias',
+        href: '/subject-designations',
+        icon: 'assignment',
+        permissions: ['assignments.view'],
       },
     ],
   },
@@ -66,6 +72,12 @@ export const NAV_SECTIONS: NavSection[] = [
         href: '/enrollments',
         icon: 'enrollment',
         permissions: ['enrollments.view'],
+      },
+      {
+        label: 'Asignación de Materias (Boletas)',
+        href: '/student-subject-assignments',
+        icon: 'student-assignment',
+        permissions: ['assignments.view', 'students.view'],
       },
       {
         label: 'Usuarios',
@@ -96,12 +108,6 @@ export const NAV_SECTIONS: NavSection[] = [
         href: '/audit',
         icon: 'audit',
         permissions: ['audit.view'],
-      },
-      {
-        label: 'Asignación de Materias',
-        href: '/assignments',
-        icon: 'assignment',
-        permissions: ['assignments.view'],
       },
     ],
   },

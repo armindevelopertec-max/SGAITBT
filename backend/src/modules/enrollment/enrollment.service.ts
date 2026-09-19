@@ -74,7 +74,25 @@ export class EnrollmentService {
         studentId: createDto.studentId,
         status: DepositStatus.APPROVED,
       });
-      if (approvedDeposit.length === 0) {
+      if (approvedDeposit.length === 0 && student.personaId) {
+        // Depósito hecho como aspirante (ligado a la persona, sin ficha aún).
+        const aspirantVerified = await this.depositService.findAll({
+          personId: student.personaId,
+          status: DepositStatus.VERIFIED,
+        });
+        const aspirantApproved =
+          aspirantVerified.length === 0
+            ? await this.depositService.findAll({
+                personId: student.personaId,
+                status: DepositStatus.APPROVED,
+              })
+            : [];
+        if (aspirantVerified.length === 0 && aspirantApproved.length === 0) {
+          throw new BadRequestException(
+            'El estudiante debe tener un depósito verificado o aprobado para matricularse',
+          );
+        }
+      } else if (approvedDeposit.length === 0) {
         throw new BadRequestException(
           'El estudiante debe tener un depósito verificado o aprobado para matricularse',
         );

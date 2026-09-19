@@ -8,6 +8,8 @@ import { Subject } from '@modules/subject/entities/subject.entity';
 import { AcademicPeriod } from '@modules/academic-period/entities/academic-period.entity';
 import { Enrollment } from '@modules/enrollment/entities/enrollment.entity';
 import { Employee } from '@modules/employee/entities/employee.entity';
+import { Parallel } from '@modules/parallel/entities/parallel.entity';
+import { Student } from '@modules/student/entities/student.entity';
 
 @Module({
   imports: [
@@ -18,6 +20,8 @@ import { Employee } from '@modules/employee/entities/employee.entity';
       AcademicPeriod,
       Enrollment,
       Employee,
+      Parallel,
+      Student,
     ]),
   ],
   controllers: [SubjectAssignmentController],

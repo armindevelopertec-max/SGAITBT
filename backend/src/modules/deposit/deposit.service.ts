@@ -4,6 +4,7 @@ import { Repository } from 'typeorm';
 import { Deposit } from './entities/deposit.entity';
 import { CreateDepositDto, UpdateDepositDto, VerifyDepositDto, DepositQueryDto } from './dto/deposit.dto';
 import { Student } from '@modules/student/entities/student.entity';
+import { Person } from '@modules/person/entities/person.entity';
 import { DepositStatus } from '@common/enums';
 
 @Injectable()
@@ -13,14 +14,32 @@ export class DepositService {
     private readonly depositRepository: Repository<Deposit>,
     @InjectRepository(Student)
     private readonly studentRepository: Repository<Student>,
+    @InjectRepository(Person)
+    private readonly personRepository: Repository<Person>,
   ) {}
 
   async create(createDto: CreateDepositDto): Promise<Deposit> {
-    const student = await this.studentRepository.findOne({
-      where: { id: createDto.studentId },
-    });
-    if (!student) {
-      throw new NotFoundException('Estudiante no encontrado');
+    if (!createDto.studentId && !createDto.personId) {
+      throw new BadRequestException('El depósito debe ligarse a un estudiante o a una persona (aspirante)');
+    }
+
+    let student: Student | null = null;
+    if (createDto.studentId) {
+      student = await this.studentRepository.findOne({
+        where: { id: createDto.studentId },
+      });
+      if (!student) {
+        throw new NotFoundException('Estudiante no encontrado');
+      }
+    }
+
+    if (createDto.personId) {
+      const person = await this.personRepository.findOne({
+        where: { id: createDto.personId },
+      });
+      if (!person) {
+        throw new NotFoundException('Persona no encontrada');
+      }
     }
 
     const existing = await this.depositRepository.findOne({
@@ -38,14 +57,16 @@ export class DepositService {
   }
 
   async findAll(query?: DepositQueryDto): Promise<Deposit[]> {
-    const { status, studentId } = query || {};
+    const { status, studentId, personId, concept } = query || {};
     const where: Record<string, unknown> = {};
     if (status) where.status = status;
     if (studentId) where.studentId = studentId;
+    if (personId) where.personId = personId;
+    if (concept) where.concept = concept;
 
     return this.depositRepository.find({
       where,
-      relations: ['student'],
+      relations: ['student', 'persona'],
       order: { createdAt: 'DESC' },
     });
   }
@@ -53,7 +74,7 @@ export class DepositService {
   async findOne(id: string): Promise<Deposit> {
     const deposit = await this.depositRepository.findOne({
       where: { id },
-      relations: ['student'],
+      relations: ['student', 'persona'],
     });
     if (!deposit) {
       throw new NotFoundException('Depósito no encontrado');
@@ -73,8 +94,7 @@ export class DepositService {
     return this.depositRepository.save(deposit);
   }
 
-  async verify(id: string, verifyDto: VerifyDepositDto, verifierName: string): Promise<Deposit> {
-    const deposit = await this.findOne(id);
+  async verify(id: string, verifyDto: VerifyDepositDto, verifierName: string): Promise<Deposit> {    const deposit = await this.findOne(id);
 
     if (deposit.status === DepositStatus.APPROVED) {
       throw new BadRequestException('El depósito ya fue aprobado');
@@ -85,6 +105,25 @@ export class DepositService {
     deposit.verificationDate = new Date();
     deposit.verifiedBy = verifierName;
 
+    return this.depositRepository.save(deposit);
+  }
+
+  /** Liga el depósito de un aspirante a su ficha de estudiante recién creada. */
+  async convertToStudent(id: string, studentId: string): Promise<Deposit> {
+    const deposit = await this.findOne(id);
+    if (deposit.studentId) {
+      throw new BadRequestException('El depósito ya está ligado a un estudiante');
+    }
+    if (deposit.status === DepositStatus.REJECTED) {
+      throw new BadRequestException('No se puede ligar un depósito rechazado');
+    }
+    const student = await this.studentRepository.findOne({
+      where: { id: studentId },
+    });
+    if (!student) {
+      throw new NotFoundException('Estudiante no encontrado');
+    }
+    deposit.studentId = student.id;
     return this.depositRepository.save(deposit);
   }
 

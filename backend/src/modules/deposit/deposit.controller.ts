@@ -10,7 +10,7 @@ import {
 } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { DepositService } from './deposit.service';
-import { CreateDepositDto, UpdateDepositDto, VerifyDepositDto, DepositQueryDto } from './dto/deposit.dto';
+import { CreateDepositDto, UpdateDepositDto, VerifyDepositDto, ConvertDepositDto, DepositQueryDto } from './dto/deposit.dto';
 import { JwtAuthGuard } from '@common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '@common/guards/permissions.guard';
 import { RequirePermission } from '@common/decorators/require-permission.decorator';
@@ -85,5 +85,11 @@ export class DepositController {
     @CurrentUser() user: User,
   ) {
     return this.depositService.verify(id, dto, user.fullName);
+  }
+
+  @Patch(':id/convert-to-student')
+  @RequirePermission(PERMISSIONS.DEPOSITS_UPDATE)
+  convertToStudent(@Param('id') id: string, @Body() dto: ConvertDepositDto) {
+    return this.depositService.convertToStudent(id, dto.studentId);
   }
 }

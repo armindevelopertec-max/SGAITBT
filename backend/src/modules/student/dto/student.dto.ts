@@ -6,6 +6,7 @@ import {
   IsNotEmpty,
   IsOptional,
   IsString,
+  IsUUID,
   MaxLength,
 } from 'class-validator';
 import { AcademicStatus, Sex } from '@common/enums';
@@ -80,6 +81,10 @@ export class CreateStudentDto {
 
   @IsOptional()
   careerId?: string;
+
+  @IsOptional()
+  @IsUUID()
+  personaId?: string;
 }
 
 export class UpdateStudentDto {

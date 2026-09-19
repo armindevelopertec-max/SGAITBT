@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { apiDelete, apiGet, apiPatch, apiPost, extractError } from '@/lib/api';
 import { Person, PersonStatus } from '@/lib/types';
 import { PageHeader } from '@/components/ui/page-header';
@@ -38,6 +38,19 @@ const EMPTY: PersonForm = {
   status: 'ACTIVE',
 };
 
+function displayName(p: Person): string {
+  return `${p.firstName} ${p.paternalSurname ?? ''} ${p.maternalSurname ?? ''}`.trim() || p.lastName;
+}
+
+function initialsOf(p: Person): string {
+  return displayName(p)
+    .split(' ')
+    .map((n) => n[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase();
+}
+
 export default function PersonsPage() {
   const [persons, setPersons] = useState<Person[]>([]);
   const [loading, setLoading] = useState(true);
@@ -47,11 +60,12 @@ export default function PersonsPage() {
   const [form, setForm] = useState<PersonForm>(EMPTY);
   const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState('');
+  const [linkFilter, setLinkFilter] = useState('employee');
 
-  async function load() {
+  async function load(q?: string) {
     setLoading(true);
     try {
-      setPersons(await apiGet<Person[]>('/persons', { search: search || undefined }));
+      setPersons(await apiGet<Person[]>('/persons', { search: q || undefined }));
     } catch (err) {
       setError(extractError(err));
     } finally {
@@ -60,7 +74,7 @@ export default function PersonsPage() {
   }
 
   useEffect(() => {
-    load();
+    load(search);
   }, [search]);
 
   function openCreate() {
@@ -95,7 +109,7 @@ export default function PersonsPage() {
       if (editing) await apiPatch(`/persons/${editing.id}`, payload);
       else await apiPost('/persons', payload);
       setModalOpen(false);
-      await load();
+      await load(search);
     } catch (err) {
       setError(extractError(err));
     } finally {
@@ -104,14 +118,42 @@ export default function PersonsPage() {
   }
 
   async function deactivate(p: Person) {
-    if (!window.confirm(`¿Deshabilitar la persona ${p.firstName} ${p.lastName}?`)) return;
+    if (!window.confirm(`¿Deshabilitar a ${displayName(p)}?`)) return;
     try {
       await apiDelete(`/persons/${p.id}`);
-      await load();
+      await load(search);
     } catch (err) {
       setError(extractError(err));
     }
   }
+
+  function linksOf(p: Person): string[] {
+    const links: string[] = [];
+    if (p.user) links.push('user');
+    if (p.student) links.push('student');
+    if ((p.employees?.length ?? 0) > 0) links.push('employee');
+    return links;
+  }
+
+  const counts = useMemo(() => {
+    let active = 0;
+    const linkCounts = new Map<string, number>();
+    for (const p of persons) {
+      if (p.status === 'ACTIVE') active += 1;
+      for (const l of linksOf(p)) linkCounts.set(l, (linkCounts.get(l) ?? 0) + 1);
+    }
+    return { active, linkCounts };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [persons]);
+
+  const filtered = linkFilter ? persons.filter((p) => linksOf(p).includes(linkFilter)) : persons;
+
+  const LINK_OPTIONS = [
+    { key: '', label: 'Todos' },
+    { key: 'user', label: 'Usuarios' },
+    { key: 'student', label: 'Estudiantes' },
+    { key: 'employee', label: 'Empleados' },
+  ];
 
   if (loading && persons.length === 0) return <LoadingState />;
 
@@ -129,74 +171,131 @@ export default function PersonsPage() {
 
       {error && <ErrorState message={error} />}
 
-      <div className="card mb-3">
-        <div className="card-pad flex gap-2" style={{ alignItems: 'center' }}>
-          <input
-            className="form-control"
-            placeholder="Buscar por nombre, CI o correo…"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            style={{ maxWidth: 360 }}
-          />
-          <span className="text-muted text-sm">Total: {persons.length}</span>
+      <div
+        className="mb-3"
+        style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12 }}
+      >
+        <div className="stat-card">
+          <div className="stat-value">{persons.length}</div>
+          <div className="stat-label">Personas</div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-value">{counts.active}</div>
+          <div className="stat-label">Activas</div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-value">{counts.linkCounts.get('employee') ?? 0}</div>
+          <div className="stat-label">Empleados</div>
         </div>
       </div>
 
-      <div className="card">
-        <div className="table-wrap">
-          <table className="table">
-            <thead>
-              <tr>
-                <th>Persona</th>
-                <th>CI</th>
-                <th>Correo</th>
-                <th>Teléfono</th>
-                <th>Vínculo</th>
-                <th>Estado</th>
-                <th>Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              {persons.length === 0 && (
-                <tr>
-                  <td colSpan={7}>
-                    <div className="empty-state">
-                      <div className="empty-state-icon">👤</div>
-                      No hay personas registradas.
-                    </div>
-                  </td>
-                </tr>
+      <div className="card card-pad mb-3">
+        <div className="flex gap-2 mb-3" style={{ flexWrap: 'wrap' }}>
+          {LINK_OPTIONS.map((o) => (
+            <button
+              key={o.key || 'all'}
+              className={`btn btn-sm ${linkFilter === o.key ? 'btn-primary' : 'btn-outline'}`}
+              onClick={() => setLinkFilter(o.key)}
+            >
+              {o.label}
+              {o.key && (
+                <span
+                  style={{
+                    marginLeft: 8, fontSize: 11, fontWeight: 700,
+                    background: linkFilter === o.key ? 'rgba(255,255,255,.25)' : 'var(--primary-soft)',
+                    color: linkFilter === o.key ? '#fff' : 'var(--primary)',
+                    borderRadius: 999, padding: '1px 8px',
+                  }}
+                >
+                  {counts.linkCounts.get(o.key) ?? 0}
+                </span>
               )}
-              {persons.map((p) => (
-                <tr key={p.id}>
-                  <td>
-                    <strong>{`${p.firstName} ${p.paternalSurname ?? ''} ${p.maternalSurname ?? ''} ${p.lastName}`.trim()}</strong>
-                    <div className="text-muted text-sm">CI {p.ci}</div>
-                  </td>
-                  <td>{p.ci}{p.ciExtension ? ` ${p.ciExtension}` : ''}</td>
-                  <td>{p.email}</td>
-                  <td>{p.phone ?? '—'}</td>
-                  <td>
-                    {p.user && <span className="badge badge-primary">Usuario</span>}{' '}
-                    {p.student && <span className="badge badge-soft">Estudiante</span>}{' '}
-                    {(p.employees?.length ?? 0) > 0 && (
-                      <span className="badge badge-soft">Empleado</span>
-                    )}
-                  </td>
-                  <td><StatusBadge value={p.status} /></td>
-                  <td>
-                    <div className="flex gap-2">
-                      <button className="btn btn-soft btn-sm" onClick={() => openEdit(p)}>Editar</button>
-                      {p.status === 'ACTIVE' && (
-                        <button className="btn btn-outline btn-sm" onClick={() => deactivate(p)}>Deshabilitar</button>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+            </button>
+          ))}
         </div>
+        <input
+          className="form-control"
+          placeholder="Buscar por nombre, CI o correo…"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+      </div>
+
+      {filtered.length === 0 && (
+        <div className="card card-pad">
+          <div className="empty-state">
+            <div className="empty-state-icon">👤</div>
+            No hay personas registradas.
+          </div>
+        </div>
+      )}
+
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
+          gap: 12,
+        }}
+      >
+        {filtered.map((p) => (
+          <div
+            key={p.id}
+            className="card-pad"
+            style={{
+              border: '1px solid var(--border)',
+              borderRadius: 12,
+              background: 'var(--bg-card)',
+              display: 'flex',
+              gap: 12,
+            }}
+          >
+            {p.photoUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={p.photoUrl}
+                alt={displayName(p)}
+                style={{ width: 56, height: 56, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }}
+              />
+            ) : (
+              <div
+                style={{
+                  width: 56, height: 56, borderRadius: '50%',
+                  background: 'var(--primary-soft)', color: 'var(--primary)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontWeight: 800, fontSize: 18, flexShrink: 0,
+                }}
+              >
+                {initialsOf(p)}
+              </div>
+            )}
+            <div style={{ minWidth: 0, flex: 1 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                <strong style={{ fontSize: 14 }}>{displayName(p)}</strong>
+                <StatusBadge value={p.status} />
+              </div>
+              <div className="text-muted text-sm">
+                CI {p.ci}{p.ciExtension ? ` (${p.ciExtension})` : ''} · {p.email}
+              </div>
+              {p.phone && <div className="text-muted text-sm">📞 {p.phone}</div>}
+              <div className="flex" style={{ gap: 4, flexWrap: 'wrap', marginTop: 6 }}>
+                {p.user && <span className="badge badge-primary">Usuario</span>}
+                {p.student && <span className="badge badge-soft">Estudiante</span>}
+                {(p.employees?.length ?? 0) > 0 && (
+                  <span className="badge badge-soft">Empleado</span>
+                )}
+                {linksOf(p).length === 0 && (
+                  <span className="badge badge-neutral">Sin vínculo</span>
+                )}
+              </div>
+              <div className="flex gap-2" style={{ marginTop: 8 }}>
+                <button className="btn btn-soft btn-sm" onClick={() => openEdit(p)}>Editar</button>
+                {p.status === 'ACTIVE' && (
+                  <button className="btn btn-outline btn-sm" onClick={() => deactivate(p)}>Deshabilitar</button>
+                )}
+              </div>
+            </div>
+          </div>
+        ))}
       </div>
 
       <Modal

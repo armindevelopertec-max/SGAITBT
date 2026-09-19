@@ -21,6 +21,8 @@ import { PermissionsGuard } from '@common/guards/permissions.guard';
 import { RequirePermission } from '@common/decorators/require-permission.decorator';
 import { Audit } from '@common/decorators/audit.decorator';
 import { PERMISSIONS } from '@common/permissions';
+import { CurrentUser } from '@common/decorators/current-user.decorator';
+import { User } from '@modules/user/entities/user.entity';
 
 @ApiTags('Employees')
 @Controller('employees')
@@ -28,6 +30,11 @@ import { PERMISSIONS } from '@common/permissions';
 @ApiBearerAuth()
 export class EmployeeController {
   constructor(private readonly employeeService: EmployeeService) {}
+
+  @Get('me')
+  findMe(@CurrentUser() user: User) {
+    return this.employeeService.findByPersonaId(user.personaId);
+  }
 
   @Post()
   @RequirePermission(PERMISSIONS.EMPLOYEES_CREATE)

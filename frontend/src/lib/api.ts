@@ -51,6 +51,15 @@ export async function apiDelete<T>(url: string): Promise<T> {
   return data;
 }
 
+export async function apiUpload<T>(url: string, file: File): Promise<T> {
+  const form = new FormData();
+  form.append('file', file);
+  const { data } = await api.post<T>(url, form, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+  return data;
+}
+
 export function extractError(error: unknown): string {
   if (axios.isAxiosError(error)) {
     const message = error.response?.data?.message;

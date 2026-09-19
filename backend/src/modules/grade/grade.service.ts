@@ -116,6 +116,7 @@ export class GradeService {
       .leftJoinAndSelect('grade.student', 'student')
       .leftJoinAndSelect('grade.assignment', 'assignment')
       .leftJoinAndSelect('assignment.subject', 'subject')
+      .leftJoinAndSelect('subject.career', 'career')
       .orderBy('student.lastName', 'ASC');
 
     if (where.assignmentId) qb.andWhere('grade.assignmentId = :assignmentId', { assignmentId });

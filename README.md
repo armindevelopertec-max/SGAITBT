@@ -45,7 +45,7 @@ El seed es un servicio one-shot (`seed`) que corre una sola vez y termina; es id
 npm run lint       --prefix backend     # ESLint (TypeScript)
 npm run typecheck  --prefix backend     # tsc --noEmit
 npm test           --prefix backend     # tests unitarios (Jest)
-npm run test:e2e   --prefix backend     # smoke e2e (requiere PostgreSQL local)
+npm run test:e2e   --prefix backend    # smoke e2e (requiere PostgreSQL local)
 cd frontend && npm run lint             # ESLint (Next.js)
 npx tsc --noEmit                        # typecheck del frontend
 ```
@@ -64,27 +64,46 @@ npx tsc --noEmit                        # typecheck del frontend
 
 ```
 SGAITBT/
-├── backend/          # API NestJS (módulos, seed, configuración)
-├── frontend/         # SPA Next.js (dashboard, módulos de gestión)
+├── backend/          # API NestJS (21 módulos)
+├── frontend/         # SPA Next.js (24 páginas)
 ├── database/
 │   └── init.sql      # Script de inicialización de la BD
 ├── docker-compose.yml
 └── .env              # Credenciales y puertos
 ```
 
-## Módulos
+## Módulos Backend (21)
 
-- **Institución**: datos de identidad y parámetros (sigla, logo, rango de notas).
-- **Carreras**: plan de estudios por niveles.
-- **Gestión Académica**: períodos (gestiones) abiertos/cerrados.
-- **Estudiantes**: inscripción, códigos `EST-año-NNNN`, foto y documentos en MinIO.
-- **Depósitos**: verificación de comprobantes (bitácora de estados).
-- **Matrículas**: requiere depósito verificado/aprobado; números `MAT-año-NNNNN`.
-- **Materias / Asignaciones**: semestres, paralelos, carga docente.
-- **Asistencia**: registro por asignación y paralelo (P/R/F).
-- **Calificaciones**: ponderación 25/25/20/30, nota mínima **51**; sincroniza el historial automáticamente.
-- **Historial Académico**: trayectoria por estudiante; concluye estudios y marca egresados.
-- **Usuarios y Credenciales**: roles Administrador, Secretaría, Docente y Estudiante.
-- **Reportes, Centralizadores, Certificados, Conclusión de Estudios, Dashboard**.
+| # | Módulo | Descripción |
+|---|--------|-------------|
+| 1 | Institution | Configuración institucional |
+| 2 | Career | Carreras (AUT, MEC) |
+| 3 | Academic Period | Gestiones académicas |
+| 4 | Subject | Materias |
+| 5 | Student | Estudiantes |
+| 6 | Person | Personas |
+| 7 | Employee | Empleados (docentes, administrativos) |
+| 8 | User | Usuarios y cuentas |
+| 9 | Auth | Autenticación JWT |
+| 10 | Deposit | Depósitos/verificación |
+| 11 | Enrollment | Matrículas |
+| 12 | Subject Assignment | Asignación de materias |
+| 13 | Parallel | Paralelos (A/B/C) |
+| 14 | Attendance | Asistencia |
+| 15 | Grade | Calificaciones |
+| 16 | Academic History | Historial académico |
+| 17 | Dashboard | Paneles de control |
+| 18 | RBAC | Roles y permisos |
+| 19 | Audit | Auditoría |
+| 20 | MinIO | Archivos (fotos, vouchers) |
+| 21 | Calendar Event | Eventos del calendario |
+
+## Páginas Frontend (24)
+
+- **Gestión**: students, enrollments, deposits, grades, attendance
+- **Académico**: subjects, subject-assignments, student-subject-assignments, subject-designations, academic-management
+- **Administración**: users, persons, employees, roles, careers, academic-periods
+- **Reportes**: reports, centralizers, certificates
+- **Sistema**: institution, graduation, audit, dashboard
 
 API bajo `http://localhost:3001/api` (JWT Bearer, 24 h).

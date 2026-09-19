@@ -8,7 +8,6 @@ import {
 } from 'typeorm';
 import { BaseEntity } from '@common/entities/base.entity';
 import { Institution } from '@modules/institution/entities/institution.entity';
-import { AcademicPeriod } from '@modules/academic-period/entities/academic-period.entity';
 import { Subject } from '@modules/subject/entities/subject.entity';
 import { Student } from '@modules/student/entities/student.entity';
 import { CareerState } from '@common/enums';
@@ -47,9 +46,6 @@ export class Career extends BaseEntity {
 
   @Column({ name: 'institution_id', type: 'uuid' })
   institutionId: string;
-
-  @OneToMany(() => AcademicPeriod, (period) => period.career)
-  academicPeriods: AcademicPeriod[];
 
   @OneToMany(() => Subject, (subject) => subject.career)
   subjects: Subject[];
