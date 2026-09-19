@@ -5,10 +5,7 @@ import { apiGet, apiPost, extractError } from '@/lib/api';
 import { Student, AcademicPeriod, Institution, Enrollment, SubjectAssignment, Subject, AcademicHistoryRecord, Employee, Parallel } from '@/lib/types';
 import { PageHeader } from '@/components/ui/page-header';
 import { LoadingState, ErrorState } from '@/components/ui/state';
-import { Modal } from '@/components/ui/modal';
-import { generateBoletaPdf } from '@/lib/boleta-pdf';
-import { fullName } from '@/lib/utils';
-import { useStudentAssignments } from '@/hooks/useStudentAssignments';
+import { fullName, initialsOf } from '@/lib/utils';
 
 export default function StudentSubjectAssignmentsPage() {
   const [students, setStudents] = useState<Student[]>([]);
@@ -21,10 +18,6 @@ export default function StudentSubjectAssignmentsPage() {
   const [error, setError] = useState('');
   const [periodId, setPeriodId] = useState('');
   const [studentId, setStudentId] = useState('');
-  const [assigning, setAssigning] = useState(false);
-  const [showAssignModal, setShowAssignModal] = useState(false);
-  const [selectedSubjectIds, setSelectedSubjectIds] = useState<string[]>([]);
-  const [selectedParallelId, setSelectedParallelId] = useState<string>('');
 
   const [previewData, setPreviewData] = useState<{
     assignments: SubjectAssignment[];
@@ -100,35 +93,14 @@ export default function StudentSubjectAssignmentsPage() {
     }
   }, []);
 
-  const [parallels, setParalells] = useState<Parallel[]>([]);
-  const [studentHistory, setStudentHistory] = useState<AcademicHistoryRecord[]>([]);
-
   useEffect(() => {
     load();
   }, []);
 
   useEffect(() => {
     setStudentId('');
-    setSelectedSubjectIds([]);
-    setShowAssignModal(false);
-    setStudentHistory([]);
     setPreviewData(null);
   }, [periodId]);
-
-  useEffect(() => {
-    if (periodId) {
-      getParallels(periodId).then(setParalells).catch(() => setParalells([]));
-    } else {
-      setParalells([]);
-    }
-  }, [periodId, getParallels]);
-
-  useEffect(() => {
-    if (!showAssignModal) {
-      setSelectedParallelId('');
-      setSelectedSubjectIds([]);
-    }
-  }, [showAssignModal]);
 
   const student = useMemo(() => students.find((s) => s.id === studentId) ?? null, [students, studentId]);
 
@@ -164,140 +136,133 @@ export default function StudentSubjectAssignmentsPage() {
     [student, subjects],
   );
 
-  useStudentAssignments(assignments, studentId, periodId, studentHistory);
-
-  const { semesterSubjects, previousSubjects, targetSemester } = useMemo(() => {
-    if (!student) return { semesterSubjects: [] as Subject[], previousSubjects: [] as Subject[], targetSemester: 1 };
-    const ts = student.currentLevel || 1;
-    const failedSubjectIds = new Set(
-      studentHistory.filter((h) => h.status === 'FAILED').map((h) => h.subjectId),
-    );
-    return {
-      targetSemester: ts,
-      semesterSubjects: studentCareerSubjects.filter((s) => s.semester === ts),
-      previousSubjects: studentCareerSubjects.filter((s) => s.semester < ts && failedSubjectIds.has(s.id)),
-    };
-  }, [student, studentCareerSubjects, studentHistory]);
-
   const eligibleStudents = useMemo(
     () => students.filter((s) => enrolledStudentIds.has(s.id)),
     [students, enrolledStudentIds],
   );
+
+  const studentAssignStatus = useMemo(() => {
+    const map: Record<string, { assigned: boolean; count: number }> = {};
+    for (const s of eligibleStudents) {
+      const count = periodAssignments.filter(
+        (a) =>
+          a.academicPeriodId === periodId &&
+          a.enrollments?.some((e) => e.studentId === s.id),
+      ).length;
+      map[s.id] = { assigned: count > 0, count };
+    }
+    return map;
+  }, [eligibleStudents, periodAssignments, periodId]);
 
   const selectedPeriod = useMemo(
     () => periods.find((p) => p.id === periodId) ?? null,
     [periods, periodId],
   );
 
-  async function openAssignModal() {
-    if (!student) return;
-    setShowAssignModal(true);
-    const history = await getStudentHistory(student.id);
-    setStudentHistory(history);
-    if (periodId) {
-      const parallelData = await getParallels(periodId);
-      setParalells(parallelData);
-    }
-  }
-
-  async function assignSelectedSubjects() {
-    if (!student || !institution || selectedSubjectIds.length === 0 || !selectedParallelId) return;
-    setAssigning(true);
-    try {
-      const teachers = await apiGet<Employee[]>(`/employees?employeeType=DOCENTE`);
-      const selectedParallel = parallels.find((p) => p.id === selectedParallelId);
-      const currentPeriodAssignments = [...periodAssignments];
-
-      for (const subjectId of selectedSubjectIds) {
-        const subject = subjects.find((s) => s.id === subjectId);
-        if (!subject) continue;
-
-        let assignment = currentPeriodAssignments.find(
-          (a) => a.subjectId === subjectId && a.parallelEntity?.id === selectedParallelId,
-        );
-
-        if (!assignment) {
-          const teacher = teachers[0];
-          if (!teacher) {
-            setError(`No hay docentes disponibles para crear la designación de ${subject.name}`);
-            continue;
-          }
-
-          const created = await apiPost<SubjectAssignment>('/subject-assignments', {
-            subjectId: subject.id,
-            academicPeriodId: periodId,
-            employeeId: teacher.id,
-            parallelId: selectedParallelId,
-            parallel: selectedParallel?.code ?? 'A',
-          });
-
-          assignment = created;
-          currentPeriodAssignments.push(assignment);
-        }
-
-        const alreadyEnrolled = assignment.enrollments?.some((e) => e.studentId === student.id);
-        if (!alreadyEnrolled) {
-          await apiPost(`/subject-assignments/${assignment.id}/enroll-student`, {
-            studentId: student.id,
-          });
-        }
-      }
-
-      setShowAssignModal(false);
-      setSelectedSubjectIds([]);
-      setSelectedParallelId('');
-      await load();
-
-      const academicHistory = await getStudentHistory(student.id);
-      const historyApprovedIds = new Set(
-        academicHistory.filter((h) => h.status === 'APPROVED').map((h) => h.subjectId),
-      );
-      const updatedAssignments = currentPeriodAssignments
-        .filter((a) => a.enrollments?.some((e) => e.studentId === student.id && e.academicPeriodId === periodId))
-        .filter((a) => !historyApprovedIds.has(a.subjectId))
-        .filter((a, idx, self) => idx === self.findIndex((t) => t.subjectId === a.subjectId));
-
-      setPreviewData({
-        assignments: updatedAssignments.length > 0 ? updatedAssignments : studentAssignments,
-        history: academicHistory,
-      });
-    } catch (err) {
-      setError(extractError(err));
-    } finally {
-      setAssigning(false);
-    }
-  }
-
   async function selectStudent(id: string) {
     setStudentId(id);
     const s = students.find((st) => st.id === id);
-    if (s) {
-      const history = await getStudentHistory(s.id);
-      setStudentHistory(history);
+    if (!s) return;
+
+    try {
       const [academicHistory, credentials, entryData] = await Promise.all([
         getStudentHistory(s.id),
         getStudentCredentials(s.id),
         apiGet<{ periodName: string; year: string } | null>(`/students/${s.id}/entry-year`),
       ]);
+
       const entryYearFormatted = entryData?.periodName || undefined;
       const studentWithEntryYear = { ...s, entryYear: entryYearFormatted };
       setStudents((prev) => prev.map((st) => (st.id === id ? studentWithEntryYear : st)));
+
       const approvedIds = new Set(
         academicHistory.filter((h) => h.status === 'APPROVED').map((h) => h.subjectId),
       );
-      const newAssignments = periodAssignments.filter(
+      const existingAssignments = periodAssignments.filter(
         (a) =>
           a.enrollments?.some((e) => e.studentId === s.id && e.academicPeriodId === periodId) &&
           !approvedIds.has(a.subjectId),
       );
-      setPreviewData({ assignments: newAssignments, history: academicHistory, credentials });
-    }
-  }
 
-  function toggleSubject(subjectId: string) {
-    setSelectedSubjectIds((prev) =>
-      prev.includes(subjectId) ? prev.filter((id) => id !== subjectId) : [...prev, subjectId],
-    );
+      if (existingAssignments.length > 0) {
+        setPreviewData({ assignments: existingAssignments, history: academicHistory, credentials });
+        return;
+      }
+
+      const ps = await getParallels(periodId);
+      const defaultParallel = ps.find((p) => p.code === 'A') ?? ps[0];
+      if (!defaultParallel) {
+        setError('No hay paralelos disponibles en esta gestión');
+        return;
+      }
+
+      const teachers = await apiGet<Employee[]>(`/employees?employeeType=DOCENTE`);
+      if (teachers.length === 0) {
+        setError('No hay docentes disponibles');
+        return;
+      }
+
+      const targetSemester = s.currentLevel || 1;
+      const careerSubjects = s.careerId ? subjects.filter((sub) => sub.careerId === s.careerId) : [];
+      const semesterSubjects = careerSubjects.filter((sub) => sub.semester === targetSemester);
+      const failedSubjectIds = new Set(
+        academicHistory.filter((h) => h.status === 'FAILED').map((h) => h.subjectId),
+      );
+      const previousSubjects = careerSubjects.filter((sub) => sub.semester < targetSemester && failedSubjectIds.has(sub.id));
+
+      const allSubjectsToAssign = [...semesterSubjects, ...previousSubjects];
+
+      const passReset = await apiPost<{ username: string; password: string }>(`/users/student/${s.id}/reset-password`);
+
+      for (const subject of allSubjectsToAssign) {
+        let assignment = periodAssignments.find(
+          (a) => a.subjectId === subject.id && a.parallelId === defaultParallel.id,
+        );
+
+        if (!assignment) {
+          const created = await apiPost<SubjectAssignment>('/subject-assignments', {
+            subjectId: subject.id,
+            academicPeriodId: periodId,
+            employeeId: teachers[0].id,
+            parallelId: defaultParallel.id,
+            parallel: defaultParallel.code,
+          });
+          assignment = created;
+        }
+
+        const alreadyEnrolled = assignment.enrollments?.some((e) => e.studentId === s.id);
+        if (!alreadyEnrolled) {
+          await apiPost(`/subject-assignments/${assignment.id}/enroll-student`, {
+            studentId: s.id,
+          });
+        }
+      }
+
+      const [reloadedAss, finalHistory] = await Promise.all([
+        apiGet<SubjectAssignment[]>('/subject-assignments'),
+        getStudentHistory(s.id),
+      ]);
+      setAssignments(reloadedAss);
+
+      const finalApprovedIds = new Set(
+        finalHistory.filter((h) => h.status === 'APPROVED').map((h) => h.subjectId),
+      );
+      const finalAssignments = reloadedAss
+        .filter((a) => a.academicPeriodId === periodId)
+        .filter((a) =>
+          a.enrollments?.some((e) => e.studentId === s.id && e.academicPeriodId === periodId),
+        )
+        .filter((a) => !finalApprovedIds.has(a.subjectId))
+        .filter((a, idx, self) => idx === self.findIndex((t) => t.subjectId === a.subjectId));
+
+      setPreviewData({
+        assignments: finalAssignments,
+        history: finalHistory,
+        credentials: passReset,
+      });
+    } catch (err) {
+      setError(extractError(err));
+    }
   }
 
   if (loading) return <LoadingState />;
@@ -308,38 +273,13 @@ export default function StudentSubjectAssignmentsPage() {
         title="Boleta de Asignación de Materias"
         subtitle="Asignar materias habilitadas según semestre e historial académico"
         actions={
-          <>
-            {student && studentAssignments.length === 0 && (
-              <button
-                className="btn btn-primary"
-                onClick={() => setShowAssignModal(true)}
-              >
-                Asignar Materias
-              </button>
-            )}
-            <button
-              className="btn btn-outline"
-              onClick={() => window.print()}
-              disabled={!student}
-            >
-              Imprimir
-            </button>
-            {student && (
-              <button
-                className="btn btn-secondary"
-                onClick={async () => {
-                  try {
-                    const data = await apiPost<{ username: string; password: string }>(`/users/student/${student.id}/reset-password`);
-                    setPreviewData((prev) => prev ? { ...prev, credentials: data } : null);
-                  } catch (err) {
-                    setError(extractError(err));
-                  }
-                }}
-              >
-                Generar Contraseña
-              </button>
-            )}
-          </>
+          <button
+            className="btn btn-outline"
+            onClick={() => window.print()}
+            disabled={!student}
+          >
+            Imprimir
+          </button>
         }
       />
 
@@ -454,6 +394,30 @@ export default function StudentSubjectAssignmentsPage() {
             }}
           >
             <div className="flex items-center" style={{ gap: 10 }}>
+              {student.photoUrl ? (
+                <img
+                  src={student.photoUrl}
+                  alt=""
+                  style={{ width: 44, height: 44, borderRadius: '50%', objectFit: 'cover' }}
+                />
+              ) : (
+                <div
+                  style={{
+                    width: 44,
+                    height: 44,
+                    borderRadius: '50%',
+                    background: 'var(--primary)',
+                    color: '#fff',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontWeight: 800,
+                    fontSize: 15,
+                  }}
+                >
+                  {initialsOf(student.firstName, student.lastName)}
+                </div>
+              )}
               <div>
                 <strong style={{ fontSize: 14 }}>
                   {student.studentCode} — {fullName(student)}
@@ -465,15 +429,6 @@ export default function StudentSubjectAssignmentsPage() {
               </div>
             </div>
             <div className="flex gap-2" style={{ flexWrap: 'wrap' }}>
-              {studentAssignments.length === 0 && (
-                <button
-                  className="btn btn-primary btn-sm"
-                  onClick={openAssignModal}
-                  disabled={!student || !periodId || assigning}
-                >
-                  {assigning ? 'Asignando…' : 'Asignar materias'}
-                </button>
-              )}
               <button
                 className="btn btn-outline btn-sm"
                 onClick={() => {
@@ -506,11 +461,22 @@ export default function StudentSubjectAssignmentsPage() {
                 <button
                   key={s.id}
                   className="btn btn-outline btn-sm"
-                  style={{ justifyContent: 'flex-start', textAlign: 'left' }}
+                  style={{ justifyContent: 'space-between', textAlign: 'left', gap: 12 }}
                   onClick={() => selectStudent(s.id)}
                 >
-                  {s.studentCode} — {fullName(s)} · CI {s.ci} · {s.currentLevel}º semestre ·{' '}
-                  {s.career?.name ?? '—'}
+                  <span>
+                    {s.studentCode} — {fullName(s)} · CI {s.ci} · {s.currentLevel}º semestre ·{' '}
+                    {s.career?.name ?? '—'}
+                  </span>
+                  {studentAssignStatus[s.id]?.assigned ? (
+                    <span className="badge badge-success" style={{ whiteSpace: 'nowrap' }}>
+                      ✓ {studentAssignStatus[s.id].count} materias
+                    </span>
+                  ) : (
+                    <span className="badge badge-warning" style={{ whiteSpace: 'nowrap' }}>
+                      Sin asignar
+                    </span>
+                  )}
                 </button>
               ))}
               {eligibleStudents.length === 0 && (
@@ -547,24 +513,6 @@ export default function StudentSubjectAssignmentsPage() {
           </div>
         )}
       </div>
-
-      {student && studentAssignments.length === 0 && studentCareerSubjects.length > 0 && (
-        <div
-          className="card card-pad mb-3"
-          style={{ background: 'var(--warning-soft)', borderColor: 'var(--warning)' }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ fontSize: 20 }}>⚠️</span>
-            <div>
-              <strong>Sin materias asignadas</strong>
-              <div className="text-sm text-muted">
-                El estudiante está matriculado en {student.career?.name} ({student.currentLevel}º
-                semestre). Pulse <strong>Asignar materias</strong> para asignar según su historial.
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
       {student && previewData && (
         <>
@@ -777,188 +725,6 @@ export default function StudentSubjectAssignmentsPage() {
           </div>
         </div>
       )}
-
-      <Modal
-        open={showAssignModal}
-        title={
-          student
-            ? `Asignar materias — ${fullName(student)} (${student.currentLevel ?? 1}º semestre)`
-            : 'Asignar materias'
-        }
-        onClose={() => {
-          setShowAssignModal(false);
-          setSelectedSubjectIds([]);
-          setSelectedParallelId('');
-        }}
-        footer={
-          <>
-            <button
-              className="btn btn-outline"
-              onClick={() => {
-                setShowAssignModal(false);
-                setSelectedSubjectIds([]);
-                setSelectedParallelId('');
-              }}
-            >
-              Cancelar
-            </button>
-            <button
-              className="btn btn-primary"
-              onClick={assignSelectedSubjects}
-              disabled={selectedSubjectIds.length === 0 || !selectedParallelId || assigning}
-            >
-              {assigning ? 'Asignando…' : `Asignar ${selectedSubjectIds.length} materia(s)`}
-            </button>
-          </>
-        }
-      >
-        {student && (
-          <>
-            <div className="mb-3">
-              <div className="text-muted text-sm mb-2">
-                Semestre objetivo: <strong>{targetSemester}º</strong> · Carrera:{' '}
-                <strong>{student.career?.name ?? '—'}</strong>
-              </div>
-              <div className="form-label mb-2">Paralelo:</div>
-              <select
-                className="form-control"
-                value={selectedParallelId}
-                onChange={(e) => setSelectedParallelId(e.target.value)}
-                style={{ maxWidth: 200 }}
-              >
-                <option value="">Seleccione un paralelo</option>
-                {parallels.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.code} -{' '}
-                    {p.shift === 'MANANA'
-                      ? 'Mañana'
-                      : p.shift === 'TARDE'
-                        ? 'Tarde'
-                        : 'Noche'}
-                  </option>
-                ))}
-              </select>
-            </div>
-            {(() => {
-              const allSubjects = [...semesterSubjects, ...previousSubjects];
-              return (
-                <div className="mb-3">
-                  <label className="form-label">
-                    <input
-                      type="checkbox"
-                      checked={
-                        selectedSubjectIds.length === allSubjects.length && allSubjects.length > 0
-                      }
-                      onChange={() => {
-                        if (selectedSubjectIds.length === allSubjects.length) {
-                          setSelectedSubjectIds([]);
-                        } else {
-                          setSelectedSubjectIds(allSubjects.map((s) => s.id));
-                        }
-                      }}
-                    />
-                    Seleccionar todas ({allSubjects.length})
-                  </label>
-                </div>
-              );
-            })()}
-            {(() => {
-              if (!student) return <span className="text-muted">Seleccione un estudiante</span>;
-
-              return (
-                <div style={{ maxHeight: '50vh', overflow: 'auto' }}>
-                  {semesterSubjects.length > 0 && (
-                    <div className="mb-3">
-                      <h4
-                        style={{
-                          fontSize: 13,
-                          fontWeight: 700,
-                          marginBottom: 8,
-                          color: 'var(--primary)',
-                        }}
-                      >
-                        Materias del semestre actual ({targetSemester}º)
-                      </h4>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                        {semesterSubjects.map((s) => (
-                          <label
-                            key={s.id}
-                            className="flex items-center gap-3 p-2"
-                            style={{
-                              border: '1px solid var(--border)',
-                              borderRadius: 8,
-                              cursor: 'pointer',
-                            }}
-                          >
-                            <input
-                              type="checkbox"
-                              checked={selectedSubjectIds.includes(s.id)}
-                              onChange={() => toggleSubject(s.id)}
-                            />
-                            <span className="font-medium" style={{ minWidth: 80 }}>
-                              {s.code}
-                            </span>
-                            <span style={{ flex: 1 }}>{s.name}</span>
-                            <span className="badge badge-primary">{s.semester}º sem</span>
-                            <span className="badge badge-soft">{s.weeklyHours}h/sem</span>
-                          </label>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {previousSubjects.length > 0 && (
-                    <div className="mb-3">
-                      <h4
-                        style={{
-                          fontSize: 13,
-                          fontWeight: 700,
-                          marginBottom: 8,
-                          color: 'var(--warning)',
-                        }}
-                      >
-                        Materias de semestres anteriores (posibles retakes)
-                      </h4>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                        {previousSubjects.map((s) => (
-                          <label
-                            key={s.id}
-                            className="flex items-center gap-3 p-2"
-                            style={{
-                              border: '1px solid var(--border)',
-                              borderRadius: 8,
-                              cursor: 'pointer',
-                              opacity: 0.7,
-                            }}
-                          >
-                            <input
-                              type="checkbox"
-                              checked={selectedSubjectIds.includes(s.id)}
-                              onChange={() => toggleSubject(s.id)}
-                            />
-                            <span className="font-medium" style={{ minWidth: 80 }}>
-                              {s.code}
-                            </span>
-                            <span style={{ flex: 1 }}>{s.name}</span>
-                            <span className="badge badge-soft">{s.semester}º sem</span>
-                            <span className="text-muted text-xs">Retake manual</span>
-                          </label>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {semesterSubjects.length === 0 && previousSubjects.length === 0 && (
-                    <div className="text-muted text-center py-8">
-                      No hay materias en el plan de estudios para esta carrera.
-                    </div>
-                  )}
-                </div>
-              );
-            })()}
-          </>
-        )}
-      </Modal>
     </div>
   );
 }
