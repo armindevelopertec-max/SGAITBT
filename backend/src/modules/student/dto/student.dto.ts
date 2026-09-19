@@ -32,10 +32,10 @@ export class CreateStudentDto {
   @MaxLength(150)
   lastName: string;
 
-  @IsOptional()
   @IsString()
+  @IsNotEmpty()
   @MaxLength(30)
-  diplomaNumber?: string;
+  diplomaNumber: string;
 
   @IsString()
   @IsNotEmpty()

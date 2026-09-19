@@ -18,6 +18,7 @@ export default function StudentSubjectAssignmentsPage() {
   const [error, setError] = useState('');
   const [periodId, setPeriodId] = useState('');
   const [studentId, setStudentId] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
 
   const [previewData, setPreviewData] = useState<{
     assignments: SubjectAssignment[];
@@ -100,6 +101,7 @@ export default function StudentSubjectAssignmentsPage() {
   useEffect(() => {
     setStudentId('');
     setPreviewData(null);
+    setSearchQuery('');
   }, [periodId]);
 
   const student = useMemo(() => students.find((s) => s.id === studentId) ?? null, [students, studentId]);
@@ -153,6 +155,17 @@ export default function StudentSubjectAssignmentsPage() {
     }
     return map;
   }, [eligibleStudents, periodAssignments, periodId]);
+
+  const filteredStudents = useMemo(() => {
+    if (!searchQuery.trim()) return eligibleStudents.slice(0, 10);
+    const q = searchQuery.toLowerCase();
+    return eligibleStudents.filter(
+      (s) =>
+        fullName(s).toLowerCase().includes(q) ||
+        s.ci.toLowerCase().includes(q) ||
+        s.studentCode.toLowerCase().includes(q),
+    ).slice(0, 10);
+  }, [searchQuery, eligibleStudents]);
 
   const selectedPeriod = useMemo(
     () => periods.find((p) => p.id === periodId) ?? null,
@@ -285,240 +298,9 @@ export default function StudentSubjectAssignmentsPage() {
 
       {error && <ErrorState message={error} />}
 
-      <div className="card card-pad mb-3">
-        <div className="flex gap-2 items-center" style={{ flexWrap: 'wrap' }}>
-          {[
-            { n: 1, label: 'Gestión', done: !!periodId },
-            { n: 2, label: 'Estudiante', done: !!student },
-            { n: 3, label: 'Asignar', done: studentAssignments.length > 0 },
-            { n: 4, label: 'Boleta', done: !!student },
-          ].map((s, i, arr) => (
-            <span key={s.n} className="flex gap-2 items-center">
-              <span
-                style={{
-                  width: 26,
-                  height: 26,
-                  borderRadius: '50%',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontWeight: 800,
-                  fontSize: 13,
-                  background: s.done ? 'var(--success)' : 'var(--primary-soft)',
-                  color: s.done ? '#fff' : 'var(--primary)',
-                }}
-              >
-                {s.done ? '✓' : s.n}
-              </span>
-              <span className="text-sm" style={{ fontWeight: 600 }}>
-                {s.label}
-              </span>
-              {i < arr.length - 1 && (
-                <span style={{ width: 24, height: 2, background: 'var(--border)', borderRadius: 2 }} />
-              )}
-            </span>
-          ))}
-        </div>
-      </div>
-
-      <div
-        className="mb-3"
-        style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12 }}
-      >
-        <div className="stat-card">
-          <div className="stat-value">{enrolledStudentIds.size}</div>
-          <div className="stat-label">Matriculados en gestión</div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-value">{studentAssignments.length}</div>
-          <div className="stat-label">Materias asignadas</div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-value">{selectedPeriod?.periodName ?? '—'}</div>
-          <div className="stat-label">Gestión seleccionada</div>
-        </div>
-      </div>
-
-      <div className="card card-pad mb-3">
-        <div className="form-label" style={{ marginBottom: 8 }}>
-          Gestión académica
-        </div>
-        <div className="flex gap-2 mb-3" style={{ flexWrap: 'wrap' }}>
-          {periods.map((p) => {
-            const dot =
-              p.status === 'OPEN'
-                ? 'var(--success)'
-                : p.status === 'PLANNED'
-                  ? 'var(--primary)'
-                  : 'var(--text-muted)';
-            return (
-              <button
-                key={p.id}
-                className={`btn btn-sm ${periodId === p.id ? 'btn-primary' : 'btn-outline'}`}
-                onClick={() => setPeriodId(p.id)}
-                title={`${p.startDate ?? ''} al ${p.endDate ?? ''}`}
-                style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
-              >
-                <span
-                  style={{
-                    width: 8,
-                    height: 8,
-                    borderRadius: '50%',
-                    background: periodId === p.id ? '#fff' : dot,
-                  }}
-                />
-                {p.periodName}
-                <span style={{ fontWeight: 400, opacity: 0.85, fontSize: 12 }}>
-                  {p.status === 'OPEN' ? 'Abierta' : p.status === 'PLANNED' ? 'Planificada' : 'Cerrada'}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-
-        <div className="form-label" style={{ marginBottom: 8 }}>
-          Estudiante matriculado
-        </div>
-        {student ? (
-          <div
-            className="card card-pad"
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              background: 'var(--primary-soft)',
-              border: 'none',
-              padding: '8px 12px',
-              gap: 8,
-              flexWrap: 'wrap',
-            }}
-          >
-            <div className="flex items-center" style={{ gap: 10 }}>
-              {student.photoUrl ? (
-                <img
-                  src={student.photoUrl}
-                  alt=""
-                  style={{ width: 44, height: 44, borderRadius: '50%', objectFit: 'cover' }}
-                />
-              ) : (
-                <div
-                  style={{
-                    width: 44,
-                    height: 44,
-                    borderRadius: '50%',
-                    background: 'var(--primary)',
-                    color: '#fff',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontWeight: 800,
-                    fontSize: 15,
-                  }}
-                >
-                  {initialsOf(student.firstName, student.lastName)}
-                </div>
-              )}
-              <div>
-                <strong style={{ fontSize: 14 }}>
-                  {student.studentCode} — {fullName(student)}
-                </strong>
-                <div className="text-muted text-sm">
-                  CI {student.ci} · {student.currentLevel}º semestre ·{' '}
-                  {student.career?.name ?? '—'}
-                </div>
-              </div>
-            </div>
-            <div className="flex gap-2" style={{ flexWrap: 'wrap' }}>
-              <button
-                className="btn btn-outline btn-sm"
-                onClick={() => {
-                  setStudentId('');
-                }}
-              >
-                Cambiar
-              </button>
-            </div>
-          </div>
-        ) : (
-          <>
-            <input
-              className="form-control"
-              placeholder="Seleccione una gestión para ver estudiantes matriculados"
-              disabled
-              style={{ maxWidth: 360, marginBottom: 8 }}
-            />
-            <div
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                gap: 4,
-                marginTop: 6,
-                maxHeight: 240,
-                overflowY: 'auto',
-              }}
-            >
-              {eligibleStudents.slice(0, 10).map((s) => (
-                <button
-                  key={s.id}
-                  className="btn btn-outline btn-sm"
-                  style={{ justifyContent: 'space-between', textAlign: 'left', gap: 12 }}
-                  onClick={() => selectStudent(s.id)}
-                >
-                  <span>
-                    {s.studentCode} — {fullName(s)} · CI {s.ci} · {s.currentLevel}º semestre ·{' '}
-                    {s.career?.name ?? '—'}
-                  </span>
-                  {studentAssignStatus[s.id]?.assigned ? (
-                    <span className="badge badge-success" style={{ whiteSpace: 'nowrap' }}>
-                      ✓ {studentAssignStatus[s.id].count} materias
-                    </span>
-                  ) : (
-                    <span className="badge badge-warning" style={{ whiteSpace: 'nowrap' }}>
-                      Sin asignar
-                    </span>
-                  )}
-                </button>
-              ))}
-              {eligibleStudents.length === 0 && (
-                <span className="text-muted text-sm">
-                  Sin estudiantes matriculados en esta gestión.
-                </span>
-              )}
-              {eligibleStudents.length > 10 && (
-                <span className="text-muted text-sm">
-                  Mostrando 10 de {eligibleStudents.length} estudiantes.
-                </span>
-              )}
-            </div>
-          </>
-        )}
-
-        {student && (
-          <div className="flex gap-3 items-center mt-3" style={{ flexWrap: 'wrap' }}>
-            <span className="text-muted text-sm">
-              Semestre actual: <strong>{student.currentLevel ?? 1}º</strong>
-            </span>
-            <span className="text-muted text-sm">
-              Carrera: <strong>{student.career?.name ?? '—'}</strong>
-            </span>
-            <span className="text-muted text-sm">
-              Materias del plan: <strong>{studentCareerSubjects.length}</strong>
-            </span>
-            <span className="text-muted text-sm">
-              Materias asignadas: <strong>{studentAssignments.length}</strong>
-            </span>
-            <span className="text-muted text-sm">
-              Matrícula: <strong>{student.studentCode}</strong>
-            </span>
-          </div>
-        )}
-      </div>
-
-      {student && previewData && (
-        <>
-          <style
-            dangerouslySetInnerHTML={{
-              __html: `
+      <style
+        dangerouslySetInnerHTML={{
+          __html: `
             @media print {
               body * { visibility: hidden; }
               #boleta-document, #boleta-document * { visibility: visible; }
@@ -532,199 +314,354 @@ export default function StudentSubjectAssignmentsPage() {
               }
             }
           `,
-            }}
-          />
-          <div className="card mb-3" style={{ background: '#fff', padding: 24 }}>
-          <div className="flex justify-between items-center mb-3">
-            <h3 style={{ fontSize: 14, fontWeight: 700, margin: 0 }}>Vista previa de Boleta</h3>
-            <button
-              className="btn btn-outline btn-sm"
-              onClick={() => setPreviewData(null)}
-              style={{ padding: '2px 8px', fontSize: 12 }}
+        }}
+      />
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 420px', gap: 16 }}>
+        <div className="card" style={{ background: '#fff', padding: 24 }}>
+          {student && previewData ? (
+            <>
+              <div className="flex justify-between items-center mb-3">
+                <h3 style={{ fontSize: 14, fontWeight: 700, margin: 0 }}>Vista previa de Boleta</h3>
+                <button
+                  className="btn btn-outline btn-sm"
+                  onClick={() => setPreviewData(null)}
+                  style={{ padding: '2px 8px', fontSize: 12 }}
+                >
+                  ✕
+                </button>
+              </div>
+              <div style={{ overflow: 'hidden', maxHeight: '529px', display: 'flex', justifyContent: 'center' }}>
+                <div
+                  id="boleta-document"
+                  ref={boletaRef}
+                  style={{
+                    background: '#fff',
+                    width: '216mm',
+                    height: '140mm',
+                    maxHeight: '140mm',
+                    padding: '10mm 20mm',
+                    fontFamily: 'Arial, Helvetica, sans-serif',
+                    fontSize: '9px',
+                    color: '#333',
+                    boxSizing: 'border-box',
+                    border: '1px solid #333',
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+                    overflow: 'hidden',
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'flex-start', marginBottom: 8, position: 'relative' }}>
+                    <div style={{ textAlign: 'center' }}>
+                      <div style={{ fontSize: '16px', fontWeight: 'bold', color: '#14213d', marginBottom: 4 }}>
+                        BOLETA DE ASIGNACIÓN {selectedPeriod?.periodName || ''}
+                      </div>
+                      <div style={{ fontSize: '9px', color: '#666', marginBottom: 2 }}>
+                        SISTEMA DE GESTIÓN ACADÉMICA INSTITUCIONAL – SIGAI
+                      </div>
+                      <div style={{ fontSize: '9px', color: '#666', fontWeight: 'bold' }}>
+                        ORIGINAL PARA ESTUDIANTE
+                      </div>
+                    </div>
+                    <div style={{ position: 'absolute', right: 0, top: 0, width: '60px', height: '60px' }}>
+                      {institution?.logoUrl ? (
+                        <img src={institution.logoUrl} alt="Logo" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                      ) : (
+                        <span style={{ fontSize: '10px', color: '#999' }}>ITBT</span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div style={{ borderBottom: '1px solid #333', marginBottom: 8 }} />
+
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <div style={{ width: '35mm', height: '35mm', border: '1px solid #999', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f8f8f8', flexShrink: 0 }}>
+                      {student.photoUrl ? (
+                        <img src={student.photoUrl} alt="Foto" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      ) : (
+                        <svg width="30" height="30" viewBox="0 0 24 24" fill="#ccc">
+                          <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
+                        </svg>
+                      )}
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '8px' }}>
+                        <tbody>
+                          <tr>
+                            <td style={{ fontWeight: 'bold', color: '#333', padding: '2px 8px 2px 0', width: '35%', borderBottom: '1px solid #ddd' }}>CI:</td>
+                            <td style={{ color: '#333', padding: '2px 0', borderBottom: '1px solid #ddd' }}>{(student.ci || '—').toUpperCase()}</td>
+                            <td style={{ fontWeight: 'bold', color: '#333', padding: '2px 8px 2px 16px', width: '25%', borderBottom: '1px solid #ddd' }}>FILIAL:</td>
+                            <td style={{ color: '#333', padding: '2px 0', borderBottom: '1px solid #ddd' }}>CENTRAL EL ALTO</td>
+                          </tr>
+                          <tr>
+                            <td style={{ fontWeight: 'bold', color: '#333', padding: '2px 8px 2px 0', borderBottom: '1px solid #ddd' }}>AP. PATERNO:</td>
+                            <td style={{ color: '#333', padding: '2px 0', borderBottom: '1px solid #ddd' }}>{(student.paternalSurname || '—').toUpperCase()}</td>
+                            <td style={{ fontWeight: 'bold', color: '#333', padding: '2px 8px 2px 16px', borderBottom: '1px solid #ddd' }}>CARRERA:</td>
+                            <td style={{ color: '#333', padding: '2px 0', borderBottom: '1px solid #ddd' }}>{(student.career?.name || '—').toUpperCase()}</td>
+                          </tr>
+                          <tr>
+                            <td style={{ fontWeight: 'bold', color: '#333', padding: '2px 8px 2px 0', borderBottom: '1px solid #ddd' }}>AP. MATERNO:</td>
+                            <td style={{ color: '#333', padding: '2px 0', borderBottom: '1px solid #ddd' }}>{(student.maternalSurname || '—').toUpperCase()}</td>
+                            <td style={{ fontWeight: 'bold', color: '#333', padding: '2px 8px 2px 16px', borderBottom: '1px solid #ddd' }}>NRO. FOLDER:</td>
+                            <td style={{ color: '#333', padding: '2px 0', borderBottom: '1px solid #ddd' }}>{(student.studentCode || '—').toUpperCase()}</td>
+                          </tr>
+                          <tr>
+                            <td style={{ fontWeight: 'bold', color: '#333', padding: '2px 8px 2px 0', borderBottom: '1px solid #ddd' }}>NOMBRES:</td>
+                            <td style={{ color: '#333', padding: '2px 0', borderBottom: '1px solid #ddd' }}>{(student.firstName || '—').toUpperCase()}</td>
+                            <td style={{ fontWeight: 'bold', color: '#333', padding: '2px 8px 2px 16px', borderBottom: '1px solid #ddd' }}>GESTIÓN INGRESO:</td>
+                            <td style={{ color: '#333', padding: '2px 0', borderBottom: '1px solid #ddd' }}>{(student.entryYear || '—').toUpperCase()}</td>
+                          </tr>
+                          <tr>
+                            <td style={{ fontWeight: 'bold', color: '#333', padding: '2px 8px 2px 0', borderBottom: '1px solid #ddd' }}>NRO. TIT. BACHILLER:</td>
+                            <td style={{ color: '#333', padding: '2px 0', borderBottom: '1px solid #ddd' }}>{(student.diplomaNumber || '—').toUpperCase()}</td>
+                            <td style={{ fontWeight: 'bold', color: '#333', padding: '2px 8px 2px 16px', borderBottom: '1px solid #ddd' }}>PLAN:</td>
+                            <td style={{ color: '#333', padding: '2px 0', borderBottom: '1px solid #ddd' }}>{(student.diplomaNumber ? 'R.M. 1049/2023' : 'R.M. 1049/2023').toUpperCase()}</td>
+                          </tr>
+                        </tbody>
+                      </table>
+
+                      <div style={{ display: 'flex', gap: 4, marginTop: 8 }}>
+                        <div style={{ flex: 1, border: '1px solid #999', padding: 4, background: '#f8f8f8', textAlign: 'center' }}>
+                          <div style={{ fontSize: '6px', color: '#666', marginBottom: 2 }}>CUENTA</div>
+                          <strong style={{ fontSize: '9px', color: '#333' }}>
+                            {previewData.credentials?.username || `AUT${student.ci || '—'}`}
+                          </strong>
+                        </div>
+                        <div style={{ flex: 1, border: '1px solid #999', padding: 4, background: '#f8f8f8', textAlign: 'center' }}>
+                          <div style={{ fontSize: '6px', color: '#666', marginBottom: 2 }}>CONTRASEÑA</div>
+                          <strong style={{ fontSize: '9px', color: '#333' }}>
+                            {previewData.credentials?.password || 'N/A'}
+                          </strong>
+                        </div>
+                        <div style={{ flex: 1, border: '1px solid #999', padding: 4, background: '#f8f8f8', textAlign: 'center' }}>
+                          <div style={{ fontSize: '6px', color: '#666', marginBottom: 2 }}>FECHA INSCRIPCIÓN</div>
+                          <strong style={{ fontSize: '9px', color: '#333' }}>
+                            {new Date().toLocaleDateString('es-BO')}
+                          </strong>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div style={{ marginBottom: 8, marginTop: 10 }}>
+                    <div style={{ fontSize: '10px', fontWeight: 'bold', color: '#14213d', borderBottom: '1px solid #14213d', paddingBottom: 2, marginBottom: 4 }}>
+                      MATERIAS INSCRITAS
+                    </div>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '8px' }}>
+                      <thead>
+                        <tr style={{ background: '#e8e8e8' }}>
+                          <th style={{ padding: '3px 4px', textAlign: 'center', border: '1px solid #999', fontWeight: 'bold', color: '#333' }}>N.°</th>
+                          <th style={{ padding: '3px 4px', textAlign: 'left', border: '1px solid #999', fontWeight: 'bold', color: '#333' }}>CÓDIGO</th>
+                          <th style={{ padding: '3px 4px', textAlign: 'left', border: '1px solid #999', fontWeight: 'bold', color: '#333' }}>MATERIA</th>
+                          <th style={{ padding: '3px 4px', textAlign: 'center', border: '1px solid #999', fontWeight: 'bold', color: '#333' }}>SEM</th>
+                          <th style={{ padding: '3px 4px', textAlign: 'center', border: '1px solid #999', fontWeight: 'bold', color: '#333' }}>PAR</th>
+                          <th style={{ padding: '3px 4px', textAlign: 'center', border: '1px solid #999', fontWeight: 'bold', color: '#333' }}>TUR</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {previewData.assignments
+                          .sort(
+                            (a, b) =>
+                              a.semester - b.semester ||
+                              (a.subject?.code ?? '').localeCompare(b.subject?.code ?? ''),
+                          )
+                          .map((a, i) => {
+                            const shiftLabel =
+                              a.parallelEntity?.shift === 'MANANA'
+                                ? 'M'
+                                : a.parallelEntity?.shift === 'TARDE'
+                                  ? 'T'
+                                  : a.parallelEntity?.shift === 'NOCHE'
+                                    ? 'N'
+                                    : '—';
+                            return (
+                              <tr key={a.id}>
+                                <td style={{ padding: '2px 4px', textAlign: 'center', border: '1px solid #999' }}>{i + 1}</td>
+                                <td style={{ padding: '2px 4px', border: '1px solid #999', fontWeight: 'bold' }}>{(a.subject?.code || '—').toUpperCase()}</td>
+                                <td style={{ padding: '2px 4px', border: '1px solid #999' }}>{(a.subject?.name || '—').toUpperCase()}</td>
+                                <td style={{ padding: '2px 4px', textAlign: 'center', border: '1px solid #999' }}>{a.semester}</td>
+                                <td style={{ padding: '2px 4px', textAlign: 'center', border: '1px solid #999' }}>{(a.parallel || 'A').toUpperCase()}</td>
+                                <td style={{ padding: '2px 4px', textAlign: 'center', border: '1px solid #999' }}>{shiftLabel}</td>
+                              </tr>
+                            );
+                          })}
+                      </tbody>
+                    </table>
+                    <div style={{ fontSize: '7px', color: '#666', marginTop: 4 }}>
+                      PAR: Paralelo · TUR: Turno
+                    </div>
+                  </div>
+
+                  <div style={{ borderTop: '1px solid #999', paddingTop: 6, marginTop: 8 }}>
+                    <div style={{ fontSize: '7px', color: '#666', textAlign: 'center' }}>
+                      {institution?.name || 'Instituto Tecnológico "Boliviana de Tecnología"'} · R.M. 1049/2023 · {institution?.address || 'El Alto, Av. de los Héroes, Z. Ferropetrol N.° 11'} · Tfno: {institution?.phone || '75252479'}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </>
+          ) : (
+            <div className="empty-state" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 400 }}>
+              <div style={{ fontSize: 48, marginBottom: 16 }}>📋</div>
+              <div style={{ textAlign: 'center', color: 'var(--text-muted)' }}>
+                Seleccione un estudiante para ver la boleta de asignación
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="card card-pad" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div>
+            <div className="form-label" style={{ marginBottom: 8 }}>
+              Gestión académica
+            </div>
+            <select
+              className="form-control"
+              value={periodId}
+              onChange={(e) => setPeriodId(e.target.value)}
             >
-              ✕
-            </button>
+              <option value="">Seleccionar gestión</option>
+              {periods.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.periodName} — {p.status === 'OPEN' ? 'Abierta' : p.status === 'PLANNED' ? 'Planificada' : 'Cerrada'}
+                </option>
+              ))}
+            </select>
           </div>
-          <div style={{ overflow: 'auto', maxHeight: '75vh', display: 'flex', justifyContent: 'center' }}>
+
+          <div>
+            <input
+              className="form-control"
+              type="text"
+              placeholder="Buscar por nombre, CI o matrícula..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
+
+          <div className="form-label">
+            Estudiante matriculado
+          </div>
+
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 4,
+              maxHeight: 280,
+              overflowY: 'auto',
+            }}
+          >
+            {filteredStudents.map((s) => (
+              <button
+                key={s.id}
+                className={`btn btn-sm ${studentId === s.id ? 'btn-primary' : 'btn-outline'}`}
+                style={{ justifyContent: 'space-between', textAlign: 'left', gap: 8 }}
+                onClick={() => selectStudent(s.id)}
+              >
+                <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  {s.photoUrl ? (
+                    <img src={s.photoUrl} alt="" style={{ width: 28, height: 28, borderRadius: '50%', objectFit: 'cover' }} />
+                  ) : (
+                    <span
+                      style={{
+                        width: 28,
+                        height: 28,
+                        borderRadius: '50%',
+                        background: 'var(--primary)',
+                        color: '#fff',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontWeight: 800,
+                        fontSize: 11,
+                        flexShrink: 0,
+                      }}
+                    >
+                      {initialsOf(s.firstName, s.lastName)}
+                    </span>
+                  )}
+                  <span>
+                    {s.studentCode} — {fullName(s)}
+                  </span>
+                </span>
+                {studentAssignStatus[s.id]?.assigned ? (
+                  <span className="badge badge-success" style={{ whiteSpace: 'nowrap' }}>
+                    ✓ {studentAssignStatus[s.id].count}
+                  </span>
+                ) : (
+                  <span className="badge badge-warning" style={{ whiteSpace: 'nowrap' }}>
+                    Sin
+                  </span>
+                )}
+              </button>
+            ))}
+            {filteredStudents.length === 0 && (
+              <span className="text-muted text-sm">
+                {searchQuery ? 'Sin resultados' : 'Sin estudiantes en esta gestión'}
+              </span>
+            )}
+          </div>
+
+          {student && (
             <div
-              id="boleta-document"
-              ref={boletaRef}
+              className="card card-pad"
               style={{
-                background: '#fff',
-                width: '216mm',
-                minHeight: '279mm',
-                padding: '20mm',
-                fontFamily: 'Arial, Helvetica, sans-serif',
-                fontSize: '9px',
-                color: '#333',
-                boxSizing: 'border-box',
+                background: 'var(--primary-soft)',
+                border: 'none',
+                padding: '12px',
               }}
             >
-              <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'flex-start', marginBottom: 8, position: 'relative' }}>
-                <div style={{ textAlign: 'center' }}>
-                  <div style={{ fontSize: '16px', fontWeight: 'bold', color: '#14213d', marginBottom: 4 }}>
-                    BOLETA DE ASIGNACIÓN {selectedPeriod?.periodName || ''}
+              <div className="flex items-center" style={{ gap: 10, marginBottom: 8 }}>
+                {student.photoUrl ? (
+                  <img src={student.photoUrl} alt="" style={{ width: 48, height: 48, borderRadius: '50%', objectFit: 'cover' }} />
+                ) : (
+                  <div
+                    style={{
+                      width: 48,
+                      height: 48,
+                      borderRadius: '50%',
+                      background: 'var(--primary)',
+                      color: '#fff',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontWeight: 800,
+                      fontSize: 16,
+                    }}
+                  >
+                    {initialsOf(student.firstName, student.lastName)}
                   </div>
-                  <div style={{ fontSize: '9px', color: '#666', marginBottom: 2 }}>
-                    SISTEMA DE GESTIÓN ACADÉMICA INSTITUCIONAL – SIGAI
-                  </div>
-                  <div style={{ fontSize: '9px', color: '#666', fontWeight: 'bold' }}>
-                    ORIGINAL PARA ESTUDIANTE
-                  </div>
-                </div>
-                <div style={{ position: 'absolute', right: 0, top: 0, width: '60px', height: '60px', border: '1px solid #ccc', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f5f5f5' }}>
-                  {institution?.logoUrl ? (
-                    <img src={institution.logoUrl} alt="Logo" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
-                  ) : (
-                    <span style={{ fontSize: '10px', color: '#999' }}>ITBT</span>
-                  )}
-                </div>
-              </div>
-
-              <div style={{ borderBottom: '1px solid #333', marginBottom: 8 }} />
-
-              <div style={{ display: 'flex', gap: 8 }}>
-                <div style={{ width: '35mm', height: '35mm', border: '1px solid #999', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f8f8f8', flexShrink: 0 }}>
-                  {student.photoUrl ? (
-                    <img src={student.photoUrl} alt="Foto" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                  ) : (
-                    <svg width="30" height="30" viewBox="0 0 24 24" fill="#ccc">
-                      <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
-                    </svg>
-                  )}
-                </div>
-                <div style={{ flex: 1 }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '8px' }}>
-                    <tbody>
-                      <tr>
-                        <td style={{ fontWeight: 'bold', color: '#333', padding: '2px 8px 2px 0', width: '35%', borderBottom: '1px solid #ddd' }}>CI:</td>
-                        <td style={{ color: '#333', padding: '2px 0', borderBottom: '1px solid #ddd' }}>{student.ci || '—'}</td>
-                        <td style={{ fontWeight: 'bold', color: '#333', padding: '2px 8px 2px 16px', width: '25%', borderBottom: '1px solid #ddd' }}>FILIAL:</td>
-                        <td style={{ color: '#333', padding: '2px 0', borderBottom: '1px solid #ddd' }}>Central El Alto</td>
-                      </tr>
-                      <tr>
-                        <td style={{ fontWeight: 'bold', color: '#333', padding: '2px 8px 2px 0', borderBottom: '1px solid #ddd' }}>AP. PATERNO:</td>
-                        <td style={{ color: '#333', padding: '2px 0', borderBottom: '1px solid #ddd' }}>{student.paternalSurname || '—'}</td>
-                        <td style={{ fontWeight: 'bold', color: '#333', padding: '2px 8px 2px 16px', borderBottom: '1px solid #ddd' }}>CARRERA:</td>
-                        <td style={{ color: '#333', padding: '2px 0', borderBottom: '1px solid #ddd' }}>{student.career?.name || '—'}</td>
-                      </tr>
-                      <tr>
-                        <td style={{ fontWeight: 'bold', color: '#333', padding: '2px 8px 2px 0', borderBottom: '1px solid #ddd' }}>AP. MATERNO:</td>
-                        <td style={{ color: '#333', padding: '2px 0', borderBottom: '1px solid #ddd' }}>{student.maternalSurname || '—'}</td>
-                        <td style={{ fontWeight: 'bold', color: '#333', padding: '2px 8px 2px 16px', borderBottom: '1px solid #ddd' }}>NRO. FOLDER:</td>
-                        <td style={{ color: '#333', padding: '2px 0', borderBottom: '1px solid #ddd' }}>{student.studentCode || '—'}</td>
-                      </tr>
-                      <tr>
-                        <td style={{ fontWeight: 'bold', color: '#333', padding: '2px 8px 2px 0', borderBottom: '1px solid #ddd' }}>NOMBRES:</td>
-                        <td style={{ color: '#333', padding: '2px 0', borderBottom: '1px solid #ddd' }}>{student.firstName || '—'}</td>
-                        <td style={{ fontWeight: 'bold', color: '#333', padding: '2px 8px 2px 16px', borderBottom: '1px solid #ddd' }}>GESTIÓN INGRESO:</td>
-                        <td style={{ color: '#333', padding: '2px 0', borderBottom: '1px solid #ddd' }}>{student.entryYear || '—'}</td>
-                      </tr>
-                      <tr>
-                        <td style={{ fontWeight: 'bold', color: '#333', padding: '2px 8px 2px 0', borderBottom: '1px solid #ddd' }}>NRO. TIT. BACHILLER:</td>
-                        <td style={{ color: '#333', padding: '2px 0', borderBottom: '1px solid #ddd' }}>{student.diplomaNumber || '—'}</td>
-                        <td style={{ fontWeight: 'bold', color: '#333', padding: '2px 8px 2px 16px', borderBottom: '1px solid #ddd' }}>PLAN:</td>
-                        <td style={{ color: '#333', padding: '2px 0', borderBottom: '1px solid #ddd' }}>R.M. 1049/2023</td>
-                      </tr>
-                    </tbody>
-                  </table>
-
-                  <div style={{ display: 'flex', gap: 4, marginTop: 8 }}>
-                    <div style={{ flex: 1, border: '1px solid #999', padding: 4, background: '#f8f8f8', textAlign: 'center' }}>
-                      <div style={{ fontSize: '6px', color: '#666', marginBottom: 2 }}>CUENTA</div>
-                      <strong style={{ fontSize: '9px', color: '#333' }}>
-                        {previewData.credentials?.username || `AUT${student.ci || '—'}`}
-                      </strong>
-                    </div>
-                    <div style={{ flex: 1, border: '1px solid #999', padding: 4, background: '#f8f8f8', textAlign: 'center' }}>
-                      <div style={{ fontSize: '6px', color: '#666', marginBottom: 2 }}>CONTRASEÑA</div>
-                      <strong style={{ fontSize: '9px', color: '#333' }}>
-                        {previewData.credentials?.password || 'N/A'}
-                      </strong>
-                    </div>
-                    <div style={{ flex: 1, border: '1px solid #999', padding: 4, background: '#f8f8f8', textAlign: 'center' }}>
-                      <div style={{ fontSize: '6px', color: '#666', marginBottom: 2 }}>FECHA INSCRIPCIÓN</div>
-                      <strong style={{ fontSize: '9px', color: '#333' }}>
-                        {new Date().toLocaleDateString('es-BO')}
-                      </strong>
-                    </div>
+                )}
+                <div>
+                  <strong style={{ fontSize: 14 }}>
+                    {student.studentCode} — {fullName(student)}
+                  </strong>
+                  <div className="text-muted text-sm">
+                    CI {student.ci}
                   </div>
                 </div>
               </div>
-
-              <div style={{ marginBottom: 8, marginTop: 10 }}>
-                <div style={{ fontSize: '10px', fontWeight: 'bold', color: '#14213d', borderBottom: '1px solid #14213d', paddingBottom: 2, marginBottom: 4 }}>
-                  MATERIAS INSCRITAS
-                </div>
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '8px' }}>
-                  <thead>
-                    <tr style={{ background: '#e8e8e8' }}>
-                      <th style={{ padding: '3px 4px', textAlign: 'center', border: '1px solid #999', fontWeight: 'bold', color: '#333' }}>N.°</th>
-                      <th style={{ padding: '3px 4px', textAlign: 'left', border: '1px solid #999', fontWeight: 'bold', color: '#333' }}>CÓDIGO</th>
-                      <th style={{ padding: '3px 4px', textAlign: 'left', border: '1px solid #999', fontWeight: 'bold', color: '#333' }}>MATERIA</th>
-                      <th style={{ padding: '3px 4px', textAlign: 'center', border: '1px solid #999', fontWeight: 'bold', color: '#333' }}>SEM</th>
-                      <th style={{ padding: '3px 4px', textAlign: 'center', border: '1px solid #999', fontWeight: 'bold', color: '#333' }}>PAR</th>
-                      <th style={{ padding: '3px 4px', textAlign: 'center', border: '1px solid #999', fontWeight: 'bold', color: '#333' }}>TUR</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {previewData.assignments
-                      .sort(
-                        (a, b) =>
-                          a.semester - b.semester ||
-                          (a.subject?.code ?? '').localeCompare(b.subject?.code ?? ''),
-                      )
-                      .map((a, i) => {
-                        const shiftLabel =
-                          a.parallelEntity?.shift === 'MANANA'
-                            ? 'M'
-                            : a.parallelEntity?.shift === 'TARDE'
-                              ? 'T'
-                              : a.parallelEntity?.shift === 'NOCHE'
-                                ? 'N'
-                                : '—';
-                        return (
-                          <tr key={a.id}>
-                            <td style={{ padding: '2px 4px', textAlign: 'center', border: '1px solid #999' }}>{i + 1}</td>
-                            <td style={{ padding: '2px 4px', border: '1px solid #999', fontWeight: 'bold' }}>{a.subject?.code || '—'}</td>
-                            <td style={{ padding: '2px 4px', border: '1px solid #999' }}>{a.subject?.name || '—'}</td>
-                            <td style={{ padding: '2px 4px', textAlign: 'center', border: '1px solid #999' }}>{a.semester}</td>
-                            <td style={{ padding: '2px 4px', textAlign: 'center', border: '1px solid #999' }}>{a.parallel || 'A'}</td>
-                            <td style={{ padding: '2px 4px', textAlign: 'center', border: '1px solid #999' }}>{shiftLabel}</td>
-                          </tr>
-                        );
-                      })}
-                  </tbody>
-                </table>
-                <div style={{ fontSize: '7px', color: '#666', marginTop: 4 }}>
-                  PAR: Paralelo · TUR: Turno
-                </div>
+              <div className="flex gap-2" style={{ flexWrap: 'wrap', fontSize: 12 }}>
+                <span className="text-muted">{student.currentLevel}º semestre</span>
+                <span className="text-muted">·</span>
+                <span className="text-muted">{student.career?.name ?? '—'}</span>
               </div>
-
-              <div style={{ borderTop: '1px solid #999', paddingTop: 6, marginTop: 8 }}>
-                <div style={{ fontSize: '7px', color: '#666', textAlign: 'center' }}>
-                  {institution?.name || 'Instituto Tecnológico "Boliviana de Tecnología"'} · R.M. 1049/2023 · {institution?.address || 'El Alto, Av. de los Héroes, Z. Ferropetrol N.° 11'} · Tfno: {institution?.phone || '75252479'}
-                </div>
+              <div className="flex gap-2 mt-2" style={{ flexWrap: 'wrap', fontSize: 12 }}>
+                <span className="text-muted">Materias: <strong>{studentAssignments.length}</strong></span>
+                <span className="text-muted">·</span>
+                <span className="text-muted">Plan: <strong>{studentCareerSubjects.length}</strong></span>
               </div>
+              <button
+                className="btn btn-outline btn-sm mt-2"
+                onClick={() => setStudentId('')}
+                style={{ width: '100%' }}
+              >
+                Cambiar estudiante
+              </button>
             </div>
-          </div>
+          )}
         </div>
-        </>
-      )}
-
-      {!student && (
-        <div className="card card-pad">
-          <div className="empty-state">
-            <div className="empty-state-icon">📋</div>
-            Elige la gestión y selecciona un estudiante matriculado para gestionar su asignación de
-            materias.
-            <div className="text-muted text-sm mt-2">
-              Nota: El formato completo de boleta (con QR, firma, etc.) está disponible en
-              <strong>Certificados → Boleta de Asignación</strong>.
-            </div>
-          </div>
-        </div>
-      )}
+      </div>
     </div>
   );
 }

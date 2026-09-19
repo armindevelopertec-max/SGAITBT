@@ -21,7 +21,8 @@
     "migration:generate": "node -r ts-node/register -r tsconfig-paths/register node_modules/typeorm/cli.js migration:generate -d src/config/data-source.ts",
     "migration:run": "node -r ts-node/register -r tsconfig-paths/register node_modules/typeorm/cli.js migration:run -d src/config/data-source.ts",
     "migration:revert": "node -r ts-node/register -r tsconfig-paths/register node_modules/typeorm/cli.js migration:revert -d src/config/data-source.ts",
-    "seed": "nest start --entryFile seed/seed --transpile-only"
+    "seed": "nest start --entryFile seed/seed --transpile-only",
+    "update:diploma": "nest start --entryFile seed/update-diploma --transpile-only"
   },
   "dependencies": {
     "@nestjs/common": "^10.4.15",
