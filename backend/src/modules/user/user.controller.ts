@@ -46,6 +46,12 @@ export class UserController {
     return this.userService.createStudentUser(studentId);
   }
 
+  @Post('student/:studentId/reset-password')
+  @RequirePermission(PERMISSIONS.USERS_UPDATE)
+  resetStudentPassword(@Param('studentId') studentId: string) {
+    return this.userService.resetStudentPassword(studentId);
+  }
+
   @Get('student/:studentId')
   @RequirePermission(PERMISSIONS.USERS_VIEW)
   getStudentCredentials(@Param('studentId') studentId: string) {

@@ -181,6 +181,30 @@ export class StudentService {
       .getRawMany();
   }
 
+  async getEntryYear(studentId: string): Promise<{ periodName: string; year: string } | null> {
+    const enrollment = await this.studentRepository
+      .createQueryBuilder('student')
+      .leftJoinAndSelect('student.enrollments', 'enrollment')
+      .leftJoinAndSelect('enrollment.academicPeriod', 'period')
+      .where('student.id = :studentId', { studentId })
+      .orderBy('enrollment.enrollmentDate', 'ASC')
+      .getOne();
+
+    if (!enrollment || !enrollment.enrollments || enrollment.enrollments.length === 0) {
+      return null;
+    }
+
+    const firstEnrollment = enrollment.enrollments[0];
+    if (firstEnrollment.academicPeriod?.year && firstEnrollment.academicPeriod?.periodName) {
+      return {
+        periodName: firstEnrollment.academicPeriod.periodName,
+        year: firstEnrollment.academicPeriod.year,
+      };
+    }
+
+    return null;
+  }
+
   private async findStrict(id: string): Promise<Student> {
     const student = await this.studentRepository.findOne({
       where: { id },

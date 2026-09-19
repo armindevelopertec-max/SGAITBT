@@ -6,8 +6,8 @@ import { Student, AcademicPeriod, Institution, Enrollment, SubjectAssignment, Su
 import { PageHeader } from '@/components/ui/page-header';
 import { LoadingState, ErrorState } from '@/components/ui/state';
 import { Modal } from '@/components/ui/modal';
-import { captureElementToPdf } from '@/lib/pdf-utils';
-import { initialsOf, fullName } from '@/lib/utils';
+import { generateBoletaPdf } from '@/lib/boleta-pdf';
+import { fullName } from '@/lib/utils';
 import { useStudentAssignments } from '@/hooks/useStudentAssignments';
 
 export default function StudentSubjectAssignmentsPage() {
@@ -21,7 +21,6 @@ export default function StudentSubjectAssignmentsPage() {
   const [error, setError] = useState('');
   const [periodId, setPeriodId] = useState('');
   const [studentId, setStudentId] = useState('');
-  const [generating, setGenerating] = useState(false);
   const [assigning, setAssigning] = useState(false);
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [selectedSubjectIds, setSelectedSubjectIds] = useState<string[]>([]);
@@ -30,10 +29,9 @@ export default function StudentSubjectAssignmentsPage() {
   const [previewData, setPreviewData] = useState<{
     assignments: SubjectAssignment[];
     history: AcademicHistoryRecord[];
-    credentials?: { username: string };
+    credentials?: { username: string; password?: string };
   } | null>(null);
   const boletaRef = useRef<HTMLDivElement>(null);
-  const [previewZoom] = useState(1.3);
 
   const parallelCache = useRef<Record<string, Parallel[]>>({});
   const historyCache = useRef<Record<string, AcademicHistoryRecord[]>>({});
@@ -270,73 +268,29 @@ export default function StudentSubjectAssignmentsPage() {
     }
   }
 
-  async function generateAndPrint() {
-    if (!student || !institution) return;
-    setGenerating(true);
-    try {
-      const [academicHistory, credentials] = await Promise.all([
-        getStudentHistory(student.id),
-        getStudentCredentials(student.id),
-      ]);
-
-      const approvedIds = new Set(
-        academicHistory.filter((h) => h.status === 'APPROVED').map((h) => h.subjectId),
-      );
-      const newAssignments = studentAssignments.filter((a) => !approvedIds.has(a.subjectId));
-
-      setPreviewData({ assignments: newAssignments, history: academicHistory, credentials });
-
-      await new Promise((r) => setTimeout(r, 100));
-
-      const el = boletaRef.current;
-      if (el) {
-        await captureElementToPdf(el, `Boleta-Asignacion-${student.studentCode}.pdf`);
-      }
-    } catch (err) {
-      setError(extractError(err));
-    } finally {
-      setGenerating(false);
-    }
-  }
-
-  async function previewAssignment() {
-    if (!student || !institution) return;
-    setGenerating(true);
-    try {
-      const [academicHistory, credentials] = await Promise.all([
-        getStudentHistory(student.id),
-        getStudentCredentials(student.id),
-      ]);
-
-      const approvedIds = new Set(
-        academicHistory.filter((h) => h.status === 'APPROVED').map((h) => h.subjectId),
-      );
-      const newAssignments = studentAssignments.filter((a) => !approvedIds.has(a.subjectId));
-
-      setPreviewData({ assignments: newAssignments, history: academicHistory, credentials });
-    } catch (err) {
-      setError(extractError(err));
-    } finally {
-      setGenerating(false);
-    }
-  }
-
-  async function downloadPreviewPdf() {
-    const el = boletaRef.current;
-    if (!el || !student) return;
-    try {
-      await captureElementToPdf(el, `Boleta-Asignacion-${student.studentCode}.pdf`);
-    } catch (err) {
-      setError(extractError(err));
-    }
-  }
-
   async function selectStudent(id: string) {
     setStudentId(id);
     const s = students.find((st) => st.id === id);
     if (s) {
       const history = await getStudentHistory(s.id);
       setStudentHistory(history);
+      const [academicHistory, credentials, entryData] = await Promise.all([
+        getStudentHistory(s.id),
+        getStudentCredentials(s.id),
+        apiGet<{ periodName: string; year: string } | null>(`/students/${s.id}/entry-year`),
+      ]);
+      const entryYearFormatted = entryData?.periodName || undefined;
+      const studentWithEntryYear = { ...s, entryYear: entryYearFormatted };
+      setStudents((prev) => prev.map((st) => (st.id === id ? studentWithEntryYear : st)));
+      const approvedIds = new Set(
+        academicHistory.filter((h) => h.status === 'APPROVED').map((h) => h.subjectId),
+      );
+      const newAssignments = periodAssignments.filter(
+        (a) =>
+          a.enrollments?.some((e) => e.studentId === s.id && e.academicPeriodId === periodId) &&
+          !approvedIds.has(a.subjectId),
+      );
+      setPreviewData({ assignments: newAssignments, history: academicHistory, credentials });
     }
   }
 
@@ -352,23 +306,17 @@ export default function StudentSubjectAssignmentsPage() {
     <div>
       <PageHeader
         title="Boleta de Asignación de Materias"
-        subtitle="Asignar materias habilitadas según semestre e historial académico, luego generar boleta"
+        subtitle="Asignar materias habilitadas según semestre e historial académico"
         actions={
           <>
-            <button
-              className="btn btn-outline"
-              onClick={previewAssignment}
-              disabled={!student || generating}
-            >
-              Previsualizar
-            </button>
-            <button
-              className="btn btn-primary"
-              onClick={generateAndPrint}
-              disabled={!student || generating}
-            >
-              {generating ? 'Generando…' : 'Generar PDF Boleta'}
-            </button>
+            {student && studentAssignments.length === 0 && (
+              <button
+                className="btn btn-primary"
+                onClick={() => setShowAssignModal(true)}
+              >
+                Asignar Materias
+              </button>
+            )}
             <button
               className="btn btn-outline"
               onClick={() => window.print()}
@@ -376,6 +324,21 @@ export default function StudentSubjectAssignmentsPage() {
             >
               Imprimir
             </button>
+            {student && (
+              <button
+                className="btn btn-secondary"
+                onClick={async () => {
+                  try {
+                    const data = await apiPost<{ username: string; password: string }>(`/users/student/${student.id}/reset-password`);
+                    setPreviewData((prev) => prev ? { ...prev, credentials: data } : null);
+                  } catch (err) {
+                    setError(extractError(err));
+                  }
+                }}
+              >
+                Generar Contraseña
+              </button>
+            )}
           </>
         }
       />
@@ -491,31 +454,6 @@ export default function StudentSubjectAssignmentsPage() {
             }}
           >
             <div className="flex items-center" style={{ gap: 10 }}>
-              {student.photoUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={student.photoUrl}
-                  alt=""
-                  style={{ width: 44, height: 44, borderRadius: '50%', objectFit: 'cover' }}
-                />
-              ) : (
-                <div
-                  style={{
-                    width: 44,
-                    height: 44,
-                    borderRadius: '50%',
-                    background: 'var(--primary)',
-                    color: '#fff',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontWeight: 800,
-                    fontSize: 15,
-                  }}
-                >
-                  {initialsOf(student.firstName, student.lastName)}
-                </div>
-              )}
               <div>
                 <strong style={{ fontSize: 14 }}>
                   {student.studentCode} — {fullName(student)}
@@ -527,13 +465,15 @@ export default function StudentSubjectAssignmentsPage() {
               </div>
             </div>
             <div className="flex gap-2" style={{ flexWrap: 'wrap' }}>
-              <button
-                className="btn btn-primary btn-sm"
-                onClick={openAssignModal}
-                disabled={!student || !periodId || assigning}
-              >
-                {assigning ? 'Asignando…' : 'Asignar materias'}
-              </button>
+              {studentAssignments.length === 0 && (
+                <button
+                  className="btn btn-primary btn-sm"
+                  onClick={openAssignModal}
+                  disabled={!student || !periodId || assigning}
+                >
+                  {assigning ? 'Asignando…' : 'Asignar materias'}
+                </button>
+              )}
               <button
                 className="btn btn-outline btn-sm"
                 onClick={() => {
@@ -608,24 +548,6 @@ export default function StudentSubjectAssignmentsPage() {
         )}
       </div>
 
-      {student && studentAssignments.length > 0 && (
-        <div
-          className="card card-pad mb-3"
-          style={{ background: 'var(--success-soft)', borderColor: 'var(--success)' }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ fontSize: 20 }}>✅</span>
-            <div>
-              <strong>Estudiante con materias asignadas</strong>
-              <div className="text-sm text-muted">
-                {studentAssignments.length} materia(s) en {selectedPeriod?.periodName} — lista para
-                generar boleta
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
       {student && studentAssignments.length === 0 && studentCareerSubjects.length > 0 && (
         <div
           className="card card-pad mb-3"
@@ -645,284 +567,156 @@ export default function StudentSubjectAssignmentsPage() {
       )}
 
       {student && previewData && (
-        <div className="card mb-3" style={{ background: '#fff', padding: 24 }}>
+        <>
+          <style
+            dangerouslySetInnerHTML={{
+              __html: `
+            @media print {
+              body * { visibility: hidden; }
+              #boleta-document, #boleta-document * { visibility: visible; }
+              #boleta-document {
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 100%;
+                zoom: 1 !important;
+                background: #fff !important;
+              }
+            }
+          `,
+            }}
+          />
+          <div className="card mb-3" style={{ background: '#fff', padding: 24 }}>
           <div className="flex justify-between items-center mb-3">
             <h3 style={{ fontSize: 14, fontWeight: 700, margin: 0 }}>Vista previa de Boleta</h3>
-            <div className="flex gap-2">
-              <button className="btn btn-primary btn-sm" onClick={downloadPreviewPdf}>
-                Descargar PDF
-              </button>
-              <button className="btn btn-outline btn-sm" onClick={() => setPreviewData(null)}>
-                Cerrar
-              </button>
-            </div>
+            <button
+              className="btn btn-outline btn-sm"
+              onClick={() => setPreviewData(null)}
+              style={{ padding: '2px 8px', fontSize: 12 }}
+            >
+              ✕
+            </button>
           </div>
           <div style={{ overflow: 'auto', maxHeight: '75vh', display: 'flex', justifyContent: 'center' }}>
             <div
+              id="boleta-document"
               ref={boletaRef}
               style={{
                 background: '#fff',
-                width: 210 * previewZoom + 'mm',
-                padding: '20px 25px',
+                width: '216mm',
+                minHeight: '279mm',
+                padding: '20mm',
                 fontFamily: 'Arial, Helvetica, sans-serif',
-                fontSize: 9 * previewZoom + 'px',
-                color: '#141414',
-                boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-                border: '1px solid #ddd',
+                fontSize: '9px',
+                color: '#333',
+                boxSizing: 'border-box',
               }}
             >
-              <div style={{ textAlign: 'center', marginBottom: 8 }}>
-                <div
-                  style={{
-                    fontSize: 11.5 * previewZoom,
-                    fontWeight: 'bold',
-                    color: '#14213d',
-                    marginBottom: 2,
-                  }}
-                >
-                  {institution?.name?.toUpperCase() ||
-                    'INSTITUTO TECNOLÓGICO "BOLIVIANA DE TECNOLOGÍA"'}
+              <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'flex-start', marginBottom: 8, position: 'relative' }}>
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ fontSize: '16px', fontWeight: 'bold', color: '#14213d', marginBottom: 4 }}>
+                    BOLETA DE ASIGNACIÓN {selectedPeriod?.periodName || ''}
+                  </div>
+                  <div style={{ fontSize: '9px', color: '#666', marginBottom: 2 }}>
+                    SISTEMA DE GESTIÓN ACADÉMICA INSTITUCIONAL – SIGAI
+                  </div>
+                  <div style={{ fontSize: '9px', color: '#666', fontWeight: 'bold' }}>
+                    ORIGINAL PARA ESTUDIANTE
+                  </div>
                 </div>
-                <div
-                  style={{
-                    fontSize: 7 * previewZoom,
-                    color: '#5a5a5a',
-                  }}
-                >
-                  Sistema de Gestión Académica ·{' '}
-                  {new Date().toLocaleDateString('es-BO', {
-                    day: '2-digit',
-                    month: 'long',
-                    year: 'numeric',
-                  })}
+                <div style={{ position: 'absolute', right: 0, top: 0, width: '60px', height: '60px', border: '1px solid #ccc', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f5f5f5' }}>
+                  {institution?.logoUrl ? (
+                    <img src={institution.logoUrl} alt="Logo" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                  ) : (
+                    <span style={{ fontSize: '10px', color: '#999' }}>ITBT</span>
+                  )}
                 </div>
               </div>
 
-              <div style={{ textAlign: 'center', marginBottom: 10 }}>
-                <div
-                  style={{
-                    fontSize: 13.5 * previewZoom,
-                    fontWeight: 'bold',
-                    color: '#0a0a0a',
-                    marginBottom: 4,
-                  }}
-                >
-                  BOLETA DE ASIGNACIÓN {selectedPeriod?.periodName || ''}
-                </div>
-                <div style={{ fontSize: 8.5 * previewZoom, color: '#505050', marginBottom: 4 }}>
-                  SISTEMA DE GESTIÓN ACADÉMICA INSTITUCIONAL – SIGAI
-                </div>
-                <div
-                  style={{
-                    fontSize: 8.5 * previewZoom,
-                    color: '#5a5a5a',
-                    fontWeight: 'bold',
-                  }}
-                >
-                  ORIGINAL PARA ESTUDIANTE
-                </div>
-              </div>
+              <div style={{ borderBottom: '1px solid #333', marginBottom: 8 }} />
 
-              <div style={{ marginBottom: 10 }}>
-                <div
-                  style={{
-                    fontSize: 10 * previewZoom,
-                    fontWeight: 'bold',
-                    color: '#14213d',
-                    borderBottom: '1px solid #14213d',
-                    paddingBottom: 3,
-                    marginBottom: 5,
-                  }}
-                >
-                  DATOS DEL ESTUDIANTE
+              <div style={{ display: 'flex', gap: 8 }}>
+                <div style={{ width: '35mm', height: '35mm', border: '1px solid #999', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f8f8f8', flexShrink: 0 }}>
+                  {student.photoUrl ? (
+                    <img src={student.photoUrl} alt="Foto" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  ) : (
+                    <svg width="30" height="30" viewBox="0 0 24 24" fill="#ccc">
+                      <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
+                    </svg>
+                  )}
                 </div>
-                <div
-                  style={{
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(2, 1fr)',
-                    gap: '3px 20px',
-                    fontSize: 8.5 * previewZoom,
-                  }}
-                >
-                  <div>
-                    <span style={{ color: '#5a5a5a' }}>C.I.:</span>{' '}
-                    <strong style={{ color: '#141414' }}>{student.ci || '—'}</strong>
-                  </div>
-                  <div>
-                    <span style={{ color: '#5a5a5a' }}>FILIAL:</span>{' '}
-                    <strong style={{ color: '#141414' }}>Central El Alto</strong>
-                  </div>
-                  <div>
-                    <span style={{ color: '#5a5a5a' }}>APELLIDO PATERNO:</span>{' '}
-                    <strong style={{ color: '#141414' }}>{student.paternalSurname || '—'}</strong>
-                  </div>
-                  <div>
-                    <span style={{ color: '#5a5a5a' }}>APELLIDO MATERNO:</span>{' '}
-                    <strong style={{ color: '#141414' }}>{student.maternalSurname || '—'}</strong>
-                  </div>
-                  <div>
-                    <span style={{ color: '#5a5a5a' }}>NOMBRES:</span>{' '}
-                    <strong style={{ color: '#141414' }}>{student.firstName || '—'}</strong>
-                  </div>
-                  <div>
-                    <span style={{ color: '#5a5a5a' }}>NRO. FOLDER:</span>{' '}
-                    <strong style={{ color: '#141414' }}>{student.studentCode || '—'}</strong>
-                  </div>
-                  <div>
-                    <span style={{ color: '#5a5a5a' }}>CARRERA:</span>{' '}
-                    <strong style={{ color: '#141414' }}>{student.career?.name || '—'}</strong>
-                  </div>
-                  <div>
-                    <span style={{ color: '#5a5a5a' }}>GESTIÓN DE INGRESO:</span>{' '}
-                    <strong style={{ color: '#141414' }}>
-                      {previewData.history && previewData.history.length > 0
-                        ? previewData.history[0]?.academicPeriod?.periodName || '—'
-                        : '—'}
-                    </strong>
-                  </div>
-                  <div>
-                    <span style={{ color: '#5a5a5a' }}>NRO. TIT. BACHILLER:</span>{' '}
-                    <strong style={{ color: '#141414' }}>{student.diplomaNumber || '—'}</strong>
-                  </div>
-                  <div>
-                    <span style={{ color: '#5a5a5a' }}>PLAN:</span>{' '}
-                    <strong style={{ color: '#141414' }}>{student.career?.code || '—'}</strong>
+                <div style={{ flex: 1 }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '8px' }}>
+                    <tbody>
+                      <tr>
+                        <td style={{ fontWeight: 'bold', color: '#333', padding: '2px 8px 2px 0', width: '35%', borderBottom: '1px solid #ddd' }}>CI:</td>
+                        <td style={{ color: '#333', padding: '2px 0', borderBottom: '1px solid #ddd' }}>{student.ci || '—'}</td>
+                        <td style={{ fontWeight: 'bold', color: '#333', padding: '2px 8px 2px 16px', width: '25%', borderBottom: '1px solid #ddd' }}>FILIAL:</td>
+                        <td style={{ color: '#333', padding: '2px 0', borderBottom: '1px solid #ddd' }}>Central El Alto</td>
+                      </tr>
+                      <tr>
+                        <td style={{ fontWeight: 'bold', color: '#333', padding: '2px 8px 2px 0', borderBottom: '1px solid #ddd' }}>AP. PATERNO:</td>
+                        <td style={{ color: '#333', padding: '2px 0', borderBottom: '1px solid #ddd' }}>{student.paternalSurname || '—'}</td>
+                        <td style={{ fontWeight: 'bold', color: '#333', padding: '2px 8px 2px 16px', borderBottom: '1px solid #ddd' }}>CARRERA:</td>
+                        <td style={{ color: '#333', padding: '2px 0', borderBottom: '1px solid #ddd' }}>{student.career?.name || '—'}</td>
+                      </tr>
+                      <tr>
+                        <td style={{ fontWeight: 'bold', color: '#333', padding: '2px 8px 2px 0', borderBottom: '1px solid #ddd' }}>AP. MATERNO:</td>
+                        <td style={{ color: '#333', padding: '2px 0', borderBottom: '1px solid #ddd' }}>{student.maternalSurname || '—'}</td>
+                        <td style={{ fontWeight: 'bold', color: '#333', padding: '2px 8px 2px 16px', borderBottom: '1px solid #ddd' }}>NRO. FOLDER:</td>
+                        <td style={{ color: '#333', padding: '2px 0', borderBottom: '1px solid #ddd' }}>{student.studentCode || '—'}</td>
+                      </tr>
+                      <tr>
+                        <td style={{ fontWeight: 'bold', color: '#333', padding: '2px 8px 2px 0', borderBottom: '1px solid #ddd' }}>NOMBRES:</td>
+                        <td style={{ color: '#333', padding: '2px 0', borderBottom: '1px solid #ddd' }}>{student.firstName || '—'}</td>
+                        <td style={{ fontWeight: 'bold', color: '#333', padding: '2px 8px 2px 16px', borderBottom: '1px solid #ddd' }}>GESTIÓN INGRESO:</td>
+                        <td style={{ color: '#333', padding: '2px 0', borderBottom: '1px solid #ddd' }}>{student.entryYear || '—'}</td>
+                      </tr>
+                      <tr>
+                        <td style={{ fontWeight: 'bold', color: '#333', padding: '2px 8px 2px 0', borderBottom: '1px solid #ddd' }}>NRO. TIT. BACHILLER:</td>
+                        <td style={{ color: '#333', padding: '2px 0', borderBottom: '1px solid #ddd' }}>{student.diplomaNumber || '—'}</td>
+                        <td style={{ fontWeight: 'bold', color: '#333', padding: '2px 8px 2px 16px', borderBottom: '1px solid #ddd' }}>PLAN:</td>
+                        <td style={{ color: '#333', padding: '2px 0', borderBottom: '1px solid #ddd' }}>R.M. 1049/2023</td>
+                      </tr>
+                    </tbody>
+                  </table>
+
+                  <div style={{ display: 'flex', gap: 4, marginTop: 8 }}>
+                    <div style={{ flex: 1, border: '1px solid #999', padding: 4, background: '#f8f8f8', textAlign: 'center' }}>
+                      <div style={{ fontSize: '6px', color: '#666', marginBottom: 2 }}>CUENTA</div>
+                      <strong style={{ fontSize: '9px', color: '#333' }}>
+                        {previewData.credentials?.username || `AUT${student.ci || '—'}`}
+                      </strong>
+                    </div>
+                    <div style={{ flex: 1, border: '1px solid #999', padding: 4, background: '#f8f8f8', textAlign: 'center' }}>
+                      <div style={{ fontSize: '6px', color: '#666', marginBottom: 2 }}>CONTRASEÑA</div>
+                      <strong style={{ fontSize: '9px', color: '#333' }}>
+                        {previewData.credentials?.password || 'N/A'}
+                      </strong>
+                    </div>
+                    <div style={{ flex: 1, border: '1px solid #999', padding: 4, background: '#f8f8f8', textAlign: 'center' }}>
+                      <div style={{ fontSize: '6px', color: '#666', marginBottom: 2 }}>FECHA INSCRIPCIÓN</div>
+                      <strong style={{ fontSize: '9px', color: '#333' }}>
+                        {new Date().toLocaleDateString('es-BO')}
+                      </strong>
+                    </div>
                   </div>
                 </div>
               </div>
 
-              <div style={{ marginBottom: 10 }}>
-                <div
-                  style={{
-                    fontSize: 10 * previewZoom,
-                    fontWeight: 'bold',
-                    color: '#14213d',
-                    borderBottom: '1px solid #14213d',
-                    paddingBottom: 3,
-                    marginBottom: 5,
-                  }}
-                >
-                  DATOS DE ACCESO POR SISTEMA
-                </div>
-                <div
-                  style={{
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(2, 1fr)',
-                    gap: '3px 20px',
-                    fontSize: 8.5 * previewZoom,
-                  }}
-                >
-                  <div>
-                    <span style={{ color: '#5a5a5a' }}>CUENTA:</span>{' '}
-                    <strong style={{ color: '#141414' }}>
-                      {previewData.credentials?.username || `AUT${student.ci || '—'}`}
-                    </strong>
-                  </div>
-                  <div>
-                    <span style={{ color: '#5a5a5a' }}>CONTRASEÑA:</span>{' '}
-                    <strong style={{ color: '#141414' }}>Consultar en secretaría</strong>
-                  </div>
-                </div>
-                <div
-                  style={{
-                    fontSize: 7.5 * previewZoom,
-                    color: '#6e6e6e',
-                    fontStyle: 'italic',
-                    marginTop: 4,
-                  }}
-                >
-                  La contraseña es personal e intransferible. Cámbiela en su primer ingreso al sistema.
-                </div>
-              </div>
-
-              <div style={{ marginBottom: 10 }}>
-                <div
-                  style={{
-                    fontSize: 10 * previewZoom,
-                    fontWeight: 'bold',
-                    color: '#14213d',
-                    borderBottom: '1px solid #14213d',
-                    paddingBottom: 3,
-                    marginBottom: 5,
-                  }}
-                >
+              <div style={{ marginBottom: 8, marginTop: 10 }}>
+                <div style={{ fontSize: '10px', fontWeight: 'bold', color: '#14213d', borderBottom: '1px solid #14213d', paddingBottom: 2, marginBottom: 4 }}>
                   MATERIAS INSCRITAS
                 </div>
-                <table
-                  style={{
-                    width: '100%',
-                    borderCollapse: 'collapse',
-                    fontSize: 8.5 * previewZoom,
-                  }}
-                >
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '8px' }}>
                   <thead>
-                    <tr style={{ background: '#f0f2f6' }}>
-                      <th
-                        style={{
-                          padding: '3px 6px',
-                          textAlign: 'center',
-                          border: '1px solid #a0a0a0',
-                          color: '#14213d',
-                          fontWeight: 'bold',
-                        }}
-                      >
-                        N.º
-                      </th>
-                      <th
-                        style={{
-                          padding: '3px 6px',
-                          textAlign: 'left',
-                          border: '1px solid #a0a0a0',
-                          color: '#14213d',
-                          fontWeight: 'bold',
-                        }}
-                      >
-                        CÓDIGO
-                      </th>
-                      <th
-                        style={{
-                          padding: '3px 6px',
-                          textAlign: 'left',
-                          border: '1px solid #a0a0a0',
-                          color: '#14213d',
-                          fontWeight: 'bold',
-                        }}
-                      >
-                        MATERIA
-                      </th>
-                      <th
-                        style={{
-                          padding: '3px 6px',
-                          textAlign: 'center',
-                          border: '1px solid #a0a0a0',
-                          color: '#14213d',
-                          fontWeight: 'bold',
-                        }}
-                      >
-                        SEM
-                      </th>
-                      <th
-                        style={{
-                          padding: '3px 6px',
-                          textAlign: 'center',
-                          border: '1px solid #a0a0a0',
-                          color: '#14213d',
-                          fontWeight: 'bold',
-                        }}
-                      >
-                        PAR
-                      </th>
-                      <th
-                        style={{
-                          padding: '3px 6px',
-                          textAlign: 'center',
-                          border: '1px solid #a0a0a0',
-                          color: '#14213d',
-                          fontWeight: 'bold',
-                        }}
-                      >
-                        TUR
-                      </th>
+                    <tr style={{ background: '#e8e8e8' }}>
+                      <th style={{ padding: '3px 4px', textAlign: 'center', border: '1px solid #999', fontWeight: 'bold', color: '#333' }}>N.°</th>
+                      <th style={{ padding: '3px 4px', textAlign: 'left', border: '1px solid #999', fontWeight: 'bold', color: '#333' }}>CÓDIGO</th>
+                      <th style={{ padding: '3px 4px', textAlign: 'left', border: '1px solid #999', fontWeight: 'bold', color: '#333' }}>MATERIA</th>
+                      <th style={{ padding: '3px 4px', textAlign: 'center', border: '1px solid #999', fontWeight: 'bold', color: '#333' }}>SEM</th>
+                      <th style={{ padding: '3px 4px', textAlign: 'center', border: '1px solid #999', fontWeight: 'bold', color: '#333' }}>PAR</th>
+                      <th style={{ padding: '3px 4px', textAlign: 'center', border: '1px solid #999', fontWeight: 'bold', color: '#333' }}>TUR</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -943,136 +737,31 @@ export default function StudentSubjectAssignmentsPage() {
                                 : '—';
                         return (
                           <tr key={a.id}>
-                            <td
-                              style={{
-                                padding: '2px 6px',
-                                textAlign: 'center',
-                                border: '1px solid #a0a0a0',
-                              }}
-                            >
-                              {i + 1}
-                            </td>
-                            <td
-                              style={{
-                                padding: '2px 6px',
-                                border: '1px solid #a0a0a0',
-                                fontWeight: 'bold',
-                              }}
-                            >
-                              {a.subject?.code || '—'}
-                            </td>
-                            <td style={{ padding: '2px 6px', border: '1px solid #a0a0a0' }}>
-                              {a.subject?.name || '—'}
-                            </td>
-                            <td
-                              style={{
-                                padding: '2px 6px',
-                                textAlign: 'center',
-                                border: '1px solid #a0a0a0',
-                              }}
-                            >
-                              {a.semester}
-                            </td>
-                            <td
-                              style={{
-                                padding: '2px 6px',
-                                textAlign: 'center',
-                                border: '1px solid #a0a0a0',
-                              }}
-                            >
-                              {a.parallel || 'A'}
-                            </td>
-                            <td
-                              style={{
-                                padding: '2px 6px',
-                                textAlign: 'center',
-                                border: '1px solid #a0a0a0',
-                              }}
-                            >
-                              {shiftLabel}
-                            </td>
+                            <td style={{ padding: '2px 4px', textAlign: 'center', border: '1px solid #999' }}>{i + 1}</td>
+                            <td style={{ padding: '2px 4px', border: '1px solid #999', fontWeight: 'bold' }}>{a.subject?.code || '—'}</td>
+                            <td style={{ padding: '2px 4px', border: '1px solid #999' }}>{a.subject?.name || '—'}</td>
+                            <td style={{ padding: '2px 4px', textAlign: 'center', border: '1px solid #999' }}>{a.semester}</td>
+                            <td style={{ padding: '2px 4px', textAlign: 'center', border: '1px solid #999' }}>{a.parallel || 'A'}</td>
+                            <td style={{ padding: '2px 4px', textAlign: 'center', border: '1px solid #999' }}>{shiftLabel}</td>
                           </tr>
                         );
                       })}
                   </tbody>
                 </table>
-                <div style={{ fontSize: 7.5 * previewZoom, color: '#6e6e6e', marginTop: 4 }}>
+                <div style={{ fontSize: '7px', color: '#666', marginTop: 4 }}>
                   PAR: Paralelo · TUR: Turno
                 </div>
               </div>
 
-              <div
-                style={{
-                  fontSize: 7.5 * previewZoom,
-                  color: '#6e6e6e',
-                  fontStyle: 'italic',
-                  marginBottom: 12,
-                }}
-              >
-                El interesado debe verificar que todos los datos sean correctos antes de firmar. La
-                institución no se hará responsable por datos incorrectos para trámites posteriores.
-              </div>
-
-              <div
-                style={{
-                  fontSize: 7 * previewZoom,
-                  color: '#464646',
-                  marginBottom: 8,
-                  borderBottom: '1px solid #5a5a5a',
-                  paddingBottom: 4,
-                }}
-              >
-                <strong style={{ color: '#14213d', fontSize: 8 * previewZoom }}>
-                  {institution?.name || 'Instituto Tecnológico "Boliviana de Tecnología"'}
-                </strong>
-                <br />
-                <span style={{ color: '#828282' }}>R.M. 1049/2023</span>
-                <br />
-                Dirección: El Alto, Av. de los Héroes, Z. Ferropetrol N.º 11 · Teléfono: 75252479
-              </div>
-
-              <div
-                style={{
-                  fontSize: 9 * previewZoom,
-                  color: '#282828',
-                  marginBottom: 15,
-                  marginTop: 8,
-                }}
-              >
-                Lugar y fecha: El Alto, ____ de ____________ de {new Date().getFullYear()}.
-              </div>
-
-              <div style={{ display: 'flex', justifyContent: 'space-around', marginTop: 10 }}>
-                <div style={{ textAlign: 'center' }}>
-                  <div
-                    style={{
-                      borderTop: '1px solid #3c3c3c',
-                      paddingTop: 5,
-                      width: 150,
-                      margin: '0 auto',
-                      fontSize: 9 * previewZoom,
-                    }}
-                  >
-                    Firma del estudiante
-                  </div>
-                </div>
-                <div style={{ textAlign: 'center' }}>
-                  <div
-                    style={{
-                      borderTop: '1px solid #3c3c3c',
-                      paddingTop: 5,
-                      width: 150,
-                      margin: '0 auto',
-                      fontSize: 9 * previewZoom,
-                    }}
-                  >
-                    Sello de la institución
-                  </div>
+              <div style={{ borderTop: '1px solid #999', paddingTop: 6, marginTop: 8 }}>
+                <div style={{ fontSize: '7px', color: '#666', textAlign: 'center' }}>
+                  {institution?.name || 'Instituto Tecnológico "Boliviana de Tecnología"'} · R.M. 1049/2023 · {institution?.address || 'El Alto, Av. de los Héroes, Z. Ferropetrol N.° 11'} · Tfno: {institution?.phone || '75252479'}
                 </div>
               </div>
             </div>
           </div>
         </div>
+        </>
       )}
 
       {!student && (

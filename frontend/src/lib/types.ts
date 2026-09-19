@@ -10,6 +10,21 @@ export type Sex = 'MALE' | 'FEMALE';
 export type PersonStatus = 'ACTIVE' | 'INACTIVE';
 export type EmployeeType = 'DIRECTIVO' | 'DOCENTE' | 'ADMINISTRATIVO' | 'APOYO';
 
+export interface PersonIdentity {
+  firstName: string;
+  paternalSurname?: string;
+  maternalSurname?: string;
+  lastName: string;
+  ci: string;
+  ciExtension?: string;
+  birthDate?: string;
+  sex?: Sex;
+  phone?: string;
+  address?: string;
+  email: string;
+  photoUrl?: string;
+}
+
 export interface Institution {
   id: string;
   name: string;
@@ -107,6 +122,7 @@ export interface Student {
   currentPeriodId?: string;
   currentPeriod?: AcademicPeriod;
   personaId?: string;
+  entryYear?: string;
   createdAt: string;
 }
 

@@ -1,6 +1,8 @@
 import { jsPDF } from 'jspdf';
 import QRCode from 'qrcode';
 import { Student, AcademicHistoryRecord, Subject, Institution, SubjectAssignment } from '@/lib/types';
+import { fullSurname, paternalOf, maternalOf, ciText, formatDate } from '@/lib/utils';
+import { COLORS, INSTITUTION_SUFFIX } from '@/lib/constants';
 
 export type CertificateDocType = 'NOTES' | 'STUDIES' | 'REGULAR' | 'ENROLLMENT' | 'HISTORY' | 'ASIGNACION';
 
@@ -14,9 +16,8 @@ export interface CertificateData {
   credentials?: { username: string; password: string };
 }
 
-const NAVY: [number, number, number] = [20, 33, 61];
+const { NAVY } = COLORS;
 const MARGIN_X = 15;
-const INSTITUTION_SUFFIX = 'R.M. 1049/2023';
 const INSTITUTION_LINE = 'SISTEMA DE GESTIÓN ACADÉMICA INSTITUCIONAL \u2013 SIGAI';
 
 function pageW(doc: jsPDF): number {
@@ -44,36 +45,6 @@ function roman(n: number): string {
     }
   }
   return result || String(n);
-}
-
-function formatDate(value?: string | Date): string {
-  if (!value) return '—';
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return '—';
-  return d.toLocaleDateString('es-BO', { day: '2-digit', month: '2-digit', year: 'numeric' });
-}
-
-function fullSurname(student?: Student): string {
-  if (!student) return '—';
-  return student.lastName || [student.paternalSurname, student.maternalSurname].filter(Boolean).join(' ') || '—';
-}
-
-function paternalOf(student?: Student): string {
-  if (!student) return '—';
-  if (student.paternalSurname) return student.paternalSurname;
-  return student.lastName?.split(' ')[0] || '—';
-}
-
-function maternalOf(student?: Student): string {
-  if (!student) return '—';
-  if (student.maternalSurname) return student.maternalSurname;
-  const parts = student.lastName?.split(' ') || [];
-  return parts.length > 1 ? parts.slice(1).join(' ') : '—';
-}
-
-function ciText(student?: Student): string {
-  if (!student?.ci) return '—';
-  return student.ciExtension ? `${student.ci} (${student.ciExtension})` : student.ci;
 }
 
 function entryLabelFor(student: Student, history: AcademicHistoryRecord[]): string {

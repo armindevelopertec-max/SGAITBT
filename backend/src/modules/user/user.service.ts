@@ -111,6 +111,24 @@ export class UserService {
     return { user: saved, password: plainPassword };
   }
 
+  async resetStudentPassword(studentId: string): Promise<{ username: string; password: string }> {
+    const user = await this.userRepository.findOne({
+      where: { studentId },
+    });
+    if (!user) {
+      throw new NotFoundException('Usuario no encontrado para este estudiante');
+    }
+
+    const plainPassword = generateRandomPassword();
+    const passwordHash = await bcrypt.hash(plainPassword, 10);
+
+    user.passwordHash = passwordHash;
+    user.mustChangePassword = true;
+    await this.userRepository.save(user);
+
+    return { username: user.username, password: plainPassword };
+  }
+
   async findByUsername(username: string): Promise<User | null> {
     return this.userRepository.findOne({
       where: { username },

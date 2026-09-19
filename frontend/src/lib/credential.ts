@@ -2,40 +2,19 @@ import { jsPDF } from 'jspdf';
 import { toPng } from 'html-to-image';
 import QRCode from 'qrcode';
 import { Enrollment, Institution, Student, SubjectAssignment } from '@/lib/types';
+import {
+  fullSurname,
+  fullSurnames,
+  ciText,
+  formatDate,
+} from '@/lib/utils';
+import { COLORS, CARD_W, CARD_H, INSTITUTION_SUFFIX } from '@/lib/constants';
 
-const INSTITUTION_SUFFIX = 'R.M. 1049/2023';
-const NAVY: [number, number, number] = [20, 33, 61];
-const CREAM: [number, number, number] = [250, 247, 241];
-const GOLD: [number, number, number] = [200, 158, 68];
-const CARD_W = 85;
-const CARD_H = 55;
+const { NAVY, CREAM, GOLD } = COLORS;
 
 export interface CredentialData {
   enrollment: Enrollment;
   institution?: Institution;
-}
-
-export function fullSurname(student: Enrollment['student']): string {
-  if (!student) return '—';
-  return student.lastName || [student.paternalSurname, student.maternalSurname].filter(Boolean).join(' ') || '—';
-}
-
-export function paternalOf(student: Enrollment['student']): string {
-  if (!student) return '—';
-  if (student.paternalSurname) return student.paternalSurname;
-  return student.lastName?.split(' ')[0] || '—';
-}
-
-export function maternalOf(student: Enrollment['student']): string {
-  if (!student) return '—';
-  if (student.maternalSurname) return student.maternalSurname;
-  const parts = student.lastName?.split(' ') || [];
-  return parts.length > 1 ? parts.slice(1).join(' ') : '—';
-}
-
-export function fullSurnames(student: Enrollment['student']): string {
-  const parts = [paternalOf(student), maternalOf(student)].filter((v) => v !== '—');
-  return parts.length ? parts.join(' ') : '—';
 }
 
 export function institutionSede(institution?: Institution): string {
@@ -49,18 +28,6 @@ export function emergencyPhone(student: Enrollment['student']): string {
 export function studyRegime(career?: Enrollment['career']): string {
   const regime = career?.studyPlan?.['regime'];
   return typeof regime === 'string' && regime.trim() ? regime : 'Semestral';
-}
-
-export function ciText(student: Enrollment['student']): string {
-  return student?.ci ? `${student.ci}${student.ciExtension ? ` ${student.ciExtension}` : ''}` : '—';
-}
-
-export function formatDate(value?: string | Date): string {
-  if (!value) return '—';
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return '—';
-  const meses = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
-  return `${d.getDate()} de ${meses[d.getMonth()]} de ${d.getFullYear()}`;
 }
 
 async function loadImageDataUrl(url?: string, fallback = '/logo.png'): Promise<string | null> {
@@ -103,13 +70,19 @@ export async function buildQrDataUrl(enrollment: Enrollment): Promise<string | n
   }
 }
 
-export async function downloadEnrollmentCredential({ enrollment, institution }: CredentialData): Promise<void> {
+export async function downloadEnrollmentCredential({
+  enrollment,
+  institution,
+}: CredentialData): Promise<void> {
   const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: [CARD_W, CARD_H] });
   const margin = 2.5;
 
   const student = enrollment.student;
-  const institutionName = institution?.name || 'Instituto Tecnológico \u201CBoliviana de Tecnología\u201D';
-  const periodName = enrollment.academicPeriod?.periodName || `Gestión ${enrollment.academicPeriod?.year || String(new Date().getFullYear())}`;
+  const institutionName =
+    institution?.name || 'Instituto Tecnológico \u201CBoliviana de Tecnología\u201D';
+  const periodName =
+    enrollment.academicPeriod?.periodName ||
+    `Gestión ${enrollment.academicPeriod?.year || String(new Date().getFullYear())}`;
   const year = enrollment.academicPeriod?.year || String(new Date().getFullYear());
 
   const [logoUrl, photoUrl, qrUrl] = await Promise.all([
@@ -170,7 +143,14 @@ export async function downloadEnrollmentCredential({ enrollment, institution }: 
     doc.text(title, nameX + nameW / 2, 7.9, { align: 'center' });
   };
 
-  const row = (label: string, value: string, x: number, yLabel: number, valueSize = 8, navyValue = false) => {
+  const row = (
+    label: string,
+    value: string,
+    x: number,
+    yLabel: number,
+    valueSize = 8,
+    navyValue = false,
+  ) => {
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(4.9);
     doc.setTextColor(110, 110, 110);
@@ -217,7 +197,7 @@ export async function downloadEnrollmentCredential({ enrollment, institution }: 
     }
   };
 
-  // ---------------- FRENTE ----------------
+  // FRENTE
   drawBackdrop();
   drawHeader('CREDENCIAL DE MATRÍCULA', 32);
 
@@ -249,7 +229,7 @@ export async function downloadEnrollmentCredential({ enrollment, institution }: 
   row('CARRERA', enrollment.career?.name || '—', colX, 36);
   row('FECHA', formatDate(enrollment.enrollmentDate), colX, 43);
 
-  // ---------------- PARTE POSTERIOR ----------------
+  // PARTE POSTERIOR
   doc.addPage([CARD_W, CARD_H], 'landscape');
   drawBackdrop();
   drawHeader('PARTE POSTERIOR');
@@ -339,7 +319,7 @@ async function inlineImages(el: HTMLElement): Promise<void> {
       } catch {
         /* se conserva la URL original */
       }
-    })
+    }),
   );
 }
 
@@ -358,12 +338,11 @@ async function captureCard(el: HTMLElement | null): Promise<string | null> {
   }
 }
 
-/**
- * Genera el PDF de la credencial capturando la vista previa CSS (idéntico a pantalla).
- * Devuelve `true` si la captura fue exitosa; si falla conviene usar
- * `downloadEnrollmentCredential` (jsPDF) como respaldo.
- */
-export async function downloadEnrollmentCredentialFromDom({ enrollment, front, back }: CredentialDomData): Promise<boolean> {
+export async function downloadEnrollmentCredentialFromDom({
+  enrollment,
+  front,
+  back,
+}: CredentialDomData): Promise<boolean> {
   const [frontPng, backPng] = await Promise.all([captureCard(front), captureCard(back)]);
   if (!frontPng || !backPng) return false;
 
@@ -390,11 +369,11 @@ export interface SubjectAssignmentCredentialDomData {
 export async function buildSubjectAssignmentQrDataUrl(
   student: Student,
   assignments: SubjectAssignment[],
-  periodName: string
+  periodName: string,
 ): Promise<string | null> {
   const payload = [
     'INSTITUTO TECNOLÓGICO \u201CBOLIVIANA DE TECNOLOGÍA\u201D',
-    `BOLETA DE ASIGNACIÓN DE MATERIAS`,
+    'BOLETA DE ASIGNACIÓN DE MATERIAS',
     periodName,
     `Estudiante: ${student?.firstName || ''} ${student?.paternalSurname || ''} ${student?.maternalSurname || ''} ${student?.lastName || ''}`.trim(),
     `CI: ${student?.ci || ''}`,
@@ -423,8 +402,11 @@ export async function downloadSubjectAssignmentCredential({
   const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: [CARD_W, CARD_H] });
   const margin = 2.5;
 
-  const institutionName = institution?.name || 'Instituto Tecnológico \u201CBoliviana de Tecnología\u201D';
-  const periodName = assignments[0]?.academicPeriod?.periodName || `Gestión ${assignments[0]?.academicPeriod?.year || String(new Date().getFullYear())}`;
+  const institutionName =
+    institution?.name || 'Instituto Tecnológico \u201CBoliviana de Tecnología\u201D';
+  const periodName =
+    assignments[0]?.academicPeriod?.periodName ||
+    `Gestión ${assignments[0]?.academicPeriod?.year || String(new Date().getFullYear())}`;
   const year = assignments[0]?.academicPeriod?.year || String(new Date().getFullYear());
 
   const [logoUrl, photoUrl, qrUrl] = await Promise.all([
@@ -485,21 +467,6 @@ export async function downloadSubjectAssignmentCredential({
     doc.text(title, nameX + nameW / 2, 7.9, { align: 'center' });
   };
 
-  const row = (label: string, value: string, x: number, yLabel: number, valueSize = 8, navyValue = false) => {
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(4.9);
-    doc.setTextColor(110, 110, 110);
-    doc.text(label, x, yLabel);
-    const valueY = yLabel + 3.2;
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(valueSize);
-    if (navyValue) doc.setTextColor(...NAVY);
-    else doc.setTextColor(20, 20, 20);
-    doc.text(fit(value || '—', 50, 1), x, valueY);
-    doc.setFontSize(valueSize);
-    return valueY;
-  };
-
   const drawPhoto = (x: number, y: number, size: number) => {
     doc.setDrawColor(...NAVY);
     doc.setLineWidth(0.4);
@@ -532,11 +499,33 @@ export async function downloadSubjectAssignmentCredential({
     }
   };
 
-  // ---------------- FRENTE ----------------
+  const row = (
+    label: string,
+    value: string,
+    x: number,
+    yLabel: number,
+    valueSize = 8,
+    navyValue = false,
+  ) => {
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(4.9);
+    doc.setTextColor(110, 110, 110);
+    doc.text(label, x, yLabel);
+    const valueY = yLabel + 3.2;
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(valueSize);
+    if (navyValue) doc.setTextColor(...NAVY);
+    else doc.setTextColor(20, 20, 20);
+    doc.text(fit(value || '—', 50, 1), x, valueY);
+    doc.setFontSize(valueSize);
+    return valueY;
+  };
+
+  // FRENTE
   drawBackdrop();
   drawHeader('BOLETA DE ASIGNACIÓN', 32);
 
-  // Sello de gestión (esquina superior derecha)
+  // Sello de gestión
   const badgeW = 29;
   const badgeH = 8.4;
   const badgeX = CARD_W - margin - badgeW;
@@ -550,22 +539,22 @@ export async function downloadSubjectAssignmentCredential({
   doc.setFontSize(6.8);
   doc.text('ASIGNACIÓN', badgeX + badgeW / 2, badgeY + 6.5, { align: 'center' });
 
-  // Fotografía 30 x 30 mm
+  // Fotografía
   const photoSize = 30;
   const photoX = CARD_W - margin - photoSize;
   const photoY = 13.6;
   drawPhoto(photoX, photoY, photoSize);
 
-  // Datos en orden vertical
+  // Datos
   const colX = margin + 1.5;
-  const fullSurnames = [student?.paternalSurname, student?.maternalSurname].filter(Boolean).join(' ');
+  const surnames = [student?.paternalSurname, student?.maternalSurname].filter(Boolean).join(' ');
   row('N.º DE BOLETA', assignments[0]?.id?.slice(-8).toUpperCase() ?? '—', colX, 15, 9.6, true);
-  row('APELLIDOS', fullSurnames || '—', colX, 22);
+  row('APELLIDOS', surnames || '—', colX, 22);
   row('NOMBRES', student?.firstName || '—', colX, 29);
   row('MATRÍCULA', student?.studentCode || '—', colX, 36);
   row('GESTIÓN', periodName, colX, 43);
 
-  // ---------------- PARTE POSTERIOR ----------------
+  // PARTE POSTERIOR
   doc.addPage([CARD_W, CARD_H], 'landscape');
   drawBackdrop();
   drawHeader('DETALLE DE MATERIAS ASIGNADAS');
@@ -587,7 +576,7 @@ export async function downloadSubjectAssignmentCredential({
   };
 
   const backRowsCol1: Array<[string, string]> = [
-    ['APELLIDOS', fullSurnames || '—'],
+    ['APELLIDOS', surnames || '—'],
     ['NOMBRES', student?.firstName || '—'],
     ['MATRÍCULA', student?.studentCode || '—'],
     ['CARRERA', student?.career?.name || '—'],
@@ -596,9 +585,9 @@ export async function downloadSubjectAssignmentCredential({
     ['RÉGIMEN', 'Regular'],
   ];
   const backRowsCol2: Array<[string, string]> = [
-    ['CÉDULA DE IDENTIDAD', `${student?.ci || ''}${student?.ciExtension ? ` ${student.ciExtension}` : ''}` || '—'],
+    ['CÉDULA DE IDENTIDAD', ciText(student)],
     ['RÉGIMEN', 'Regular'],
-    ['SEDE', institution?.address?.split(',')[0]?.trim() || 'El Alto'],
+    ['SEDE', institutionSede(institution)],
   ];
 
   backRowsCol1.forEach(([l, v], i) => {
@@ -640,13 +629,15 @@ export async function downloadSubjectAssignmentCredential({
     xPos += colWidths[1];
     doc.text(a.parallel || '—', xPos + colWidths[2] / 2, tableY, { align: 'center' });
     xPos += colWidths[2];
-    const teacher = a.employee?.persona ? `${a.employee.persona.firstName} ${a.employee.persona.paternalSurname ?? ''}`.trim() : '—';
+    const teacher = a.employee?.persona
+      ? `${a.employee.persona.firstName} ${a.employee.persona.paternalSurname ?? ''}`.trim()
+      : '—';
     doc.text(fit(teacher, colWidths[3], 1), xPos, tableY);
     tableY += 3.5;
     if (tableY > CARD_H - 8) break;
   }
 
-  // QR de verificación (esquina derecha)
+  // QR
   if (qrUrl) {
     const qrSize = 22.5;
     const qrX = CARD_W - margin - qrSize;
@@ -664,7 +655,7 @@ export async function downloadSubjectAssignmentCredential({
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(4.5);
   doc.setTextColor(130, 130, 130);
-  doc.text(`${institutionName.toUpperCase()} · R.M. 1049/2023 · Gestión ${year}`, CARD_W / 2, CARD_H - 1.8, {
+  doc.text(`${institutionName.toUpperCase()} · ${INSTITUTION_SUFFIX} · Gestión ${year}`, CARD_W / 2, CARD_H - 1.8, {
     align: 'center',
   });
 

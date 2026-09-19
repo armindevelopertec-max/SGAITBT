@@ -3,18 +3,14 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import { apiGet, apiPost, extractError } from '@/lib/api';
 import { Enrollment, Student, AcademicPeriod, Institution, Deposit } from '@/lib/types';
-import { initialsOf } from '@/lib/utils';
+import { initialsOf, fullSurname, fullSurnames, ciText, formatDate } from '@/lib/utils';
 import {
   downloadEnrollmentCredential,
   downloadEnrollmentCredentialFromDom,
   buildQrDataUrl,
-  fullSurname,
-  fullSurnames,
   institutionSede,
   emergencyPhone,
   studyRegime,
-  ciText,
-  formatDate,
 } from '@/lib/credential';
 import { PageHeader } from '@/components/ui/page-header';
 import { StatusBadge } from '@/components/ui/badge';

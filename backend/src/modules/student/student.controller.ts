@@ -110,6 +110,20 @@ export class StudentController {
     return this.studentService.findOne(user.studentId);
   }
 
+  @Get(':id/entry-year')
+  @RequirePermission(
+    PERMISSIONS.STUDENTS_VIEW,
+    PERMISSIONS.ENROLLMENTS_VIEW,
+    PERMISSIONS.DEPOSITS_VIEW,
+    PERMISSIONS.ATTENDANCE_VIEW,
+    PERMISSIONS.ASSIGNMENTS_VIEW,
+    PERMISSIONS.USERS_VIEW,
+    PERMISSIONS.REPORTS_VIEW,
+  )
+  getEntryYear(@Param('id') id: string) {
+    return this.studentService.getEntryYear(id);
+  }
+
   @Get(':id')
   @RequirePermission(
     PERMISSIONS.STUDENTS_VIEW,
