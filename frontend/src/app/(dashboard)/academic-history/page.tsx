@@ -20,8 +20,8 @@ function initialsOf(firstName?: string, lastName?: string): string {
 }
 
 function fullName(s: Student): string {
-  const name = `${s.firstName} ${s.paternalSurname ?? ''} ${s.maternalSurname ?? ''}`.trim();
-  return name || (s.lastName ?? '');
+  const name = `${s.person?.firstName || ''} ${s.person?.paternalSurname ?? ''} ${s.person?.maternalSurname ?? ''}`.trim();
+  return name || (s.person?.lastName ?? '');
 }
 
 export default function AcademicHistoryPage() {
@@ -93,8 +93,8 @@ export default function AcademicHistoryPage() {
       .filter(
         (s) =>
           s.studentCode?.toLowerCase().includes(q) ||
-          s.ci?.toLowerCase().includes(q) ||
-          `${s.firstName} ${s.lastName}`.toLowerCase().includes(q),
+          (s.person?.ci?.toLowerCase().includes(q) ?? false) ||
+          `${s.person?.firstName || ''} ${s.person?.lastName || ''}`.toLowerCase().includes(q),
       )
       .slice(0, 8);
   })();
@@ -207,17 +207,17 @@ export default function AcademicHistoryPage() {
               }}
             >
               <div className="flex items-center" style={{ gap: 12 }}>
-                {student.photoUrl ? (
+                {student.person?.photoUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={student.photoUrl} alt="" style={{ width: 48, height: 48, borderRadius: '50%', objectFit: 'cover' }} />
+                  <img src={student.person?.photoUrl} alt="" style={{ width: 48, height: 48, borderRadius: '50%', objectFit: 'cover' }} />
                 ) : (
                   <div style={{ width: 48, height: 48, borderRadius: '50%', background: 'var(--primary)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 16 }}>
-                    {initialsOf(student.firstName, student.lastName)}
+                    {initialsOf(student.person?.firstName, student.person?.lastName)}
                   </div>
                 )}
                 <div>
                   <strong style={{ fontSize: 14 }}>{student.studentCode} — {fullName(student)}</strong>
-                  <div className="text-muted text-sm">CI {student.ci} · {student.career?.name ?? '—'} · {student.currentLevel}º semestre</div>
+                  <div className="text-muted text-sm">CI {student.person?.ci ?? '—'} · {student.career?.name ?? '—'} · {student.currentLevel}º semestre</div>
                 </div>
               </div>
               <button className="btn btn-outline btn-sm" onClick={() => { setSelectedId(''); setHistory([]); setSubjects([]); setSelectedPeriodIds([]); }}>
@@ -241,16 +241,16 @@ export default function AcademicHistoryPage() {
                     onClick={() => selectStudent(s.id)}
                   >
                     <span style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      {s.photoUrl ? (
+                      {s.person?.photoUrl ? (
                         // eslint-disable-next-line @next/next/no-img-element
-                        <img src={s.photoUrl} alt="" style={{ width: 32, height: 32, borderRadius: '50%', objectFit: 'cover' }} />
+                        <img src={s.person?.photoUrl} alt="" style={{ width: 32, height: 32, borderRadius: '50%', objectFit: 'cover' }} />
                       ) : (
                         <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'var(--primary-soft)', color: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 12 }}>
-                          {initialsOf(s.firstName, s.lastName)}
+                          {initialsOf(s.person?.firstName, s.person?.lastName)}
                         </div>
                       )}
                       <span>
-                        <strong>{s.studentCode}</strong> — {fullName(s)} · CI {s.ci}
+                        <strong>{s.studentCode}</strong> — {fullName(s)} · CI {s.person?.ci ?? '—'}
                       </span>
                     </span>
                   </button>
@@ -273,17 +273,17 @@ export default function AcademicHistoryPage() {
               onClick={() => selectStudent(s.id)}
             >
               <div className="flex items-center" style={{ gap: 12 }}>
-                {s.photoUrl ? (
+                {s.person?.photoUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={s.photoUrl} alt="" style={{ width: 44, height: 44, borderRadius: '50%', objectFit: 'cover' }} />
+                  <img src={s.person?.photoUrl} alt="" style={{ width: 44, height: 44, borderRadius: '50%', objectFit: 'cover' }} />
                 ) : (
                   <div style={{ width: 44, height: 44, borderRadius: '50%', background: 'var(--primary)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800 }}>
-                    {initialsOf(s.firstName, s.lastName)}
+                    {initialsOf(s.person?.firstName, s.person?.lastName)}
                   </div>
                 )}
                 <div>
                   <strong>{s.studentCode} — {fullName(s)}</strong>
-                  <div className="text-muted text-sm">CI {s.ci} · {s.career?.name ?? '—'}</div>
+                  <div className="text-muted text-sm">CI {s.person?.ci ?? '—'} · {s.career?.name ?? '—'}</div>
                 </div>
               </div>
             </div>

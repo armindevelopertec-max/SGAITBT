@@ -13,7 +13,7 @@ import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { GradeService } from './grade.service';
 import {
   CreateBulkGradesDto,
-  CreateGradeDto,
+  GradeInputDto,
   GradeQueryDto,
   UpdateGradeDto,
 } from './dto/grade.dto';
@@ -31,7 +31,7 @@ export class GradeController {
 
   @Post()
   @RequirePermission(PERMISSIONS.GRADES_CREATE, PERMISSIONS.GRADES_UPDATE, PERMISSIONS.GRADES_VERIFY)
-  create(@Body() dto: CreateGradeDto) {
+  create(@Body() dto: GradeInputDto & { assignmentId: string }) {
     return this.gradeService.create(dto);
   }
 

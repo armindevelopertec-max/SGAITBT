@@ -20,7 +20,6 @@ console.error = (...args: unknown[]) => {
 export async function captureElementToPdf(
   element: HTMLElement,
   filename: string,
-  orientation: 'portrait' | 'landscape' = 'portrait',
 ): Promise<void> {
   const canvas = await html2canvas(element, {
     useCORS: true,

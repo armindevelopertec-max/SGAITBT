@@ -19,11 +19,6 @@ export class CreateSubjectAssignmentDto {
   employeeId?: string;
 
   @IsOptional()
-  @IsString()
-  @MaxLength(20)
-  parallel?: string;
-
-  @IsOptional()
   parallelId?: string;
 
   @IsOptional()
@@ -43,11 +38,6 @@ export class CreateSubjectAssignmentDto {
 export class UpdateSubjectAssignmentDto {
   @IsOptional()
   employeeId?: string;
-
-  @IsOptional()
-  @IsString()
-  @MaxLength(20)
-  parallel?: string;
 
   @IsOptional()
   parallelId?: string;
@@ -72,10 +62,6 @@ export class AutoAssignStudentsDto {
   @IsOptional()
   @IsArray()
   studentIds?: string[];
-
-  @IsOptional()
-  @IsString()
-  parallel?: string;
 }
 
 export class EnrollStudentInAssignmentDto {
@@ -110,5 +96,5 @@ export class AssignmentQueryDto {
   employeeId?: string;
 
   @IsOptional()
-  parallel?: string;
+  parallelId?: string;
 }

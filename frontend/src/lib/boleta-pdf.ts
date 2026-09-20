@@ -92,13 +92,13 @@ export function generateBoletaPdf(data: BoletaData): void {
     pdf.line(dataStartX, yP + 2, dataStartX + dataWidth, yP + 2);
   }
 
-  drawDataRow('CI', `${student.ci || ''}${student.ciExtension ? ` ${student.ciExtension}` : ''}`, 'FILIAL', 'Central El Alto', yPos);
+  drawDataRow('CI', `${student.person?.ci || ''}${student.person?.ciExtension ? ` ${student.person?.ciExtension}` : ''}`, 'FILIAL', 'Central El Alto', yPos);
   yPos += rowHeight;
-  drawDataRow('AP. PATERNO', student.paternalSurname || '', 'CARRERA', student.career?.name || 'Autotrónica', yPos);
+  drawDataRow('AP. PATERNO', student.person?.paternalSurname || '', 'CARRERA', student.career?.name || 'Autotrónica', yPos);
   yPos += rowHeight;
-  drawDataRow('AP. MATERNO', student.maternalSurname || '', 'NRO. FOLDER', student.studentCode || '', yPos);
+  drawDataRow('AP. MATERNO', student.person?.maternalSurname || '', 'NRO. FOLDER', student.studentCode || '', yPos);
   yPos += rowHeight;
-  drawDataRow('NOMBRES', student.firstName || '', 'GESTIÓN INGRESO', student.entryYear || '—', yPos);
+  drawDataRow('NOMBRES', student.person?.firstName || '', 'GESTIÓN INGRESO', student.entryYear || '—', yPos);
   yPos += rowHeight;
   drawDataRow('NRO. TIT. BACHILLER', student.diplomaNumber || '', 'PLAN', 'R.M. 1049/2023', yPos);
 
@@ -107,9 +107,9 @@ export function generateBoletaPdf(data: BoletaData): void {
   pdf.setLineWidth(0.4);
   pdf.rect(photoX, photoY - 45, PHOTO_SIZE, PHOTO_SIZE);
 
-  if (student.photoUrl) {
+  if (student.person?.photoUrl) {
     try {
-      pdf.addImage(student.photoUrl, 'JPEG', photoX + 0.5, photoY - 44.5, PHOTO_SIZE - 1, PHOTO_SIZE - 1);
+      pdf.addImage(student.person.photoUrl, 'JPEG', photoX + 0.5, photoY - 44.5, PHOTO_SIZE - 1, PHOTO_SIZE - 1);
     } catch {
       pdf.setFont('helvetica', 'bold');
       pdf.setFontSize(7);
@@ -143,7 +143,7 @@ export function generateBoletaPdf(data: BoletaData): void {
   pdf.setFont('helvetica', 'bold');
   pdf.setFontSize(9);
   pdf.setTextColor(0);
-  pdf.text(credentials?.username || `AUT${student.ci || ''}`, MARGIN + 2, yPos + 10);
+  pdf.text(credentials?.username || `AUT${student.person?.ci || ''}`, MARGIN + 2, yPos + 10);
 
   const box2X = MARGIN + boxWidth + boxGap;
   pdf.rect(box2X, yPos, boxWidth, boxHeight);
@@ -213,7 +213,7 @@ export function generateBoletaPdf(data: BoletaData): void {
     pdf.text(a.subject?.code || '—', colCodigo, yPos);
     pdf.text((a.subject?.name || '—').substring(0, 38), colMateria, yPos);
     pdf.text((a.semester || a.subject?.semester || '—').toString(), colSem, yPos);
-    pdf.text(a.parallel || 'A', colPar, yPos);
+    pdf.text(a.parallelEntity?.code || 'A', colPar, yPos);
     pdf.text(shiftLabel, colTur, yPos);
 
     pdf.setDrawColor(200);

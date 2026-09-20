@@ -33,7 +33,7 @@ export class AcademicHistoryService {
   async findForCareer(careerId: string): Promise<AcademicHistory[]> {
     return this.historyRepository.find({
       where: { careerId },
-      relations: ['student', 'subject', 'academicPeriod'],
+      relations: ['student', 'student.person', 'subject', 'academicPeriod'],
       order: { semester: 'ASC' },
     });
   }
@@ -41,7 +41,7 @@ export class AcademicHistoryService {
   async findForPeriod(academicPeriodId: string): Promise<AcademicHistory[]> {
     return this.historyRepository.find({
       where: { academicPeriodId },
-      relations: ['student', 'subject', 'career'],
+      relations: ['student', 'student.person', 'subject', 'career'],
       order: { semester: 'ASC' },
     });
   }

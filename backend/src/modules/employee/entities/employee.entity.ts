@@ -1,7 +1,8 @@
-import { Column, Entity, Index, JoinColumn, ManyToOne } from 'typeorm';
+import { Column, Entity, Index, JoinColumn, ManyToOne, OneToOne } from 'typeorm';
 import { BaseEntity } from '@common/entities/base.entity';
 import { EmployeeType } from '@common/enums';
 import { Person } from '@modules/person/entities/person.entity';
+import { User } from '@modules/user/entities/user.entity';
 
 @Entity('employees')
 export class Employee extends BaseEntity {
@@ -24,5 +25,8 @@ export class Employee extends BaseEntity {
 
   @ManyToOne(() => Person, (person) => person.employees)
   @JoinColumn({ name: 'person_id' })
-  persona: Person;
+  person: Person;
+
+  @OneToOne(() => User, (user) => user.employee)
+  user?: User;
 }

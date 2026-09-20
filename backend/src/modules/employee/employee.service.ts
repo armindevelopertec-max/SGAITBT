@@ -71,8 +71,9 @@ export class EmployeeService {
   async findAll(query?: EmployeeQueryDto): Promise<Employee[]> {
     const qb = this.employeeRepository
       .createQueryBuilder('employee')
-      .leftJoinAndSelect('employee.persona', 'persona')
-      .leftJoinAndSelect('persona.user', 'personUser')
+      .leftJoinAndSelect('employee.person', 'person')
+      .leftJoinAndSelect('person.user', 'personUser')
+      .leftJoinAndSelect('employee.user', 'employeeUser')
       .orderBy('employee.employeeCode', 'ASC');
 
     if (query?.employeeType) {
@@ -82,9 +83,9 @@ export class EmployeeService {
     }
     if (query?.search) {
       qb.andWhere(
-        `(persona.firstName ILIKE :search
-          OR persona.lastName ILIKE :search
-          OR persona.ci ILIKE :search
+        `(person.firstName ILIKE :search
+          OR person.lastName ILIKE :search
+          OR person.ci ILIKE :search
           OR employee.employeeCode ILIKE :search
           OR employee.position ILIKE :search)`,
         { search: `%${query.search}%` },
@@ -98,7 +99,7 @@ export class EmployeeService {
     const employee = await this.employeeRepository.findOne({
       where: { id },
       relations: {
-        persona: { user: true },
+        person: { user: true },
       },
     });
     if (!employee) {
@@ -107,12 +108,12 @@ export class EmployeeService {
     return employee;
   }
 
-  async findByPersonaId(personaId?: string): Promise<Employee | null> {
-    if (!personaId) return null;
+  async findByPersonId(personId?: string): Promise<Employee | null> {
+    if (!personId) return null;
     return this.employeeRepository.findOne({
-      where: { personId: personaId },
+      where: { personId: personId },
       relations: {
-        persona: { user: true },
+        person: { user: true },
       },
     });
   }
@@ -132,14 +133,10 @@ export class EmployeeService {
     return this.employeeRepository.save(employee);
   }
 
-  async findByPersonId(personId: string): Promise<Employee | null> {
-    return this.employeeRepository.findOne({ where: { personId } });
-  }
-
   async findByType(employeeType: EmployeeType): Promise<Employee[]> {
     return this.employeeRepository.find({
       where: { employeeType },
-      relations: { persona: true },
+      relations: { person: true },
     });
   }
 }

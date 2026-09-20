@@ -9,7 +9,6 @@ import {
   downloadEnrollmentCredentialFromDom,
   buildQrDataUrl,
   institutionSede,
-  emergencyPhone,
   studyRegime,
 } from '@/lib/credential';
 import { PageHeader } from '@/components/ui/page-header';
@@ -118,8 +117,8 @@ function CredentialPreview({
   const instName = institution?.name || 'Instituto Tecnológico \u201CBoliviana de Tecnología\u201D';
   const year = enrollment.academicPeriod?.year || String(new Date().getFullYear());
   const periodName = enrollment.academicPeriod?.periodName || `Gestión ${year}`;
-  const surnames = fullSurnames(student);
-  const firstName = student?.firstName || '—';
+  const surnames = fullSurnames(student?.person);
+  const firstName = student?.person?.firstName || '—';
   const careerName = enrollment.career?.name || '—';
   const fecha = formatDate(enrollment.enrollmentDate);
   const band = { height: 62, background: '#14213d26', color: '#fff', display: 'flex', alignItems: 'center', gap: 10, padding: '0 12px', position: 'relative', zIndex: 1 } as const;
@@ -144,9 +143,9 @@ function CredentialPreview({
   }, []);
 
   return (
-    <div className="card mb-3" style={{ padding: 24, background: '#fff' }} ref={containerRef}>
+    <div className="card" style={{ background: '#fff', padding: 24 }} ref={containerRef}>
       <div className="text-muted text-sm mb-3">
-        {enrollment.student ? `${student?.firstName} ${fullSurname(enrollment.student)}` : '—'} · {enrollment.enrollmentNumber}
+        {enrollment.student ? `${student?.person?.firstName || ''} ${fullSurname(enrollment.student.person)}` : '—'} · {enrollment.enrollmentNumber}
       </div>
 
       <div id="credential-document" className="flex" style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', alignItems: 'flex-start', gap: 24, zoom }}>
@@ -187,7 +186,7 @@ function CredentialPreview({
                   overflow: 'hidden',
                 }}
               >
-                “Conectando Mentes, Impulsando el Progreso”
+                {'"'}Conectando Mentes, Impulsando el Progreso{'"'}
               </div>
             </div>
           </div>
@@ -199,7 +198,7 @@ function CredentialPreview({
               <Row label="Carrera" value={careerName} />
               <Row label="Fecha" value={fecha} />
             </div>
-            <PhotoBox url={student?.photoUrl} />
+            <PhotoBox url={student?.person?.photoUrl} />
           </div>
           <div
             style={{
@@ -257,7 +256,7 @@ function CredentialPreview({
                   overflow: 'hidden',
                 }}
               >
-                “Conectando Mentes, Impulsando el Progreso”
+                {'"'}Conectando Mentes, Impulsando el Progreso{'"'}
               </div>
             </div>
           </div>
@@ -272,9 +271,9 @@ function CredentialPreview({
             </div>
             <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
               <Row label="Fecha" value={fecha} small />
-              <Row label="C. de identidad" value={ciText(student)} small />
+              <Row label="C. de identidad" value={ciText(student?.person)} small />
               <Row label="Registro único" value={enrollment.enrollmentNumber} small />
-              <Row label="Tel. emergencia" value={emergencyPhone(student)} small />
+              <Row label="Tel. emergencia" value={student?.person?.phone || '—'} small />
               <Row label="Sede" value={institutionSede(institution)} small />
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, flexShrink: 0, justifyContent: 'center' }}>
@@ -380,7 +379,7 @@ export default function EnrollmentsPage() {
   const studentIdByPersona = useMemo(() => {
     const map = new Map<string, string>();
     for (const s of students) {
-      if (s.personaId) map.set(s.personaId, s.id);
+      if (s.personId) map.set(s.personId, s.id);
     }
     return map;
   }, [students]);
@@ -474,15 +473,15 @@ export default function EnrollmentsPage() {
   const studentMatches = useMemo(() => {
     const q = studentQuery.trim().toLowerCase();
     const base = habilitated;
-    if (!q) return base.slice(0, 8);
+    if (!q) return base.slice(0, 5);
     return base
       .filter(
         (s) =>
           s.studentCode.toLowerCase().includes(q) ||
-          s.ci.toLowerCase().includes(q) ||
-          `${s.firstName} ${s.lastName}`.toLowerCase().includes(q),
+          s.person?.ci?.toLowerCase().includes(q) ||
+          `${s.person?.firstName || ''} ${s.person?.lastName || ''}`.toLowerCase().includes(q),
       )
-      .slice(0, 8);
+      .slice(0, 5);
   }, [studentQuery, habilitated]);
 
   if (loading) return <LoadingState />;
@@ -493,220 +492,212 @@ export default function EnrollmentsPage() {
         title="Matrículas"
         subtitle="Registro de matrículas e impresión de credenciales para estudiantes habilitados"
         actions={
-          <>
-            <button className="btn btn-primary" onClick={registerAndPrint} disabled={!student || generating}>
-              {generating
-                ? 'Generando…'
-                : enrollment
-                  ? 'Generar PDF'
-                  : 'Registrar matrícula e imprimir'}
-            </button>
-            <button className="btn btn-outline" onClick={() => window.print()} disabled={!enrollment}>
-              Imprimir
-            </button>
-          </>
+          <button className="btn btn-outline" onClick={() => window.print()} disabled={!enrollment}>
+            Imprimir
+          </button>
         }
       />
 
       {error && <ErrorState message={error} />}
 
-      <div className="card card-pad mb-3">
-        <div className="flex gap-2 items-center" style={{ flexWrap: 'wrap' }}>
-          {[
-            { n: 1, label: 'Gestión', done: !!periodId },
-            { n: 2, label: 'Estudiante', done: !!student },
-            { n: 3, label: 'Credencial', done: !!enrollment },
-          ].map((s, i, arr) => (
-            <span key={s.n} className="flex gap-2 items-center">
-              <span
-                style={{
-                  width: 26,
-                  height: 26,
-                  borderRadius: '50%',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontWeight: 800,
-                  fontSize: 13,
-                  background: s.done ? 'var(--success)' : 'var(--primary-soft)',
-                  color: s.done ? '#fff' : 'var(--primary)',
-                }}
-              >
-                {s.done ? '✓' : s.n}
-              </span>
-              <span className="text-sm" style={{ fontWeight: 600 }}>{s.label}</span>
-              {i < arr.length - 1 && (
-                <span style={{ width: 24, height: 2, background: 'var(--border)', borderRadius: 2 }} />
-              )}
-            </span>
-          ))}
-        </div>
-      </div>
-
-      <div
-        className="mb-3"
-        style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12 }}
-      >
-        <div className="stat-card">
-          <div className="stat-value">{enrolledInPeriod.length}</div>
-          <div className="stat-label">Matriculados en gestión</div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-value">{habilitated.length}</div>
-          <div className="stat-label">Habilitados (depósito válido)</div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-value">{selectedPeriod?.periodName ?? '—'}</div>
-          <div className="stat-label">Gestión seleccionada</div>
-        </div>
-      </div>
-
-      <div className="card card-pad mb-3">
-        <div className="form-label" style={{ marginBottom: 8 }}>Gestión académica</div>
-        <div className="flex gap-2 mb-3" style={{ flexWrap: 'wrap' }}>
-          {periods.map((p) => {
-            const dot = p.status === 'OPEN' ? 'var(--success)' : p.status === 'PLANNED' ? 'var(--primary)' : 'var(--text-muted)';
-            const range = fmtShortRange(p.startDate, p.endDate);
-            return (
-              <button
-                key={p.id}
-                className={`btn btn-sm ${periodId === p.id ? 'btn-primary' : 'btn-outline'}`}
-                onClick={() => setPeriodId(p.id)}
-                title={`${p.startDate ?? ''} al ${p.endDate ?? ''}`}
-                style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
-              >
-                <span style={{ width: 8, height: 8, borderRadius: '50%', background: periodId === p.id ? '#fff' : dot }} />
-                {p.periodName}
-                <span style={{ fontWeight: 400, opacity: 0.85, fontSize: 12 }}>
-                  {p.status === 'OPEN' ? 'Abierta' : p.status === 'PLANNED' ? 'Planificada' : 'Cerrada'}
-                  {range ? ` · ${range}` : ''}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-
-        <div className="form-label" style={{ marginBottom: 8 }}>Estudiante habilitado</div>
-        {student ? (
-          <div
-            className="card card-pad"
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              background: 'var(--primary-soft)',
-              border: 'none',
-              padding: '8px 12px',
-              gap: 8,
-              flexWrap: 'wrap',
-            }}
-          >
-            <div className="flex items-center" style={{ gap: 10 }}>
-              {student.photoUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={student.photoUrl}
-                  alt=""
-                  style={{ width: 44, height: 44, borderRadius: '50%', objectFit: 'cover' }}
-                />
-              ) : (
-                <div
-                  style={{
-                    width: 44,
-                    height: 44,
-                    borderRadius: '50%',
-                    background: 'var(--primary)',
-                    color: '#fff',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontWeight: 800,
-                    fontSize: 15,
-                  }}
-                >
-                  {initialsOf(student.firstName, student.lastName)}
-                </div>
-              )}
-              <div>
-                <strong style={{ fontSize: 14 }}>
-                  {student.studentCode} — {student.firstName} {student.lastName}
-                </strong>
-                <div className="text-muted text-sm">
-                  CI {student.ci} · {student.currentLevel}º semestre
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 420px', gap: 16, alignItems: 'stretch', minHeight: 'calc(100vh - 180px)' }}>
+        {/* LEFT: Credential Preview */}
+        <div style={{ display: 'flex', flexDirection: 'column' }}>
+          {student && enrollment ? (
+            <CredentialPreview
+              enrollment={enrollment}
+              institution={institution}
+              qr={qr}
+              frontRef={frontRef}
+              backRef={backRef}
+            />
+          ) : (
+            <div className="card" style={{ background: '#fff', padding: 24, flex: 1 }}>
+              <div className="empty-state">
+                <div className="empty-state-icon">🎓</div>
+                <div style={{ marginTop: 12, color: 'var(--text-muted)' }}>
+                  {student
+                    ? 'Este estudiante aún no está matriculado en esta gestión.'
+                    : 'Selecciona una gestión y busca un estudiante habilitado para ver su credencial.'}
                 </div>
               </div>
             </div>
-            <button
-              className="btn btn-outline btn-sm"
-              onClick={() => { setStudentId(''); setStudentQuery(''); setEnrollment(null); }}
-            >
-              Cambiar
-            </button>
-          </div>
-        ) : (
-          <>
-            <input
-              className="form-control"
-              placeholder="Buscar por matrícula, CI o nombre…"
-              value={studentQuery}
-              onChange={(e) => setStudentQuery(e.target.value)}
-            />
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 6, maxHeight: 240, overflowY: 'auto' }}>
-              {studentMatches.map((s) => (
-                <button
-                  key={s.id}
-                  className="btn btn-outline btn-sm"
-                  style={{ justifyContent: 'flex-start', textAlign: 'left' }}
-                  onClick={() => selectStudent(s.id)}
+          )}
+        </div>
+
+        {/* RIGHT: Controls */}
+        <div style={{ display: 'flex', flexDirection: 'column' }}>
+          <div className="card card-pad" style={{ display: 'flex', flexDirection: 'column', gap: 12, flex: 1 }}>
+            <div>
+              <div className="form-label" style={{ marginBottom: 8 }}>
+                Gestión académica
+              </div>
+              <select
+                className="form-control"
+                value={periodId}
+                onChange={(e) => setPeriodId(e.target.value)}
+              >
+                <option value="">Seleccionar gestión</option>
+                {periods.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.periodName} — {p.status === 'OPEN' ? 'Abierta' : p.status === 'PLANNED' ? 'Planificada' : 'Cerrada'}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <input
+                className="form-control"
+                type="text"
+                placeholder="Buscar por nombre, CI o matrícula..."
+                value={studentQuery}
+                onChange={(e) => setStudentQuery(e.target.value)}
+              />
+            </div>
+
+            <div className="form-label">
+              Estudiante habilitado
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4, maxHeight: 280, overflowY: 'auto' }}>
+              {student ? (
+                <div
+                  className="card card-pad"
+                  style={{
+                    background: 'var(--primary-soft)',
+                    border: 'none',
+                    padding: '12px',
+                  }}
                 >
-                  {s.studentCode} — {s.firstName} {s.lastName} · CI {s.ci}
-                  {enrolledBy.get(enrolledKey(s.id, periodId)) ? ' · ✓ matriculado' : ''}
-                </button>
-              ))}
-              {studentMatches.length === 0 && (
+                  <div className="flex items-center" style={{ gap: 10, marginBottom: 8 }}>
+                    {student.person?.photoUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={student.person.photoUrl}
+                        alt=""
+                        style={{ width: 44, height: 44, borderRadius: '50%', objectFit: 'cover' }}
+                      />
+                    ) : (
+                      <div
+                        style={{
+                          width: 44,
+                          height: 44,
+                          borderRadius: '50%',
+                          background: 'var(--primary)',
+                          color: '#fff',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontWeight: 800,
+                          fontSize: 15,
+                        }}
+                      >
+                        {initialsOf(student.person?.firstName, student.person?.lastName)}
+                      </div>
+                    )}
+                    <div>
+                      <strong style={{ fontSize: 14 }}>
+                        {student.studentCode} — {student.person?.firstName} {fullSurname(student.person)}
+                      </strong>
+                      <div className="text-muted text-sm">
+                        CI {student.person?.ci} · {student.currentLevel}º semestre
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex gap-2" style={{ flexWrap: 'wrap', fontSize: 12 }}>
+                    <span className="text-muted">{student.career?.name ?? '—'}</span>
+                  </div>
+                  <div className="flex gap-2 mt-2">
+                    {!enrollment ? (
+                      <button
+                        className="btn btn-primary btn-sm"
+                        onClick={registerAndPrint}
+                        disabled={generating}
+                      >
+                        {generating ? 'Registrando...' : 'Registrar matrícula'}
+                      </button>
+                    ) : (
+                      <span className="badge badge-success">✓ Matriculado</span>
+                    )}
+                    <button
+                      className="btn btn-outline btn-sm"
+                      onClick={() => { setStudentId(''); setStudentQuery(''); setEnrollment(null); }}
+                    >
+                      Cambiar
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                studentMatches.map((s) => (
+                  <button
+                    key={s.id}
+                    className="btn btn-outline btn-sm"
+                    style={{ justifyContent: 'space-between', textAlign: 'left', gap: 8 }}
+                    onClick={() => selectStudent(s.id)}
+                  >
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      {s.person?.photoUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={s.person.photoUrl}
+                          alt=""
+                          style={{ width: 28, height: 28, borderRadius: '50%', objectFit: 'cover' }}
+                        />
+                      ) : (
+                        <span
+                          style={{
+                            width: 28,
+                            height: 28,
+                            borderRadius: '50%',
+                            background: 'var(--primary)',
+                            color: '#fff',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontWeight: 800,
+                            fontSize: 11,
+                            flexShrink: 0,
+                          }}
+                        >
+                          {initialsOf(s.person?.firstName, s.person?.lastName)}
+                        </span>
+                      )}
+                      <span>
+                        {s.studentCode} — {s.person?.firstName} {fullSurname(s.person)}
+                      </span>
+                    </span>
+                    {enrolledBy.get(enrolledKey(s.id, periodId)) ? (
+                      <span className="badge badge-success">✓</span>
+                    ) : null}
+                  </button>
+                ))
+              )}
+              {(!student && studentMatches.length === 0) && (
                 <span className="text-muted text-sm">
-                  Sin estudiantes habilitados con ese criterio. Verifica el depósito en la página de Depósitos.
+                  Sin estudiantes habilitados con ese criterio
                 </span>
               )}
             </div>
-          </>
-        )}
 
-        {student && (
-          <div className="flex gap-3 items-center mt-3" style={{ flexWrap: 'wrap' }}>
-            <span className="text-muted text-sm">
-              Depósito: <StatusBadge value={selectedDeposit?.status ?? 'PENDING'} />
-            </span>
-            <span className="text-muted text-sm">
-              Matrícula: <strong>{matriculaStatus}</strong>
-            </span>
-            {!enrollment && (
-              <span className="text-muted text-sm">
-                La matrícula se registrará automáticamente al pulsar el botón.
-              </span>
+            {student && (
+              <div className="flex gap-3 items-center" style={{ flexWrap: 'wrap' }}>
+                <span className="text-muted text-sm">
+                  Depósito: <StatusBadge value={selectedDeposit?.status ?? 'PENDING'} />
+                </span>
+                <span className="text-muted text-sm">
+                  Matrícula: <strong>{matriculaStatus}</strong>
+                </span>
+                {!enrollment && (
+                  <span className="text-muted text-sm">
+                    La matrícula se registrará automáticamente al pulsar el botón.
+                  </span>
+                )}
+              </div>
             )}
           </div>
-        )}
-      </div>
-
-      {student && enrollment && (
-        <CredentialPreview
-          enrollment={enrollment}
-          institution={institution}
-          qr={qr}
-          frontRef={frontRef}
-          backRef={backRef}
-        />
-      )}
-
-      {!student && (
-        <div className="card card-pad">
-          <div className="empty-state">
-            <div className="empty-state-icon">🎓</div>
-            Elige la gestión y busca un estudiante habilitado para registrar su matrícula y generar la credencial.
-          </div>
         </div>
-      )}
+      </div>
     </div>
   );
 }

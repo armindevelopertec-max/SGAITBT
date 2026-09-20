@@ -75,13 +75,14 @@ export class AuthService {
 
     const authorities = await this.resolveAuthorities(user);
     const primaryRole = authorities.roles[0];
+    const fullName = user.fullName;
 
     const payload: JwtPayload = {
       sub: user.id,
       username: user.username,
       email: user.email,
       role: primaryRole,
-      fullName: user.fullName,
+      fullName,
       roles: authorities.roles,
       permissions: authorities.permissions,
     };
@@ -92,12 +93,12 @@ export class AuthService {
         id: user.id,
         username: user.username,
         email: user.email,
-        fullName: user.fullName,
+        fullName,
         role: primaryRole,
         roles: authorities.roles,
         permissions: authorities.permissions,
         studentId: user.studentId,
-        photoUrl: user.student?.photoUrl ?? null,
+        photoUrl: user.student?.person?.photoUrl ?? null,
         mustChangePassword: user.mustChangePassword,
       },
     };

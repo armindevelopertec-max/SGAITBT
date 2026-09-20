@@ -149,10 +149,4 @@ export class StudentController {
   updateStatus(@Param('id') id: string, @Body('status') status: AcademicStatus) {
     return this.studentService.updateStatus(id, status);
   }
-
-  @Patch(':id/current-period/:periodId')
-  @RequirePermission(PERMISSIONS.STUDENTS_UPDATE)
-  assignCurrentPeriod(@Param('id') id: string, @Param('periodId') periodId: string) {
-    return this.studentService.assignCurrentPeriod(id, periodId);
-  }
 }

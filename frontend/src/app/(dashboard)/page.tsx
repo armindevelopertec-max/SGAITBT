@@ -53,7 +53,7 @@ export default function DashboardPage() {
   // --- Control de asistencia del personal (ESTÁTICO, demostración) ---
   // Sin backend por ahora: horarios fijos de ejemplo por posición de lista.
   function staffName(e: Employee): string {
-    const p = e.persona;
+    const p = e.person;
     if (!p) return e.employeeCode;
     return [p.firstName, p.paternalSurname, p.maternalSurname].filter(Boolean).join(' ') || e.employeeCode;
   }
@@ -164,7 +164,7 @@ export default function DashboardPage() {
                 .join('')
                 .slice(0, 2)
                 .toUpperCase();
-              const photo = e.persona?.photoUrl;
+              const photo = e.person?.photoUrl;
               return (
                 <div
                   key={e.id}

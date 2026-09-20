@@ -38,38 +38,6 @@ export class GradeInputDto {
   finalExam?: number;
 }
 
-export class CreateGradeDto {
-  @IsNotEmpty()
-  assignmentId: string;
-
-  @IsNotEmpty()
-  studentId: string;
-
-  @IsOptional()
-  @IsNumber()
-  @Min(0)
-  @Max(100)
-  firstPartial?: number;
-
-  @IsOptional()
-  @IsNumber()
-  @Min(0)
-  @Max(100)
-  secondPartial?: number;
-
-  @IsOptional()
-  @IsNumber()
-  @Min(0)
-  @Max(100)
-  practices?: number;
-
-  @IsOptional()
-  @IsNumber()
-  @Min(0)
-  @Max(100)
-  finalExam?: number;
-}
-
 export class CreateBulkGradesDto {
   @IsNotEmpty()
   assignmentId: string;

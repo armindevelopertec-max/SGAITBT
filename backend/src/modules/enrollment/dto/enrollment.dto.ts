@@ -22,9 +22,6 @@ export class CreateEnrollmentDto {
   @IsDateString()
   enrollmentDate: string;
 
-  @IsInt()
-  semester: number;
-
   @IsOptional()
   @IsNumber()
   totalAmount?: number;

@@ -93,12 +93,12 @@ export class SubjectAssignmentService {
   }
 
   async findAll(query?: AssignmentQueryDto): Promise<SubjectAssignment[]> {
-    const { subjectId, academicPeriodId, employeeId, parallel } = query || {};
+    const { subjectId, academicPeriodId, employeeId, parallelId } = query || {};
     const where: Record<string, unknown> = {};
     if (subjectId) where.subjectId = subjectId;
     if (academicPeriodId) where.academicPeriodId = academicPeriodId;
     if (employeeId) where.employeeId = employeeId;
-    if (parallel) where.parallel = parallel;
+    if (parallelId) where.parallelId = parallelId;
 
     return this.assignmentRepository.find({
       where,
@@ -107,10 +107,11 @@ export class SubjectAssignmentService {
         'subject.career',
         'academicPeriod',
         'employee',
-        'employee.persona',
+        'employee.person',
         'parallelEntity',
         'enrollments',
         'enrollments.student',
+        'enrollments.student.person',
       ],
       order: { createdAt: 'DESC' },
     });
@@ -123,10 +124,11 @@ export class SubjectAssignmentService {
         'subject',
         'academicPeriod',
         'employee',
-        'employee.persona',
+        'employee.person',
         'parallelEntity',
         'enrollments',
         'enrollments.student',
+        'enrollments.student.person',
       ],
     });
     if (!assignment) {
@@ -186,7 +188,7 @@ export class SubjectAssignmentService {
 
     const enrolled = await this.matriculaRepository.find({
       where: { academicPeriodId: dto.academicPeriodId },
-      relations: ['student'],
+      relations: ['student', 'student.person'],
     });
 
     let assigned = 0;
@@ -256,7 +258,7 @@ export class SubjectAssignmentService {
   async getStudents(assignmentId: string): Promise<SubjectEnrollment[]> {
     return this.enrollmentRepository.find({
       where: { assignmentId },
-      relations: ['student', 'student.career'],
+      relations: ['student', 'student.person', 'student.career'],
       order: { createdAt: 'ASC' },
     });
   }
@@ -321,7 +323,6 @@ export class SubjectAssignmentService {
             subjectId: subject.id,
             academicPeriodId: dto.academicPeriodId,
             parallelId: parallelA.id,
-            parallel: 'A',
             employeeId: teacher.id,
             semester: subject.semester,
             schedule: { day: 'LUN', start: '18:00', end: '21:00' },

@@ -52,12 +52,12 @@ export class Person extends BaseEntity {
   })
   status: PersonStatus;
 
-  @OneToOne(() => User, (user) => user.persona, { nullable: true })
+  @OneToOne(() => User, (user) => user.person, { nullable: true })
   user?: User;
 
-  @OneToOne(() => Student, (student) => student.persona, { nullable: true })
+  @OneToOne(() => Student, (student) => student.person, { nullable: true })
   student?: Student;
 
-  @OneToMany(() => Employee, (employee) => employee.persona)
+  @OneToMany(() => Employee, (employee) => employee.person)
   employees?: Employee[];
 }

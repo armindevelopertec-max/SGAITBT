@@ -4,10 +4,11 @@ import { User } from './entities/user.entity';
 import { UserService } from './user.service';
 import { UserController } from './user.controller';
 import { Student } from '@modules/student/entities/student.entity';
+import { Employee } from '@modules/employee/entities/employee.entity';
 import { RbacModule } from '@modules/rbac/rbac.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([User, Student]), RbacModule],
+  imports: [TypeOrmModule.forFeature([User, Student, Employee]), RbacModule],
   controllers: [UserController],
   providers: [UserService],
   exports: [UserService],

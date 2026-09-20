@@ -1,13 +1,14 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { apiGet, apiPatch, apiPost, extractError } from '@/lib/api';
+import { apiGet, apiPatch, apiPost, apiUpload, extractError } from '@/lib/api';
 import { Career, Deposit, DepositConcept, Enrollment, Person, Student } from '@/lib/types';
 import { PageHeader } from '@/components/ui/page-header';
 import { Modal } from '@/components/ui/modal';
 import { Badge, StatusBadge } from '@/components/ui/badge';
 import { Icon } from '@/components/ui/icons';
 import { LoadingState, ErrorState } from '@/components/ui/state';
+import { initialsOf, fullSurname } from '@/lib/utils';
 
 const EMPTY = {
   beneficiaryType: 'student' as 'student' | 'person',
@@ -18,24 +19,8 @@ const EMPTY = {
   amount: 0,
   concept: 'MATRICULA' as DepositConcept,
   conceptDetail: '',
+  voucherUrl: '',
 };
-
-const STATUS_OPTIONS = [
-  { key: '', label: 'Todos' },
-  { key: 'PENDING', label: 'Pendiente' },
-  { key: 'VERIFIED', label: 'Verificado' },
-  { key: 'APPROVED', label: 'Aprobado' },
-  { key: 'OBSERVED', label: 'Observado' },
-  { key: 'REJECTED', label: 'Rechazado' },
-];
-
-const CONCEPT_OPTIONS: Array<{ key: '' | DepositConcept; label: string }> = [
-  { key: '', label: 'Todos' },
-  { key: 'MATRICULA', label: 'Matrícula' },
-  { key: 'EXAMEN', label: 'Examen' },
-  { key: 'CERTIFICADO', label: 'Certificado' },
-  { key: 'OTROS', label: 'Otros' },
-];
 
 function fmtDate(iso?: string | null): string {
   if (!iso) return '—';
@@ -50,7 +35,7 @@ function fmtMoney(n: number | string): string {
 
 function studentName(d: Deposit): string {
   if (!d.student) return '—';
-  return `${d.student.firstName} ${d.student.lastName}`.trim();
+  return `${d.student.person?.firstName || ''} ${d.student.person?.lastName || ''}`.trim();
 }
 
 function personName(p?: Person | null): string {
@@ -68,8 +53,6 @@ export default function DepositsPage() {
   const [error, setError] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
   const [form, setForm] = useState(EMPTY);
-  const [statusFilter, setStatusFilter] = useState('');
-  const [conceptFilter, setConceptFilter] = useState('');
   const [verifyTarget, setVerifyTarget] = useState<Deposit | null>(null);
   const [verifyStatus, setVerifyStatus] = useState('VERIFIED');
   const [comment, setComment] = useState('');
@@ -77,6 +60,7 @@ export default function DepositsPage() {
   const [enrollTarget, setEnrollTarget] = useState<Deposit | null>(null);
   const [enrollCareerId, setEnrollCareerId] = useState('');
   const [beneficiaryQuery, setBeneficiaryQuery] = useState('');
+  const [selectedStudentId, setSelectedStudentId] = useState('');
 
   async function load() {
     setLoading(true);
@@ -105,7 +89,7 @@ export default function DepositsPage() {
   }, []);
 
   function openCreate() {
-    setForm({ ...EMPTY, studentId: students[0]?.id ?? '' });
+    setForm({ ...EMPTY, studentId: (selectedStudentId || students[0]?.id) ?? '' });
     setBeneficiaryQuery('');
     setModalOpen(true);
   }
@@ -129,6 +113,7 @@ export default function DepositsPage() {
         amount: form.amount,
         concept: form.concept,
         conceptDetail: form.conceptDetail || undefined,
+        voucherUrl: form.voucherUrl || undefined,
       });
       setModalOpen(false);
       await load();
@@ -152,13 +137,12 @@ export default function DepositsPage() {
     }
   }
 
-  // Crea la ficha de estudiante (PRE_ENROLLED) desde el aspirante y liga el depósito.
   async function createStudentFile() {
-    if (!enrollTarget?.persona || !enrollCareerId) {
+    if (!enrollTarget?.person || !enrollCareerId) {
       setError('Selecciona la carrera para la ficha del estudiante');
       return;
     }
-    const p = enrollTarget.persona;
+    const p = enrollTarget.person;
     try {
       const student = await apiPost<Student>('/students', {
         firstName: p.firstName,
@@ -175,7 +159,7 @@ export default function DepositsPage() {
         careerId: enrollCareerId,
         currentLevel: 1,
         status: 'PRE_ENROLLED',
-        personaId: p.id,
+        personId: p.id,
       });
       await apiPatch(`/deposits/${enrollTarget.id}/convert-to-student`, {
         studentId: student.id,
@@ -188,55 +172,6 @@ export default function DepositsPage() {
     }
   }
 
-  const countsByStatus = useMemo(() => {
-    const map = new Map<string, number>();
-    for (const d of deposits) map.set(d.status, (map.get(d.status) ?? 0) + 1);
-    return map;
-  }, [deposits]);
-
-  const countsByConcept = useMemo(() => {
-    const map = new Map<string, number>();
-    for (const d of deposits) map.set(d.concept, (map.get(d.concept) ?? 0) + 1);
-    return map;
-  }, [deposits]);
-
-  const filtered = deposits.filter(
-    (d) =>
-      (!statusFilter || d.status === statusFilter) &&
-      (!conceptFilter || d.concept === conceptFilter),
-  );
-
-  const totalAmount = useMemo(
-    () => filtered.reduce((acc, d) => acc + Number(d.amount ?? 0), 0),
-    [filtered],
-  );
-
-  const pendingCount = countsByStatus.get('PENDING') ?? 0;
-
-  // Últimas dos matrículas por estudiante: actual y anterior.
-  const enrollmentsByStudent = useMemo(() => {
-    const map = new Map<string, Enrollment[]>();
-    for (const e of enrollments) {
-      if (!map.has(e.studentId)) map.set(e.studentId, []);
-      map.get(e.studentId)!.push(e);
-    }
-    for (const list of map.values()) {
-      list.sort((a, b) => (b.enrollmentDate < a.enrollmentDate ? -1 : b.enrollmentDate > a.enrollmentDate ? 1 : 0));
-    }
-    return map;
-  }, [enrollments]);
-
-  function semesterPair(studentId?: string | null): { current?: Enrollment; previous?: Enrollment } {
-    if (!studentId) return {};
-    const list = enrollmentsByStudent.get(studentId) ?? [];
-    return { current: list[0], previous: list[1] };
-  }
-
-  // Repite si el semestre anterior es el mismo que el actual.
-  function isRepeating(pair: { current?: Enrollment; previous?: Enrollment }): boolean {
-    return !!pair.current && !!pair.previous && pair.current.semester === pair.previous.semester;
-  }
-
   const beneficiaryId = form.beneficiaryType === 'student' ? form.studentId : form.personId;
 
   const studentMatches = useMemo(() => {
@@ -246,8 +181,8 @@ export default function DepositsPage() {
       .filter(
         (s) =>
           s.studentCode.toLowerCase().includes(q) ||
-          s.ci.toLowerCase().includes(q) ||
-          `${s.firstName} ${s.lastName}`.toLowerCase().includes(q),
+          (s.person?.ci?.toLowerCase().includes(q) ?? false) ||
+          `${s.person?.firstName || ''} ${s.person?.lastName || ''}`.toLowerCase().includes(q),
       )
       .slice(0, 8);
   }, [students, beneficiaryQuery]);
@@ -265,9 +200,29 @@ export default function DepositsPage() {
       .slice(0, 8);
   }, [persons, beneficiaryQuery]);
 
-  const selectedStudent = students.find((s) => s.id === form.studentId);
-  const selectedPerson = persons.find((p) => p.id === form.personId);
-  const selectedPair = semesterPair(form.studentId || undefined);
+  const selectedStudent = students.find((s) => s.id === selectedStudentId);
+
+  const studentDeposits = useMemo(() => {
+    if (!selectedStudentId) return [];
+    return deposits.filter((d) => d.studentId === selectedStudentId);
+  }, [deposits, selectedStudentId]);
+
+  const studentEnrollments = useMemo(() => {
+    if (!selectedStudentId) return [];
+    return enrollments
+      .filter((e) => e.studentId === selectedStudentId)
+      .sort((a, b) => (b.enrollmentDate < a.enrollmentDate ? -1 : b.enrollmentDate > a.enrollmentDate ? 1 : 0));
+  }, [enrollments, selectedStudentId]);
+
+  const latestEnrollment = studentEnrollments[0];
+  const previousEnrollment = studentEnrollments[1];
+
+  const isRepeating = (): boolean => {
+    if (!latestEnrollment || !previousEnrollment) return false;
+    const curLevel = latestEnrollment.student?.currentLevel;
+    const prevLevel = previousEnrollment.student?.currentLevel;
+    return curLevel != null && prevLevel != null && curLevel === prevLevel;
+  };
 
   if (loading) return <LoadingState />;
 
@@ -286,215 +241,230 @@ export default function DepositsPage() {
       {error && <ErrorState message={error} />}
 
       <div className="card card-pad mb-3">
-        <div className="flex gap-2 mb-2" style={{ flexWrap: 'wrap' }}>
-          {STATUS_OPTIONS.map((o) => (
-            <button
-              key={o.key || 'all'}
-              className={`btn btn-sm ${statusFilter === o.key ? 'btn-primary' : 'btn-outline'}`}
-              onClick={() => setStatusFilter(o.key)}
-            >
-              {o.label}
-              <span
-                style={{
-                  marginLeft: 8,
-                  fontSize: 11,
-                  fontWeight: 700,
-                  background: statusFilter === o.key ? 'rgba(255,255,255,.25)' : 'var(--primary-soft)',
-                  color: statusFilter === o.key ? '#fff' : 'var(--primary)',
-                  borderRadius: 999,
-                  padding: '1px 8px',
-                }}
-              >
-                {o.key ? (countsByStatus.get(o.key) ?? 0) : deposits.length}
-              </span>
-            </button>
-          ))}
-        </div>
-        <div className="flex gap-2" style={{ flexWrap: 'wrap' }}>
-          {CONCEPT_OPTIONS.map((o) => (
-            <button
-              key={o.key || 'all-c'}
-              className={`btn btn-sm ${conceptFilter === o.key ? 'btn-soft' : 'btn-outline'}`}
-              onClick={() => setConceptFilter(o.key)}
-            >
-              {o.label}
-              <span
-                style={{
-                  marginLeft: 8,
-                  fontSize: 11,
-                  fontWeight: 700,
-                  background: 'var(--primary-soft)',
-                  color: 'var(--primary)',
-                  borderRadius: 999,
-                  padding: '1px 8px',
-                }}
-              >
-                {o.key ? (countsByConcept.get(o.key) ?? 0) : deposits.length}
-              </span>
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <div
-        className="mb-3"
-        style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12 }}
-      >
-        <div className="stat-card">
-          <div className="stat-value">{filtered.length}</div>
-          <div className="stat-label">Comprobantes</div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-label">
-            Monto en vista{' '}
-            <button
-              className="btn btn-sm"
-              style={{ padding: '2px 6px', minWidth: 0, verticalAlign: 'middle' }}
-              onClick={() => setShowAmounts((v) => !v)}
-              title={showAmounts ? 'Ocultar montos' : 'Mostrar montos'}
-              aria-label={showAmounts ? 'Ocultar montos' : 'Mostrar montos'}
-            >
-              <Icon name={showAmounts ? 'eye-off' : 'eye'} size={16} />
-            </button>
-          </div>
-          <div className="stat-value">{showAmounts ? fmtMoney(totalAmount) : 'Bs. ••••••'}</div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-value">{pendingCount}</div>
-          <div className="stat-label">Pendientes de verificar</div>
-        </div>
-      </div>
-
-      {filtered.length === 0 && (
-        <div className="card card-pad">
-          <div className="empty-state">
-            <div className="empty-state-icon">💰</div>
-            No hay depósitos registrados.
-          </div>
-        </div>
-      )}
-
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
-          gap: 12,
-        }}
-      >
-        {filtered.map((d) => {
-          const isAspirant = !d.studentId && d.persona;
-          const { current: curEnr, previous: prevEnr } = semesterPair(d.studentId);
-          const repeating = isRepeating({ current: curEnr, previous: prevEnr });
-          return (
-            <div
-              key={d.id}
-              className="card-pad"
-              style={{
-                border: '1px solid var(--border)',
-                borderRadius: 12,
-                background: 'var(--bg-card)',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: 8,
-              }}
-            >
-              <div className="flex justify-between items-center" style={{ gap: 8 }}>
-                <Badge label={d.depositNumber} color="info" />
-                <StatusBadge value={d.status} />
-              </div>
-              <div>
-                {d.student ? (
-                  <>
-                    <strong style={{ fontSize: 15 }}>{studentName(d)}</strong>
-                    <div className="text-muted text-sm">
-                      {d.student.studentCode}
-                      {d.student.currentLevel != null && ` · ${d.student.currentLevel}º semestre`}
-                    </div>
-                    {(curEnr || prevEnr) && (
-                      <div className="text-muted text-sm" style={{ marginTop: 2 }}>
-                        {prevEnr && (
-                          <span>
-                            Anterior: {prevEnr.academicPeriod?.periodName ?? prevEnr.academicPeriodId.slice(0, 8)} · {prevEnr.semester}º
-                          </span>
-                        )}
-                        {prevEnr && curEnr && <span> &nbsp;|&nbsp; </span>}
-                        {curEnr && (
-                          <span>
-                            Actual: {curEnr.academicPeriod?.periodName ?? curEnr.academicPeriodId.slice(0, 8)} · {curEnr.semester}º
-                          </span>
-                        )}
-                        {repeating && (
-                          <span style={{ marginLeft: 8 }}>
-                            <Badge label="🔁 Repite" color="danger" />
-                          </span>
-                        )}
-                      </div>
-                    )}
-                  </>
-                ) : (
-                  <>
-                    <strong style={{ fontSize: 15 }}>{personName(d.persona)}</strong>
-                    <div className="text-muted text-sm">
-                      CI {d.persona?.ci ?? '—'}
-                      {d.persona?.ciExtension ? ` (${d.persona.ciExtension})` : ''}
-                    </div>
-                    <div style={{ marginTop: 4 }}>
-                      <Badge label="Aspirante · sin ficha" color="warning" />
-                    </div>
-                  </>
-                )}
-              </div>
-              <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
-                <Badge label={d.concept} color="success" />
-                {d.conceptDetail && (
-                  <span className="text-muted text-sm">{d.conceptDetail}</span>
-                )}
-              </div>
-              <div
-                style={{
-                  fontSize: 22,
-                  fontWeight: 800,
-                  color: 'var(--primary)',
-                }}
-              >
-                {showAmounts ? fmtMoney(d.amount) : 'Bs. ••••••'}
-              </div>
-              <div className="text-muted text-sm">
-                {fmtDate(d.depositDate)}
-              </div>
-              {d.verificationComment && (
-                <div className="text-muted text-sm" style={{ fontStyle: 'italic' }}>
-                  “{d.verificationComment}”
+        <div className="form-label" style={{ marginBottom: 8 }}>Buscar estudiante</div>
+        {selectedStudent ? (
+          <div
+            className="card card-pad"
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              background: 'var(--primary-soft)',
+              border: 'none',
+              padding: '8px 12px',
+              gap: 8,
+              flexWrap: 'wrap',
+            }}
+          >
+            <div className="flex items-center" style={{ gap: 10 }}>
+              {selectedStudent.person?.photoUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={selectedStudent.person.photoUrl}
+                  alt=""
+                  style={{ width: 44, height: 44, borderRadius: '50%', objectFit: 'cover' }}
+                />
+              ) : (
+                <div
+                  style={{
+                    width: 44,
+                    height: 44,
+                    borderRadius: '50%',
+                    background: 'var(--primary)',
+                    color: '#fff',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontWeight: 800,
+                    fontSize: 15,
+                  }}
+                >
+                  {initialsOf(selectedStudent.person?.firstName, selectedStudent.person?.lastName)}
                 </div>
               )}
-              <div className="flex gap-2" style={{ marginTop: 'auto', paddingTop: 4, flexWrap: 'wrap' }}>
-                {d.status === 'PENDING' && (
-                  <button
-                    className="btn btn-primary btn-sm"
-                    onClick={() => { setVerifyTarget(d); setVerifyStatus('VERIFIED'); setComment(''); }}
-                  >
-                    Verificar
-                  </button>
-                )}
-                {isAspirant && (
-                  <button
-                    className="btn btn-soft btn-sm"
-                    onClick={() => { setEnrollTarget(d); setEnrollCareerId(careers[0]?.id ?? ''); }}
-                    title="Crear ficha de estudiante (preinscrito) y ligar este depósito"
-                  >
-                    Crear ficha
-                  </button>
-                )}
-                {d.voucherUrl && (
-                  <a className="btn btn-outline btn-sm" href={d.voucherUrl} target="_blank" rel="noreferrer">
-                    Ver comprobante
-                  </a>
+              <div>
+                <strong style={{ fontSize: 14 }}>
+                  {selectedStudent.studentCode} — {selectedStudent.person?.firstName} {fullSurname(selectedStudent.person)}
+                </strong>
+                <div className="text-muted text-sm">
+                  CI {selectedStudent.person?.ci} · {selectedStudent.currentLevel}º semestre
+                </div>
+                {latestEnrollment && (
+                  <div className="text-muted text-sm">
+                    Matriculado: {latestEnrollment.academicPeriod?.periodName ?? '—'}
+                    {previousEnrollment && ` · Anterior: ${previousEnrollment.academicPeriod?.periodName ?? '—'}`}
+                    {isRepeating() && <Badge label="Repite" color="danger" />}
+                  </div>
                 )}
               </div>
             </div>
-          );
-        })}
+            <button
+              className="btn btn-outline btn-sm"
+              onClick={() => setSelectedStudentId('')}
+            >
+              Cambiar
+            </button>
+          </div>
+        ) : (
+          <>
+            <input
+              className="form-control"
+              placeholder="Buscar por matrícula, CI o nombre…"
+              value={beneficiaryQuery}
+              onChange={(e) => setBeneficiaryQuery(e.target.value)}
+            />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 6, maxHeight: 240, overflowY: 'auto' }}>
+              {studentMatches.map((s) => (
+                <button
+                  key={s.id}
+                  className="btn btn-outline btn-sm"
+                  style={{ justifyContent: 'flex-start', textAlign: 'left' }}
+                  onClick={() => setSelectedStudentId(s.id)}
+                >
+                  {s.studentCode} — {s.person?.firstName} {fullSurname(s.person)} · CI {s.person?.ci || '—'}
+                </button>
+              ))}
+              {studentMatches.length === 0 && (
+                <span className="text-muted text-sm">
+                  Sin estudiantes con ese criterio.
+                </span>
+              )}
+            </div>
+          </>
+        )}
       </div>
+
+      {selectedStudentId && (
+        <>
+          <div
+            className="mb-3"
+            style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12 }}
+          >
+            <div className="stat-card">
+              <div className="stat-value">{studentDeposits.length}</div>
+              <div className="stat-label">Depósitos registrados</div>
+            </div>
+            <div className="stat-card">
+              <div className="stat-value">
+                {showAmounts
+                  ? fmtMoney(studentDeposits.reduce((acc, d) => acc + Number(d.amount ?? 0), 0))
+                  : 'Bs. ••••••'}
+              </div>
+              <div className="stat-label">
+                Total
+                <button
+                  className="btn btn-sm"
+                  style={{ padding: '2px 6px', minWidth: 0, verticalAlign: 'middle', marginLeft: 8 }}
+                  onClick={() => setShowAmounts((v) => !v)}
+                  title={showAmounts ? 'Ocultar montos' : 'Mostrar montos'}
+                >
+                  <Icon name={showAmounts ? 'eye-off' : 'eye'} size={16} />
+                </button>
+              </div>
+            </div>
+            <div className="stat-card">
+              <div className="stat-value">{studentDeposits.filter((d) => d.status === 'PENDING').length}</div>
+              <div className="stat-label">Pendientes de verificar</div>
+            </div>
+          </div>
+
+          {studentDeposits.length === 0 && (
+            <div className="card card-pad">
+              <div className="empty-state">
+                <div className="empty-state-icon">💰</div>
+                No hay depósitos registrados para este estudiante.
+              </div>
+            </div>
+          )}
+
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
+              gap: 12,
+            }}
+          >
+            {studentDeposits.map((d) => {
+              const isAspirant = !d.studentId && !!d.person;
+              return (
+                <div
+                  key={d.id}
+                  className="card-pad"
+                  style={{
+                    border: '1px solid var(--border)',
+                    borderRadius: 12,
+                    background: 'var(--bg-card)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 8,
+                  }}
+                >
+                  <div className="flex justify-between items-center" style={{ gap: 8 }}>
+                    <Badge label={d.depositNumber} color="info" />
+                    <StatusBadge value={d.status} />
+                  </div>
+                  <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+                    <Badge label={d.concept} color="success" />
+                    {d.conceptDetail && (
+                      <span className="text-muted text-sm">{d.conceptDetail}</span>
+                    )}
+                  </div>
+                  <div
+                    style={{
+                      fontSize: 22,
+                      fontWeight: 800,
+                      color: 'var(--primary)',
+                    }}
+                  >
+                    {showAmounts ? fmtMoney(d.amount) : 'Bs. ••••••'}
+                  </div>
+                  <div className="text-muted text-sm">
+                    {fmtDate(d.depositDate)}
+                  </div>
+                  {d.verificationComment && (
+                    <div className="text-muted text-sm" style={{ fontStyle: 'italic' }}>
+                      &ldquo;{d.verificationComment}&rdquo;
+                    </div>
+                  )}
+                  <div className="flex gap-2" style={{ marginTop: 'auto', paddingTop: 4, flexWrap: 'wrap' }}>
+                    {d.status === 'PENDING' && (
+                      <button
+                        className="btn btn-primary btn-sm"
+                        onClick={() => { setVerifyTarget(d); setVerifyStatus('VERIFIED'); setComment(''); }}
+                      >
+                        Verificar
+                      </button>
+                    )}
+                    {isAspirant && (
+                      <button
+                        className="btn btn-soft btn-sm"
+                        onClick={() => { setEnrollTarget(d); setEnrollCareerId(careers[0]?.id ?? ''); }}
+                        title="Crear ficha de estudiante (preinscrito) y ligar este depósito"
+                      >
+                        Crear ficha
+                      </button>
+                    )}
+                    {d.voucherUrl && (
+                      <a className="btn btn-outline btn-sm" href={d.voucherUrl} target="_blank" rel="noreferrer">
+                        Ver comprobante
+                      </a>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </>
+      )}
+
+      {!selectedStudentId && (
+        <div className="card card-pad">
+          <div className="empty-state">
+            <div className="empty-state-icon">💰</div>
+            Busca un estudiante para ver sus depósitos.
+          </div>
+        </div>
+      )}
 
       <Modal open={modalOpen} title="Registrar depósito" onClose={() => setModalOpen(false)}
         footer={
@@ -537,31 +507,11 @@ export default function DepositsPage() {
               >
                 <strong style={{ fontSize: 14 }}>
                   {form.beneficiaryType === 'student' && selectedStudent
-                    ? `${selectedStudent.studentCode} — ${selectedStudent.firstName} ${selectedStudent.lastName}`
-                    : form.beneficiaryType === 'person' && selectedPerson
-                      ? `${selectedPerson.ci} — ${personName(selectedPerson)}`
+                    ? `${selectedStudent.studentCode} — ${selectedStudent.person?.firstName || ''} ${fullSurname(selectedStudent.person)}`
+                    : form.beneficiaryType === 'person' && persons.find((p) => p.id === form.personId)
+                      ? `${persons.find((p) => p.id === form.personId)?.ci} — ${personName(persons.find((p) => p.id === form.personId))}`
                       : 'Seleccionado'}
                 </strong>
-                {form.beneficiaryType === 'student' && (selectedPair.previous || selectedPair.current) && (
-                  <div className="text-muted text-sm">
-                    {selectedPair.previous && (
-                      <span>
-                        Anterior: {selectedPair.previous.academicPeriod?.periodName ?? '—'} · {selectedPair.previous.semester}º
-                      </span>
-                    )}
-                    {selectedPair.previous && selectedPair.current && <span> &nbsp;|&nbsp; </span>}
-                    {selectedPair.current && (
-                      <span>
-                        Actual: {selectedPair.current.academicPeriod?.periodName ?? '—'} · {selectedPair.current.semester}º
-                      </span>
-                    )}
-                    {isRepeating(selectedPair) && (
-                      <span style={{ marginLeft: 8 }}>
-                        <Badge label="🔁 Repite semestre" color="danger" />
-                      </span>
-                    )}
-                  </div>
-                )}
                 <button
                   className="btn btn-outline btn-sm"
                   onClick={() => {
@@ -593,7 +543,7 @@ export default function DepositsPage() {
                           style={{ justifyContent: 'flex-start', textAlign: 'left' }}
                           onClick={() => setForm({ ...form, studentId: s.id })}
                         >
-                          {s.studentCode} — {s.firstName} {s.lastName} · CI {s.ci}
+                          {s.studentCode} — {s.person?.firstName || ''} {fullSurname(s.person)} · CI {s.person?.ci || '—'}
                         </button>
                       ))
                     : personMatches.map((p) => (
@@ -643,6 +593,32 @@ export default function DepositsPage() {
               onChange={(e) => setForm({ ...form, conceptDetail: e.target.value })}
             />
           </div>
+          <div className="form-group" style={{ gridColumn: '1 / -1' }}>
+            <label className="form-label">Comprobante de pago (voucher)</label>
+            <input
+              className="form-control"
+              type="file"
+              accept="image/*,.pdf"
+              onChange={async (e) => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+                try {
+                  const { url } = await apiUpload<{ url: string }>('/uploads/voucher', file);
+                  setForm({ ...form, voucherUrl: url });
+                } catch (err) {
+                  setError(extractError(err));
+                }
+              }}
+            />
+            {form.voucherUrl && (
+              <div style={{ marginTop: 8 }}>
+                <span className="text-sm text-muted">Voucher cargado: </span>
+                <a href={form.voucherUrl} target="_blank" rel="noopener noreferrer" className="text-sm">
+                  Ver imagen
+                </a>
+              </div>
+            )}
+          </div>
         </div>
       </Modal>
 
@@ -662,7 +638,7 @@ export default function DepositsPage() {
                 <strong style={{ fontSize: 18 }}>{fmtMoney(verifyTarget.amount)}</strong>
               </div>
               <div className="text-muted text-sm" style={{ marginTop: 4 }}>
-                {verifyTarget.student ? studentName(verifyTarget) : personName(verifyTarget.persona)} · {fmtDate(verifyTarget.depositDate)}
+                {studentName(verifyTarget)} · {fmtDate(verifyTarget.depositDate)}
               </div>
             </div>
             <div className="form-group">
@@ -694,7 +670,7 @@ export default function DepositsPage() {
           <div>
             <p className="text-muted text-sm mb-3">
               Se creará la ficha como <strong>preinscrito</strong> (nivel 1) para{' '}
-              <strong>{personName(enrollTarget.persona)}</strong> (CI {enrollTarget.persona?.ci})
+              <strong>{personName(enrollTarget.person)}</strong> (CI {enrollTarget.person?.ci})
               y se ligará el depósito <strong>{enrollTarget.depositNumber}</strong>. Con el
               depósito verificado/aprobado podrá matricularse por primera vez.
             </p>

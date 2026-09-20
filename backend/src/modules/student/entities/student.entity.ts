@@ -8,9 +8,8 @@ import {
   Index,
 } from 'typeorm';
 import { BaseEntity } from '@common/entities/base.entity';
-import { AcademicStatus, Sex } from '@common/enums';
+import { AcademicStatus } from '@common/enums';
 import { Career } from '@modules/career/entities/career.entity';
-import { AcademicPeriod } from '@modules/academic-period/entities/academic-period.entity';
 import { Enrollment } from '@modules/enrollment/entities/enrollment.entity';
 import { Deposit } from '@modules/deposit/entities/deposit.entity';
 import { User } from '@modules/user/entities/user.entity';
@@ -18,46 +17,8 @@ import { Person } from '@modules/person/entities/person.entity';
 
 @Entity('students')
 export class Student extends BaseEntity {
-  @Column({ type: 'varchar', length: 150 })
-  firstName: string;
-
-  @Column({ name: 'paternal_surname', type: 'varchar', length: 150, nullable: true })
-  paternalSurname?: string;
-
-  @Column({ name: 'maternal_surname', type: 'varchar', length: 150, nullable: true })
-  maternalSurname?: string;
-
-  @Column({ type: 'varchar', length: 150 })
-  lastName: string;
-
   @Column({ name: 'diploma_number', type: 'varchar', length: 30, nullable: true })
   diplomaNumber?: string;
-
-  @Column({ type: 'varchar', length: 30 })
-  @Index('IDX_student_ci', { unique: true })
-  ci: string;
-
-  @Column({ name: 'ci_extension', type: 'varchar', length: 20, nullable: true })
-  ciExtension?: string;
-
-  @Column({ name: 'birth_date', type: 'date' })
-  birthDate: Date;
-
-  @Column({ type: 'enum', enum: Sex, nullable: true })
-  sex?: Sex;
-
-  @Column({ type: 'varchar', length: 30, nullable: true })
-  phone?: string;
-
-  @Column({ type: 'text', nullable: true })
-  address?: string;
-
-  @Column({ type: 'varchar', length: 150, unique: true })
-  @Index('IDX_student_email', { unique: true })
-  email: string;
-
-  @Column({ name: 'photo_url', type: 'text', nullable: true })
-  photoUrl?: string;
 
   @Column({ name: 'student_code', type: 'varchar', length: 50 })
   @Index('IDX_student_code', { unique: true })
@@ -81,23 +42,16 @@ export class Student extends BaseEntity {
   @Column({ name: 'career_id', type: 'uuid', nullable: true })
   careerId?: string;
 
-  @ManyToOne(() => AcademicPeriod, { nullable: true })
-  @JoinColumn({ name: 'current_period_id' })
-  currentPeriod?: AcademicPeriod;
-
-  @Column({ name: 'current_period_id', type: 'uuid', nullable: true })
-  currentPeriodId?: string;
-
   @OneToOne(() => User, (user) => user.student, { nullable: true })
   user?: User;
 
   @OneToOne(() => Person, (person) => person.student, { nullable: true })
   @JoinColumn({ name: 'person_id' })
-  persona?: Person;
+  person: Person;
 
   @Column({ name: 'person_id', type: 'uuid', nullable: true })
   @Index('IDX_student_person_id', { unique: true })
-  personaId?: string;
+  personId?: string;
 
   @OneToMany(() => Enrollment, (enrollment) => enrollment.student)
   enrollments: Enrollment[];

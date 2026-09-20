@@ -29,9 +29,6 @@ export class Enrollment extends BaseEntity {
   })
   status: EnrollmentStatus;
 
-  @Column({ name: 'semester', type: 'integer' })
-  semester: number;
-
   @Column({ name: 'total_amount', type: 'numeric', precision: 12, scale: 2, nullable: true })
   totalAmount?: number;
 

@@ -97,7 +97,7 @@ export class AttendanceService {
   async findForAssignment(assignmentId: string): Promise<Attendance[]> {
     return this.attendanceRepository.find({
       where: { assignmentId },
-      relations: ['student'],
+      relations: ['student', 'student.person'],
       order: { attendanceDate: 'ASC' },
     });
   }

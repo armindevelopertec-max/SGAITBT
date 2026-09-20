@@ -66,7 +66,7 @@ export class DepositService {
 
     return this.depositRepository.find({
       where,
-      relations: ['student', 'persona'],
+      relations: ['student', 'student.person', 'person'],
       order: { createdAt: 'DESC' },
     });
   }
@@ -74,7 +74,7 @@ export class DepositService {
   async findOne(id: string): Promise<Deposit> {
     const deposit = await this.depositRepository.findOne({
       where: { id },
-      relations: ['student', 'persona'],
+      relations: ['student', 'student.person', 'person'],
     });
     if (!deposit) {
       throw new NotFoundException('Depósito no encontrado');

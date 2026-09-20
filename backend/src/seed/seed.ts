@@ -47,7 +47,7 @@ const WEEKS_PER_SEMESTER = 20;
 const PERIODS_TEMPLATE = [
   { year: '2025', sequence: 1, periodName: 'I/2025', startDate: '2025-02-03', endDate: '2025-07-04', status: 'CLOSED' },
   { year: '2025', sequence: 2, periodName: 'II/2025', startDate: '2025-08-04', endDate: '2025-12-19', status: 'CLOSED' },
-  { year: '2026', sequence: 1, periodName: 'I/2026', startDate: '2026-02-02', endDate: '2026-07-03', status: 'OPEN' },
+  { year: '2026', sequence: 1, periodName: 'I/2026', startDate: '2026-02-02', endDate: '2026-07-03', status: 'CLOSED' },
   { year: '2026', sequence: 2, periodName: 'II/2026', startDate: '2026-08-03', endDate: '2026-12-18', status: 'OPEN' },
 ];
 
@@ -389,10 +389,10 @@ async function seedDemoData(dataSource: DataSource, passHash: string) {
       });
       personId = person.id;
     }
-    if (existing.personaId && existing.personaId !== personId) {
+    if (existing.personId && existing.personId !== personId) {
       // El usuario ya tiene persona vinculada; se respeta
-    } else if (!existing.personaId) {
-      await userRepo.update(existing.id, { personaId: personId });
+    } else if (!existing.personId) {
+      await userRepo.update(existing.id, { personId: personId });
     }
     if (data.employeeType) {
       await ensureEmployee(personId, data.employeeType, data.position ?? '');
@@ -421,9 +421,9 @@ async function seedDemoData(dataSource: DataSource, passHash: string) {
       position: 'Docente',
     });
     const freshUser = await userRepo.findOne({ where: { id: u.id } });
-    const employee = freshUser?.personaId
+    const employee = freshUser?.personId
       ? await employeeRepo.findOne({
-          where: { personId: freshUser.personaId, employeeType: EmployeeType.DOCENTE },
+          where: { personId: freshUser.personId, employeeType: EmployeeType.DOCENTE },
         })
       : null;
     teacherEmployees.push(employee);
@@ -508,13 +508,36 @@ async function seedDemoData(dataSource: DataSource, passHash: string) {
       const elapsed = (currentYear - Number(demo.entry.year)) * 2 + (currentSeq - demo.entry.seq);
       const currentLevel = Math.max(1, Math.min(6, demo.entry.level + elapsed));
 
-      const existingStudent = await studentRepo.findOne({ where: { ci: demo.ci } });
+      const existingPerson = await personRepo.findOne({ where: { ci: demo.ci } });
+      let person = existingPerson;
+      if (!person) {
+        person = await personRepo.findOne({ where: { email: demo.email } });
+      }
+      if (!person) {
+        const birthDate = `${demo.birthYear}-${String((hashStr(demo.ci) % 12) + 1).padStart(2, '0')}-${String((hashStr(demo.email) % 27) + 1).padStart(2, '0')}`;
+        person = await personRepo.save(
+          createPerson(personRepo, {
+            ci: demo.ci,
+            ciExtension: demo.ciExtension,
+            firstName: demo.firstName,
+            paternalSurname: demo.paternalSurname,
+            maternalSurname: demo.maternalSurname,
+            lastName: `${demo.paternalSurname} ${demo.maternalSurname}`,
+            birthDate,
+            sex: demo.sex,
+            phone: demo.phone,
+            address: demo.address,
+            email: demo.email,
+          }),
+        );
+      }
+
+      const existingStudent = await studentRepo.findOne({ where: { personId: person.id } });
       let student: any;
       if (existingStudent) {
         await studentRepo.update(existingStudent.id, {
           status: 'ACTIVE',
           currentLevel,
-          currentPeriodId: openPeriod.id,
         });
         await subjectEnrollmentRepo.delete({ studentId: existingStudent.id });
         await gradeRepo.delete({ studentId: existingStudent.id });
@@ -525,50 +548,14 @@ async function seedDemoData(dataSource: DataSource, passHash: string) {
       } else {
         studentCounter += 1;
         const studentCode = `EST-2026-${String(studentCounter).padStart(4, '0')}`;
-        const birthDate = `${demo.birthYear}-${String((hashStr(demo.ci) % 12) + 1).padStart(2, '0')}-${String((hashStr(demo.email) % 27) + 1).padStart(2, '0')}`;
 
         student = await studentRepo.save({
-          firstName: demo.firstName,
-          paternalSurname: demo.paternalSurname,
-          maternalSurname: demo.maternalSurname,
-          lastName: `${demo.paternalSurname} ${demo.maternalSurname}`,
-          ci: demo.ci,
-          ciExtension: demo.ciExtension,
-          birthDate,
-          sex: demo.sex,
-          phone: demo.phone,
-          address: demo.address,
-          email: demo.email,
+          personId: person.id,
           studentCode,
           status: 'ACTIVE',
           currentLevel,
           careerId: career.id,
-          currentPeriodId: openPeriod.id,
         });
-
-        const existingPerson = await personRepo.findOne({ where: { ci: demo.ci } });
-        let person = existingPerson;
-        if (!person) {
-          person = await personRepo.findOne({ where: { email: demo.email } });
-        }
-        if (!person) {
-          person = await personRepo.save(
-            createPerson(personRepo, {
-              ci: demo.ci,
-              ciExtension: demo.ciExtension,
-              firstName: demo.firstName,
-              paternalSurname: demo.paternalSurname,
-              maternalSurname: demo.maternalSurname,
-              lastName: `${demo.paternalSurname} ${demo.maternalSurname}`,
-              birthDate,
-              sex: demo.sex,
-              phone: demo.phone,
-              address: demo.address,
-              email: demo.email,
-            }),
-          );
-        }
-        await studentRepo.update(student.id, { personaId: person.id });
       }
 
       for (const period of periods) {
@@ -606,7 +593,6 @@ async function seedDemoData(dataSource: DataSource, passHash: string) {
             enrollmentNumber,
             enrollmentDate: period.startDate,
             status: 'ACTIVE',
-            semester: level,
             totalAmount: 850,
             observations: 'Matrícula generada por seed',
             studentId: student.id,
@@ -618,12 +604,11 @@ async function seedDemoData(dataSource: DataSource, passHash: string) {
         const semesterSubjects: any[] = (subjects as any[]).filter((s: any) => s.semester === level);
         for (const subject of semesterSubjects) {
           let assignment = await assignmentRepo.findOne({
-            where: { subjectId: subject.id, academicPeriodId: period.id, parallel: 'A' },
+            where: { subjectId: subject.id, academicPeriodId: period.id },
           });
 
           if (!assignment) {
             assignment = await assignmentRepo.save({
-              parallel: 'A',
               classroom: 'Lab. ' + ['A', 'B', 'C'][hashStr(subject.code + period.year) % 3],
               schedule: { day: 'LUN', start: '18:00', end: '21:00' },
               subjectId: subject.id,
@@ -758,7 +743,7 @@ async function migrateExistingData(dataSource: DataSource) {
 
   const users = await userRepo.find({ relations: ['student'] });
   for (const user of users) {
-    if (!user.personaId) {
+    if (!user.personId) {
       let person = await personRepo.findOne({ where: { email: user.email } });
       if (!person) {
         const parts = (user.fullName ?? user.username).split(' ');
@@ -773,40 +758,14 @@ async function migrateExistingData(dataSource: DataSource) {
           }),
         );
       }
-      await userRepo.update(user.id, { personaId: person.id });
+      await userRepo.update(user.id, { personId: person.id });
       if (user.studentId && user.student) {
-        await studentRepo.update(user.studentId, { personaId: person.id });
+        await studentRepo.update(user.studentId, { personId: person.id });
       }
     }
   }
 
-  const students = await studentRepo.find({ where: { personaId: null } });
-  for (const student of students) {
-    let person = await personRepo.findOne({ where: { ci: student.ci } });
-    if (!person) {
-      person = await personRepo.findOne({ where: { email: student.email } });
-    }
-    if (!person) {
-      person = await personRepo.save(
-        createPerson(personRepo, {
-          ci: student.ci,
-          ciExtension: student.ciExtension,
-          firstName: student.firstName,
-          paternalSurname: student.paternalSurname,
-          maternalSurname: student.maternalSurname,
-          lastName: student.lastName,
-          birthDate: student.birthDate,
-          sex: student.sex,
-          phone: student.phone,
-          address: student.address,
-          email: student.email,
-        }),
-      );
-    }
-    await studentRepo.update(student.id, { personaId: person.id });
-  }
-
-  console.log(`✅ Migración de personas/roles existentes (${users.length} usuarios, ${students.length} estudiantes)`);
+  console.log(`✅ Migración de personas/roles existentes (${users.length} usuarios)`);
 }
 
 export async function runSeed() {
@@ -886,7 +845,7 @@ export async function runSeed() {
     await rbac.seedRoles();
     await rbac.assignRole(adminUser.id, DEFAULT_ROLE_KEYS.ADMIN);
 
-    if (!adminUser.personaId) {
+    if (!adminUser.personId) {
       let person = await personRepo.findOne({ where: { email: 'admin@itbt.edu.bo' } });
       if (!person) {
         person = await personRepo.save(
@@ -898,7 +857,7 @@ export async function runSeed() {
           }),
         );
       }
-      await userRepo.update(adminUser.id, { personaId: person.id });
+      await userRepo.update(adminUser.id, { personId: person.id });
       const employee = await employeeRepo.findOne({ where: { personId: person.id } });
       if (!employee) {
         await employeeRepo.save({

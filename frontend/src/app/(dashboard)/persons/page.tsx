@@ -77,12 +77,6 @@ export default function PersonsPage() {
     load(search);
   }, [search]);
 
-  function openCreate() {
-    setEditing(null);
-    setForm(EMPTY);
-    setModalOpen(true);
-  }
-
   function openEdit(p: Person) {
     setEditing(p);
     setForm({
@@ -162,11 +156,6 @@ export default function PersonsPage() {
       <PageHeader
         title="Personas"
         subtitle="Registro institucional de personas (vínculo de usuarios, estudiantes y empleados)"
-        actions={
-          <button className="btn btn-primary" onClick={openCreate}>
-            Nueva persona
-          </button>
-        }
       />
 
       {error && <ErrorState message={error} />}

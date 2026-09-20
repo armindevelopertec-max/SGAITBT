@@ -10,6 +10,7 @@ import { BaseEntity } from '@common/entities/base.entity';
 import { UserStatus } from '@common/enums';
 import { Student } from '@modules/student/entities/student.entity';
 import { Person } from '@modules/person/entities/person.entity';
+import { Employee } from '@modules/employee/entities/employee.entity';
 import { UserRole } from '@modules/rbac/entities/user-role.entity';
 
 @Entity('users')
@@ -24,9 +25,6 @@ export class User extends BaseEntity {
   @Column({ type: 'varchar', length: 150, unique: true })
   @Index('IDX_user_email', { unique: true })
   email: string;
-
-  @Column({ type: 'varchar', length: 150 })
-  fullName: string;
 
   @Column({
     type: 'enum',
@@ -57,12 +55,30 @@ export class User extends BaseEntity {
 
   @OneToOne(() => Person, (person) => person.user, { nullable: true })
   @JoinColumn({ name: 'person_id' })
-  persona?: Person;
+  person?: Person;
 
   @Column({ name: 'person_id', type: 'uuid', nullable: true })
   @Index('IDX_user_person_id', { unique: true })
-  personaId?: string;
+  personId?: string;
+
+  @Column({ name: 'employee_id', type: 'uuid', nullable: true })
+  @Index('IDX_user_employee_id', { unique: true })
+  employeeId?: string;
+
+  @OneToOne(() => Employee, (employee) => employee.user, { nullable: true })
+  @JoinColumn({ name: 'employee_id' })
+  employee?: Employee;
 
   @OneToMany(() => UserRole, (userRole) => userRole.user)
   userRoles?: UserRole[];
+
+  get fullName(): string {
+    if (this.student?.person) {
+      return `${this.student.person.firstName} ${this.student.person.lastName}`.trim();
+    }
+    if (this.person) {
+      return `${this.person.firstName} ${this.person.lastName}`.trim();
+    }
+    return this.username;
+  }
 }

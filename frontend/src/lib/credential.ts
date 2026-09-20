@@ -7,6 +7,7 @@ import {
   fullSurnames,
   ciText,
   formatDate,
+  loadImageDataUrl,
 } from '@/lib/utils';
 import { COLORS, CARD_W, CARD_H, INSTITUTION_SUFFIX } from '@/lib/constants';
 
@@ -22,28 +23,12 @@ export function institutionSede(institution?: Institution): string {
 }
 
 export function emergencyPhone(student: Enrollment['student']): string {
-  return student?.phone?.trim() || '—';
+  return student?.person?.phone?.trim() || '—';
 }
 
 export function studyRegime(career?: Enrollment['career']): string {
   const regime = career?.studyPlan?.['regime'];
   return typeof regime === 'string' && regime.trim() ? regime : 'Semestral';
-}
-
-async function loadImageDataUrl(url?: string, fallback = '/logo.png'): Promise<string | null> {
-  try {
-    const res = await fetch(url || fallback);
-    if (!res.ok) return null;
-    const blob = await res.blob();
-    return new Promise((resolve) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(reader.result as string);
-      reader.onerror = () => resolve(null);
-      reader.readAsDataURL(blob);
-    });
-  } catch {
-    return null;
-  }
 }
 
 export async function buildQrDataUrl(enrollment: Enrollment): Promise<string | null> {
@@ -52,8 +37,8 @@ export async function buildQrDataUrl(enrollment: Enrollment): Promise<string | n
     'INSTITUTO TECNOLÓGICO \u201CBOLIVIANA DE TECNOLOGÍA\u201D',
     enrollment.academicPeriod?.periodName || `Gestión ${enrollment.academicPeriod?.year || ''}`,
     `N.º de matrícula: ${enrollment.enrollmentNumber}`,
-    `Estudiante: ${student?.firstName || ''} ${fullSurname(student)}`,
-    `CI: ${student?.ci || ''}`,
+    `Estudiante: ${student?.person?.firstName || ''} ${fullSurname(student?.person)}`,
+    `CI: ${student?.person?.ci || ''}`,
     `Carrera: ${enrollment.career?.name || ''}`,
   ]
     .filter((line) => line.trim())
@@ -87,7 +72,7 @@ export async function downloadEnrollmentCredential({
 
   const [logoUrl, photoUrl, qrUrl] = await Promise.all([
     loadImageDataUrl(institution?.logoUrl),
-    student?.photoUrl ? loadImageDataUrl(student.photoUrl).catch(() => null) : Promise.resolve(null),
+    student?.person?.photoUrl ? loadImageDataUrl(student.person.photoUrl).catch(() => null) : Promise.resolve(null),
     buildQrDataUrl(enrollment),
   ]);
 
@@ -224,8 +209,8 @@ export async function downloadEnrollmentCredential({
   // Datos en orden vertical
   const colX = margin + 1.5;
   row('N.º DE MATRÍCULA (REGISTRO ÚNICO)', enrollment.enrollmentNumber, colX, 15, 9.6, true);
-  row('APELLIDOS', fullSurnames(student), colX, 22);
-  row('NOMBRES', student?.firstName || '—', colX, 29);
+  row('APELLIDOS', fullSurnames(student?.person), colX, 22);
+  row('NOMBRES', student?.person?.firstName || '—', colX, 29);
   row('CARRERA', enrollment.career?.name || '—', colX, 36);
   row('FECHA', formatDate(enrollment.enrollmentDate), colX, 43);
 
@@ -252,8 +237,8 @@ export async function downloadEnrollmentCredential({
   };
 
   const backRowsCol1: Array<[string, string]> = [
-    ['APELLIDOS', fullSurnames(student)],
-    ['NOMBRES', student?.firstName || '—'],
+    ['APELLIDOS', fullSurnames(student?.person)],
+    ['NOMBRES', student?.person?.firstName || '—'],
     ['CARRERA', enrollment.career?.name || '—'],
     ['NIVEL', student?.currentLevel ? `Nivel ${student.currentLevel}` : '—'],
     ['GESTIÓN ACTUAL', periodName],
@@ -261,7 +246,7 @@ export async function downloadEnrollmentCredential({
   ];
   const backRowsCol2: Array<[string, string]> = [
     ['FECHA', formatDate(enrollment.enrollmentDate)],
-    ['CÉDULA DE IDENTIDAD', ciText(student)],
+    ['CÉDULA DE IDENTIDAD', ciText(student?.person)],
     ['REGISTRO ÚNICO', enrollment.enrollmentNumber],
     ['TEL. EMERGENCIA', emergencyPhone(student)],
     ['SEDE', institutionSede(institution)],
@@ -375,8 +360,8 @@ export async function buildSubjectAssignmentQrDataUrl(
     'INSTITUTO TECNOLÓGICO \u201CBOLIVIANA DE TECNOLOGÍA\u201D',
     'BOLETA DE ASIGNACIÓN DE MATERIAS',
     periodName,
-    `Estudiante: ${student?.firstName || ''} ${student?.paternalSurname || ''} ${student?.maternalSurname || ''} ${student?.lastName || ''}`.trim(),
-    `CI: ${student?.ci || ''}`,
+    `Estudiante: ${student?.person?.firstName || ''} ${student?.person?.paternalSurname || ''} ${student?.person?.maternalSurname || ''} ${student?.person?.lastName || ''}`.trim(),
+    `CI: ${student?.person?.ci || ''}`,
     `Matrícula: ${student?.studentCode || ''}`,
     `Materias: ${assignments.map((a) => a.subject?.code).filter(Boolean).join(', ')}`,
   ]
@@ -411,7 +396,7 @@ export async function downloadSubjectAssignmentCredential({
 
   const [logoUrl, photoUrl, qrUrl] = await Promise.all([
     loadImageDataUrl(institution?.logoUrl),
-    student?.photoUrl ? loadImageDataUrl(student.photoUrl).catch(() => null) : Promise.resolve(null),
+    student?.person?.photoUrl ? loadImageDataUrl(student.person.photoUrl).catch(() => null) : Promise.resolve(null),
     buildSubjectAssignmentQrDataUrl(student, assignments, periodName),
   ]);
 
@@ -547,10 +532,10 @@ export async function downloadSubjectAssignmentCredential({
 
   // Datos
   const colX = margin + 1.5;
-  const surnames = [student?.paternalSurname, student?.maternalSurname].filter(Boolean).join(' ');
+  const surnames = [student?.person?.paternalSurname, student?.person?.maternalSurname].filter(Boolean).join(' ');
   row('N.º DE BOLETA', assignments[0]?.id?.slice(-8).toUpperCase() ?? '—', colX, 15, 9.6, true);
   row('APELLIDOS', surnames || '—', colX, 22);
-  row('NOMBRES', student?.firstName || '—', colX, 29);
+  row('NOMBRES', student?.person?.firstName || '—', colX, 29);
   row('MATRÍCULA', student?.studentCode || '—', colX, 36);
   row('GESTIÓN', periodName, colX, 43);
 
@@ -577,7 +562,7 @@ export async function downloadSubjectAssignmentCredential({
 
   const backRowsCol1: Array<[string, string]> = [
     ['APELLIDOS', surnames || '—'],
-    ['NOMBRES', student?.firstName || '—'],
+    ['NOMBRES', student?.person?.firstName || '—'],
     ['MATRÍCULA', student?.studentCode || '—'],
     ['CARRERA', student?.career?.name || '—'],
     ['SEMESTRE', student?.currentLevel ? `Nivel ${student.currentLevel}` : '—'],
@@ -585,7 +570,7 @@ export async function downloadSubjectAssignmentCredential({
     ['RÉGIMEN', 'Regular'],
   ];
   const backRowsCol2: Array<[string, string]> = [
-    ['CÉDULA DE IDENTIDAD', ciText(student)],
+    ['CÉDULA DE IDENTIDAD', ciText(student?.person)],
     ['RÉGIMEN', 'Regular'],
     ['SEDE', institutionSede(institution)],
   ];
@@ -627,10 +612,10 @@ export async function downloadSubjectAssignmentCredential({
     xPos += colWidths[0];
     doc.text(a.subject?.code || '—', xPos + colWidths[1] / 2, tableY, { align: 'center' });
     xPos += colWidths[1];
-    doc.text(a.parallel || '—', xPos + colWidths[2] / 2, tableY, { align: 'center' });
+    doc.text(a.parallelEntity?.code || '—', xPos + colWidths[2] / 2, tableY, { align: 'center' });
     xPos += colWidths[2];
-    const teacher = a.employee?.persona
-      ? `${a.employee.persona.firstName} ${a.employee.persona.paternalSurname ?? ''}`.trim()
+    const teacher = a.employee?.person
+      ? `${a.employee.person?.firstName} ${a.employee.person?.paternalSurname ?? ''}`.trim()
       : '—';
     doc.text(fit(teacher, colWidths[3], 1), xPos, tableY);
     tableY += 3.5;

@@ -60,12 +60,18 @@ export class Deposit extends BaseEntity {
   @Column({ name: 'student_id', type: 'uuid', nullable: true })
   studentId?: string;
 
-  // Aspirante: persona aún sin ficha de estudiante.
+  // Aspirante: person aún sin ficha de estudiante.
   @ManyToOne(() => Person, { nullable: true })
   @JoinColumn({ name: 'person_id' })
-  persona?: Person;
+  person?: Person;
 
   @Column({ name: 'person_id', type: 'uuid', nullable: true })
   @Index('IDX_deposit_person')
   personId?: string;
+
+  get beneficiaryType(): 'student' | 'person' | null {
+    if (this.studentId) return 'student';
+    if (this.personId) return 'person';
+    return null;
+  }
 }

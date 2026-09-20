@@ -76,8 +76,8 @@ export default function GradesPage() {
       if (filterStudent) {
         const student = students.find((s) => s.id === g.studentId) || g.student;
         if (!student) return false;
-        const fullName = `${student.firstName} ${student.paternalSurname || ''} ${student.maternalSurname || ''} ${student.lastName}`.toLowerCase();
-        const ci = student.ci?.toLowerCase() || '';
+        const fullName = `${student.person?.firstName || ''} ${student.person?.paternalSurname || ''} ${student.person?.maternalSurname || ''} ${student.person?.lastName || ''}`.toLowerCase();
+        const ci = student.person?.ci?.toLowerCase() || '';
         const search = filterStudent.toLowerCase();
         if (!fullName.includes(search) && !ci.includes(search)) return false;
       }
@@ -103,7 +103,7 @@ export default function GradesPage() {
       grouped.get(g.studentId)!.grades.push({ ...g, assignment });
     });
     return Array.from(grouped.values()).sort((a, b) =>
-      `${a.student.paternalSurname || ''} ${a.student.firstName}`.localeCompare(`${b.student.paternalSurname || ''} ${b.student.firstName}`)
+      `${a.student.person?.paternalSurname || ''} ${a.student.person?.firstName || ''}`.localeCompare(`${b.student.person?.paternalSurname || ''} ${b.student.person?.firstName || ''}`)
     );
   }, [filteredGrades, students, assignments]);
 
@@ -241,8 +241,8 @@ export default function GradesPage() {
                         <strong>{a.subject?.name}</strong>
                         <br /><span className="text-xs text-muted">{a.subject?.code} · {a.subject?.career?.name || 'Sin carrera'}</span>
                       </td>
-                      <td>{a.parallel} {a.parallelEntity?.shift === 'MANANA' ? '🌅' : a.parallelEntity?.shift === 'TARDE' ? '☀️' : '🌙'}</td>
-                      <td>{a.employee?.persona?.firstName ? `${a.employee.persona.firstName} ${a.employee.persona.paternalSurname || ''}` : '—'}</td>
+                      <td>{a.parallelEntity?.code} {a.parallelEntity?.shift === 'MANANA' ? '🌅' : a.parallelEntity?.shift === 'TARDE' ? '☀️' : '🌙'}</td>
+                      <td>{a.employee?.person?.firstName ? `${a.employee.person?.firstName} ${a.employee.person?.paternalSurname || ''}` : '—'}</td>
                       <td>
                         {aGrades.length > 0 ? (
                           <span className="text-success">{aGrades.length}</span>
@@ -298,13 +298,13 @@ export default function GradesPage() {
                         <tr key={g.id} style={{ background: idx % 2 === 0 ? '#fff' : '#fafafa' }}>
                           {idx === 0 && (
                             <td rowSpan={studentGrades.length} style={{ verticalAlign: 'top' }}>
-                              <strong>{student.firstName} {student.paternalSurname}</strong>
-                              {student.maternalSurname && ` ${student.maternalSurname}`}
+                              <strong>{student.person?.firstName} {student.person?.paternalSurname}</strong>
+                              {student.person?.maternalSurname && ` ${student.person?.maternalSurname}`}
                             </td>
                           )}
                           {idx === 0 && (
                             <td rowSpan={studentGrades.length} style={{ verticalAlign: 'top' }} className="text-muted">
-                              {student.ci || '—'}
+                              {student.person?.ci || '—'}
                             </td>
                           )}
                           <td>{g.assignment?.subject?.name || '—'}</td>
@@ -341,7 +341,7 @@ export default function GradesPage() {
       >
         {selectedAssignment && (
           <div className="mb-3">
-            <strong>{selectedAssignment.subject?.name}</strong> - {selectedAssignment.academicPeriod?.periodName} - Paralelo {selectedAssignment.parallel}
+            <strong>{selectedAssignment.subject?.name}</strong> - {selectedAssignment.academicPeriod?.periodName} - Paralelo {selectedAssignment.parallelEntity?.code}
           </div>
         )}
         <p className="text-muted text-sm mb-3">
@@ -374,9 +374,9 @@ export default function GradesPage() {
                 return (
                   <tr key={r.studentId}>
                     <td>
-                      {student?.firstName} {student?.paternalSurname} {student?.maternalSurname}
+                      {student?.person?.firstName} {student?.person?.paternalSurname} {student?.person?.maternalSurname}
                     </td>
-                    <td className="text-muted">{student?.ci || '—'}</td>
+                    <td className="text-muted">{student?.person?.ci || '—'}</td>
                     <td><input className="form-control" type="number" min={0} max={100} value={r.firstPartial} onChange={(e) => updateRow(r.studentId, 'firstPartial', Number(e.target.value))} style={{ width: 64 }} /></td>
                     <td><input className="form-control" type="number" min={0} max={100} value={r.secondPartial} onChange={(e) => updateRow(r.studentId, 'secondPartial', Number(e.target.value))} style={{ width: 64 }} /></td>
                     <td><input className="form-control" type="number" min={0} max={100} value={r.practices} onChange={(e) => updateRow(r.studentId, 'practices', Number(e.target.value))} style={{ width: 64 }} /></td>

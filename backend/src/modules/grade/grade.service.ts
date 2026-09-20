@@ -8,7 +8,7 @@ import { Repository } from 'typeorm';
 import { Grade } from './entities/grade.entity';
 import {
   CreateBulkGradesDto,
-  CreateGradeDto,
+  GradeInputDto,
   GradeQueryDto,
   UpdateGradeDto,
 } from './dto/grade.dto';
@@ -38,7 +38,7 @@ export class GradeService {
     private readonly careerRepository: Repository<Career>,
   ) {}
 
-  async create(createDto: CreateGradeDto): Promise<Grade> {
+  async create(createDto: GradeInputDto & { assignmentId: string }): Promise<Grade> {
     const assignment = await this.assignmentRepository.findOne({
       where: { id: createDto.assignmentId },
       relations: ['subject', 'academicPeriod'],
@@ -114,10 +114,11 @@ export class GradeService {
     const qb = this.gradeRepository
       .createQueryBuilder('grade')
       .leftJoinAndSelect('grade.student', 'student')
+      .leftJoinAndSelect('student.person', 'person')
       .leftJoinAndSelect('grade.assignment', 'assignment')
       .leftJoinAndSelect('assignment.subject', 'subject')
       .leftJoinAndSelect('subject.career', 'career')
-      .orderBy('student.lastName', 'ASC');
+      .orderBy('person.lastName', 'ASC');
 
     if (where.assignmentId) qb.andWhere('grade.assignmentId = :assignmentId', { assignmentId });
     if (where.studentId) qb.andWhere('grade.studentId = :studentId', { studentId });
@@ -139,7 +140,7 @@ export class GradeService {
   async findOne(id: string): Promise<Grade> {
     const grade = await this.gradeRepository.findOne({
       where: { id },
-      relations: ['student', 'assignment', 'assignment.subject'],
+      relations: ['student', 'student.person', 'assignment', 'assignment.subject'],
     });
     if (!grade) {
       throw new NotFoundException('Calificación no encontrada');
@@ -245,8 +246,8 @@ export class GradeService {
     const grades = await this.findForAssignment(assignmentId);
     return grades.map((g) => ({
       studentId: g.studentId,
-      studentName: `${g.student.firstName} ${g.student.lastName}`,
-      ci: g.student.ci,
+      studentName: `${g.student.person?.firstName || ''} ${g.student.person?.lastName || ''}`.trim(),
+      ci: g.student.person?.ci,
       firstPartial: g.firstPartial,
       secondPartial: g.secondPartial,
       practices: g.practices,

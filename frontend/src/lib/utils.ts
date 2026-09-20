@@ -18,7 +18,8 @@ export function initialsOf(firstName?: string, lastName?: string): string {
     .toUpperCase();
 }
 
-export function fullName(person: PersonNameFields): string {
+export function fullName(person?: PersonNameFields): string {
+  if (!person) return '—';
   return `${person.firstName ?? ''} ${person.paternalSurname ?? ''} ${person.maternalSurname ?? ''}`.trim() || person.lastName || '—';
 }
 
@@ -66,4 +67,20 @@ export function formatDateShort(value?: string | Date): string {
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) return '—';
   return d.toLocaleDateString('es-BO', { day: '2-digit', month: '2-digit', year: 'numeric' });
+}
+
+export async function loadImageDataUrl(url?: string, fallback = '/logo.png'): Promise<string | null> {
+  try {
+    const res = await fetch(url || fallback);
+    if (!res.ok) return null;
+    const blob = await res.blob();
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = () => resolve(null);
+      reader.readAsDataURL(blob);
+    });
+  } catch {
+    return null;
+  }
 }

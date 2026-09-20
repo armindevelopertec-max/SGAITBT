@@ -121,12 +121,12 @@ export default function ReportsPage() {
                 {students.map((s) => (
                   <tr key={s.id}>
                     <td>{s.studentCode}</td>
-                    <td>{s.firstName} {s.lastName}</td>
-                    <td>{s.ci}</td>
+                    <td>{s.person?.firstName} {s.person?.lastName}</td>
+                    <td>{s.person?.ci}</td>
                     <td>{s.career?.name ?? '—'}</td>
                     <td>{s.currentLevel}º</td>
                     <td><StatusBadge value={s.status} /></td>
-                    <td>{s.email}</td>
+                    <td>{s.person?.email}</td>
                   </tr>
                 ))}
               </tbody>
@@ -136,16 +136,15 @@ export default function ReportsPage() {
           {report === 'enrollments' && (
             <table className="table">
               <thead>
-                <tr><th>Nº</th><th>Estudiante</th><th>Carrera</th><th>Gestión</th><th>Nivel</th><th>Fecha</th><th>Estado</th></tr>
+                <tr><th>Nº</th><th>Estudiante</th><th>Carrera</th><th>Gestión</th><th>Fecha</th><th>Estado</th></tr>
               </thead>
               <tbody>
                 {enrollments.map((e) => (
                   <tr key={e.id}>
                     <td>{e.enrollmentNumber}</td>
-                    <td>{e.student?.firstName} {e.student?.lastName}</td>
+                    <td>{e.student?.person?.firstName} {e.student?.person?.lastName}</td>
                     <td>{e.career?.name ?? '—'}</td>
                     <td>{e.academicPeriod?.periodName ?? '—'}</td>
-                    <td>{e.semester}º</td>
                     <td>{e.enrollmentDate}</td>
                     <td><StatusBadge value={e.status} /></td>
                   </tr>
@@ -163,7 +162,7 @@ export default function ReportsPage() {
                 {deposits.map((d) => (
                   <tr key={d.id}>
                     <td>{d.depositNumber}</td>
-                    <td>{d.student?.firstName} {d.student?.lastName}</td>
+                    <td>{d.student?.person?.firstName} {d.student?.person?.lastName}</td>
                     <td>{d.depositDate}</td>
                     <td>{d.concept}</td>
                     <td>Bs. {d.amount}</td>
@@ -213,8 +212,8 @@ export default function ReportsPage() {
                   <tr key={a.id}>
                     <td>{a.subject?.name}</td>
                     <td>{a.academicPeriod?.periodName ?? '—'}</td>
-                    <td>{a.parallel}</td>
-                    <td>{a.employee ? personName(a.employee.persona) : '—'}</td>
+                    <td>{a.parallelEntity?.code}</td>
+                    <td>{a.employee ? personName(a.employee.person) : '—'}</td>
                     <td>{(a.enrollments ?? []).length}</td>
                   </tr>
                 ))}
@@ -230,7 +229,7 @@ export default function ReportsPage() {
               <tbody>
                 {grades.map((g) => (
                   <tr key={g.id}>
-                    <td>{g.student?.firstName} {g.student?.lastName}</td>
+                    <td>{g.student?.person?.firstName} {g.student?.person?.lastName}</td>
                     <td>{g.assignment?.subject?.name ?? '—'}</td>
                     <td><strong>{g.finalGrade ?? '-'}</strong></td>
                     <td><StatusBadge value={g.status} /></td>
@@ -270,8 +269,8 @@ export default function ReportsPage() {
                 {students.filter((s) => s.status === 'WITHDRAWN').map((s) => (
                   <tr key={s.id}>
                     <td>{s.studentCode}</td>
-                    <td>{s.firstName} {s.lastName}</td>
-                    <td>{s.ci}</td>
+                    <td>{s.person?.firstName} {s.person?.lastName}</td>
+                    <td>{s.person?.ci}</td>
                     <td>{s.career?.name ?? '—'}</td>
                     <td><StatusBadge value={s.status} /></td>
                   </tr>
@@ -289,8 +288,8 @@ export default function ReportsPage() {
                 {students.filter((s) => s.status === 'GRADUATE' || s.status === 'TITLED').map((s) => (
                   <tr key={s.id}>
                     <td>{s.studentCode}</td>
-                    <td>{s.firstName} {s.lastName}</td>
-                    <td>{s.ci}</td>
+                    <td>{s.person?.firstName} {s.person?.lastName}</td>
+                    <td>{s.person?.ci}</td>
                     <td>{s.career?.name ?? '—'}</td>
                     <td><StatusBadge value={s.status} /></td>
                   </tr>

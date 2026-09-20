@@ -35,8 +35,8 @@ function initialsOf(firstName?: string, lastName?: string): string {
 }
 
 function fullName(s: Student): string {
-  const name = `${s.firstName} ${s.paternalSurname ?? ''} ${s.maternalSurname ?? ''}`.trim();
-  return name || (s.lastName ?? '');
+  const name = `${s.person?.firstName || ''} ${s.person?.paternalSurname ?? ''} ${s.person?.maternalSurname ?? ''}`.trim();
+  return name || (s.person?.lastName ?? '');
 }
 
 export default function GraduationPage() {
@@ -90,7 +90,7 @@ export default function GraduationPage() {
       const matchSearch =
         !q ||
         s.studentCode?.toLowerCase().includes(q) ||
-        s.ci?.toLowerCase().includes(q) ||
+        s.person?.ci?.toLowerCase().includes(q) ||
         fullName(s).toLowerCase().includes(q);
       const r = results[s.id];
       const matchFilter = !filterConclusion || r?.conclusion === filterConclusion;
@@ -218,9 +218,9 @@ export default function GraduationPage() {
               >
                 <div style={{ padding: '16px 18px' }}>
                   <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, marginBottom: 14 }}>
-                    {s.photoUrl ? (
+                    {s.person?.photoUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img src={s.photoUrl} alt="" style={{ width: 48, height: 48, borderRadius: 10, objectFit: 'cover', flexShrink: 0 }} />
+                      <img src={s.person.photoUrl} alt="" style={{ width: 48, height: 48, borderRadius: 10, objectFit: 'cover', flexShrink: 0 }} />
                     ) : (
                       <div style={{
                         width: 48, height: 48, borderRadius: 10,
@@ -229,7 +229,7 @@ export default function GraduationPage() {
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
                         fontWeight: 800, fontSize: 16, flexShrink: 0,
                       }}>
-                        {initialsOf(s.firstName, s.lastName)}
+                        {initialsOf(s.person?.firstName, s.person?.lastName)}
                       </div>
                     )}
                     <div style={{ flex: 1, minWidth: 0 }}>
@@ -240,7 +240,7 @@ export default function GraduationPage() {
                       <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
                         <span style={{ fontFamily: 'monospace', fontWeight: 600 }}>{s.studentCode}</span>
                         <span style={{ margin: '0 6px' }}>·</span>
-                        CI {s.ci}
+                        CI {s.person?.ci}
                       </div>
                       <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
                         {s.career?.name ?? '—'} · {s.currentLevel}º semestre

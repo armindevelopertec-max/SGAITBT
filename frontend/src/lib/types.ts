@@ -10,21 +10,6 @@ export type Sex = 'MALE' | 'FEMALE';
 export type PersonStatus = 'ACTIVE' | 'INACTIVE';
 export type EmployeeType = 'DIRECTIVO' | 'DOCENTE' | 'ADMINISTRATIVO' | 'APOYO';
 
-export interface PersonIdentity {
-  firstName: string;
-  paternalSurname?: string;
-  maternalSurname?: string;
-  lastName: string;
-  ci: string;
-  ciExtension?: string;
-  birthDate?: string;
-  sex?: Sex;
-  phone?: string;
-  address?: string;
-  email: string;
-  photoUrl?: string;
-}
-
 export interface Institution {
   id: string;
   name: string;
@@ -101,27 +86,14 @@ export interface Subject {
 
 export interface Student {
   id: string;
-  firstName: string;
-  paternalSurname?: string;
-  maternalSurname?: string;
-  lastName: string;
   diplomaNumber?: string;
-  ci: string;
-  ciExtension?: string;
-  birthDate: string;
-  sex?: 'MALE' | 'FEMALE';
-  phone?: string;
-  address?: string;
-  email: string;
-  photoUrl?: string;
   studentCode: string;
   status: AcademicStatus;
   currentLevel: number;
   careerId?: string;
   career?: Career;
-  currentPeriodId?: string;
-  currentPeriod?: AcademicPeriod;
-  personaId?: string;
+  personId?: string;
+  person?: Person;
   entryYear?: string;
   createdAt: string;
 }
@@ -141,7 +113,7 @@ export interface Deposit {
   studentId?: string | null;
   student?: Student;
   personId?: string | null;
-  persona?: Person;
+  person?: Person;
 }
 
 export interface Enrollment {
@@ -149,7 +121,6 @@ export interface Enrollment {
   enrollmentNumber: string;
   enrollmentDate: string;
   status: EnrollmentStatus;
-  semester: number;
   totalAmount?: number;
   observations?: string;
   studentId: string;
@@ -171,11 +142,12 @@ export interface User {
   student?: Student;
   roles?: string[];
   userRoles?: { role?: { name: string } }[];
+  permissions?: string[];
+  photoUrl?: string | null;
 }
 
 export interface SubjectAssignment {
   id: string;
-  parallel: string;
   parallelId?: string;
   parallelEntity?: Parallel;
   classroom?: string;
@@ -293,7 +265,8 @@ export interface Employee {
   position?: string;
   personId: string;
   isActive: boolean;
-  persona?: Person;
+  person?: Person;
+  user?: User;
 }
 
 export interface PermissionInfo {

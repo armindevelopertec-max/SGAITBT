@@ -103,7 +103,11 @@ export default function CertificatesPage() {
     (a, b) => a.semester - b.semester || a.code.localeCompare(b.code),
   );
   const maxSemester = subjects.length > 0 ? Math.max(...subjects.map((s) => s.semester)) : 4;
-  const currentYear = Number(student?.currentPeriod?.year ?? new Date().getFullYear());
+  const sortedHistory = [...history].sort((a, b) =>
+    Number(b.academicPeriod?.year) - Number(a.academicPeriod?.year));
+  const currentYear = sortedHistory[0]?.academicPeriod?.year
+    ? Number(sortedHistory[0].academicPeriod.year)
+    : new Date().getFullYear();
   const entryYear = currentYear - Math.floor(((student?.currentLevel ?? 1) - 1) / 2);
   const numYears = Math.max(1, Math.ceil(maxSemester / 2));
   const years = Array.from({ length: numYears }, (_, i) => entryYear + i);
@@ -126,7 +130,7 @@ export default function CertificatesPage() {
   const entrySeq = entrySeqs.length > 0 ? Math.min(...entrySeqs) : 1;
   const entryLabel = `${roman(entrySeq)}/${entryYear}`;
 
-  const curPeriod = student?.currentPeriod;
+  const curPeriod = sortedHistory[0]?.academicPeriod;
   const boletaPeriodLabel = curPeriod?.year
     ? `${roman(Number(curPeriod.sequence))}/${curPeriod.year}`
     : '____';
@@ -217,11 +221,11 @@ export default function CertificatesPage() {
         <div className="flex gap-3 items-center" style={{ flexWrap: 'wrap' }}>
           <select className="select" style={{ flex: 1, minWidth: 240 }} value={studentId} onChange={(e) => e.target.value && loadStudent(e.target.value)}>
             <option value="">Seleccionar estudiante…</option>
-            {students.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.studentCode} — {s.firstName} {s.lastName}
-              </option>
-            ))}
+              {students.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.studentCode} — {s.person?.firstName} {s.person?.lastName}
+                </option>
+              ))}
           </select>
           <select className="select" style={{ width: 260 }} value={docType} onChange={(e) => setDocType(e.target.value as DocType)}>
             {DOC_TYPES.map((d) => (
@@ -266,19 +270,19 @@ export default function CertificatesPage() {
                 <tbody>
                   <tr>
                     <td style={{ width: '18%', padding: '3px 0' }}>C.I.:</td>
-                    <td style={{ width: '32%', fontWeight: 700 }}>{student.ci} {student.ciExtension ? `(${student.ciExtension})` : ''}</td>
+                    <td style={{ width: '32%', fontWeight: 700 }}>{student.person?.ci} {student.person?.ciExtension ? `(${student.person?.ciExtension})` : ''}</td>
                     <td style={{ width: '18%', padding: '3px 0' }}>FILIAL:</td>
                     <td style={{ width: '32%', fontWeight: 700 }}>Central El Alto</td>
                   </tr>
                   <tr>
                     <td style={{ padding: '3px 0' }}>APELLIDO PATERNO:</td>
-                    <td style={{ fontWeight: 700 }}>{student.paternalSurname ?? '—'}</td>
+                    <td style={{ fontWeight: 700 }}>{student.person?.paternalSurname ?? '—'}</td>
                     <td style={{ padding: '3px 0' }}>APELLIDO MATERNO:</td>
-                    <td style={{ fontWeight: 700 }}>{student.maternalSurname ?? '—'}</td>
+                    <td style={{ fontWeight: 700 }}>{student.person?.maternalSurname ?? '—'}</td>
                   </tr>
                   <tr>
                     <td style={{ padding: '3px 0' }}>NOMBRES:</td>
-                    <td style={{ fontWeight: 700 }}>{student.firstName}</td>
+                    <td style={{ fontWeight: 700 }}>{student.person?.firstName}</td>
                     <td style={{ padding: '3px 0' }}>NRO. FOLDER:</td>
                     <td style={{ fontWeight: 700 }}>{student.studentCode}</td>
                   </tr>
@@ -302,7 +306,7 @@ export default function CertificatesPage() {
                 <tbody>
                   <tr>
                     <td style={{ width: '18%', padding: '3px 0' }}>CUENTA:</td>
-                    <td style={{ width: '32%', fontWeight: 700 }}>{student.ci}</td>
+                    <td style={{ width: '32%', fontWeight: 700 }}>{student.person?.ci}</td>
                     <td style={{ width: '18%', padding: '3px 0' }}>FECHA DE INSCRIPCIÓN:</td>
                     <td style={{ fontWeight: 700 }}>{inscripcionStamp}</td>
                   </tr>
@@ -382,9 +386,9 @@ export default function CertificatesPage() {
               <p style={{ fontSize: 13, fontWeight: 700, marginBottom: 8 }}>Datos del estudiante:</p>
               <table style={{ width: '100%', fontSize: 12.5, marginBottom: 18 }}>
                 <tbody>
-                  <tr><td style={{ width: 160, padding: '3px 0' }}>Nombre:</td><td style={{ fontWeight: 700 }}>{student.firstName} {student.lastName}</td></tr>
-                  <tr><td style={{ padding: '3px 0' }}>C.I.:</td><td>{student.ci} {student.ciExtension ? `(${student.ciExtension})` : ''}</td></tr>
-                  <tr><td style={{ padding: '3px 0' }}>Celular:</td><td>{student.phone ?? '—'}</td></tr>
+                  <tr><td style={{ width: 160, padding: '3px 0' }}>Nombre:</td><td style={{ fontWeight: 700 }}>{student.person?.firstName} {student.person?.lastName}</td></tr>
+                  <tr><td style={{ padding: '3px 0' }}>C.I.:</td><td>{student.person?.ci} {student.person?.ciExtension ? `(${student.person?.ciExtension})` : ''}</td></tr>
+                  <tr><td style={{ padding: '3px 0' }}>Celular:</td><td>{student.person?.phone ?? '—'}</td></tr>
                   <tr><td style={{ padding: '3px 0' }}>Ingreso:</td><td>{entryLabel}</td></tr>
                   <tr><td style={{ padding: '3px 0' }}>Matrícula:</td><td>{student.studentCode}</td></tr>
                   <tr><td style={{ padding: '3px 0' }}>Plan:</td><td>{student.career?.code ?? '—'}</td></tr>
@@ -450,14 +454,14 @@ export default function CertificatesPage() {
                     <td style={{ width: 220, padding: '4px 0' }}>Nº de documento:</td>
                     <td style={{ fontWeight: 700 }}>{docNumber}</td>
                   </tr>
-                  <tr><td style={{ padding: '4px 0' }}>Estudiante:</td><td style={{ fontWeight: 700 }}>{student.firstName} {student.lastName}</td></tr>
-                  <tr><td style={{ padding: '4px 0' }}>CI:</td><td>{student.ci} {student.ciExtension ? `(${student.ciExtension})` : ''}</td></tr>
+                  <tr><td style={{ padding: '4px 0' }}>Estudiante:</td><td style={{ fontWeight: 700 }}>{student.person?.firstName} {student.person?.lastName}</td></tr>
+                  <tr><td style={{ padding: '4px 0' }}>CI:</td><td>{student.person?.ci} {student.person?.ciExtension ? `(${student.person?.ciExtension})` : ''}</td></tr>
                   <tr><td style={{ padding: '4px 0' }}>Código de estudiante:</td><td>{student.studentCode}</td></tr>
                   <tr><td style={{ padding: '4px 0' }}>Carrera:</td><td>{student.career?.name ?? '—'}</td></tr>
                   <tr><td style={{ padding: '4px 0' }}>Nivel actual:</td><td>{student.currentLevel}º semestre</td></tr>
                   <tr><td style={{ padding: '4px 0' }}>Estado académico:</td><td>{student.status}</td></tr>
                   {(docType === 'ENROLLMENT' || docType === 'REGULAR') && (
-                    <tr><td style={{ padding: '4px 0' }}>Gestión:</td><td>{student.currentPeriod?.periodName ?? '2026'}</td></tr>
+                    <tr><td style={{ padding: '4px 0' }}>Gestión:</td><td>{curPeriod?.periodName ?? '2026'}</td></tr>
                   )}
                 </tbody>
               </table>
@@ -500,8 +504,8 @@ export default function CertificatesPage() {
 
               {docType === 'STUDIES' && (
                 <p style={{ fontSize: 13, lineHeight: 1.7 }}>
-                  Se certifica que el (la) estudiante <strong>{student.firstName} {student.lastName}</strong>,
-                  con CI {student.ci}, es estudiante regular de la carrera de{' '}
+                  Se certifica que el (la) estudiante <strong>{student.person?.firstName} {student.person?.lastName}</strong>,
+                  con CI {student.person?.ci}, es estudiante regular de la carrera de{' '}
                   <strong>{student.career?.name ?? '—'}</strong> en el nivel {student.currentLevel}º semestre,
                   habiendo aprobado <strong>{approved}</strong> materias y reprobado <strong>{failed}</strong> de un total de{' '}
                   <strong>{history.length}</strong> materias cursadas, con un promedio general de{' '}
@@ -511,17 +515,17 @@ export default function CertificatesPage() {
 
               {docType === 'REGULAR' && (
                 <p style={{ fontSize: 13, lineHeight: 1.7 }}>
-                  Se certifica que el (la) estudiante <strong>{student.firstName} {student.lastName}</strong>,
-                  portador(a) del CI {student.ci}, código {student.studentCode}, cursa la carrera de{' '}
+                  Se certifica que el (la) estudiante <strong>{student.person?.firstName} {student.person?.lastName}</strong>,
+                  portador(a) del CI {student.person?.ci}, código {student.studentCode}, cursa la carrera de{' '}
                   <strong>{student.career?.name ?? '—'}</strong> durante la gestión{' '}
-                  <strong>{student.currentPeriod?.periodName ?? '2026'}</strong>, encontrándose en situación regular.
+                  <strong>{curPeriod?.periodName ?? '2026'}</strong>, encontrándose en situación regular.
                 </p>
               )}
 
               {docType === 'ENROLLMENT' && (
                 <p style={{ fontSize: 13, lineHeight: 1.7 }}>
-                  Se hace constar que el (la) estudiante <strong>{student.firstName} {student.lastName}</strong>,
-                  CI {student.ci}, código {student.studentCode}, está matriculado(a) en la carrera de{' '}
+                  Se hace constar que el (la) estudiante <strong>{student.person?.firstName} {student.person?.lastName}</strong>,
+                  CI {student.person?.ci}, código {student.studentCode}, está matriculado(a) en la carrera de{' '}
                   <strong>{student.career?.name ?? '—'}</strong>, en el {student.currentLevel}º semestre,
                   correspondiente a la gestión académica 2026, en la modalidad vigente de la institución.
                 </p>

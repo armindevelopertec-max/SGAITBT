@@ -1,6 +1,6 @@
 import {
-  Injectable,
   ConflictException,
+  Injectable,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -8,7 +8,7 @@ import { Brackets, Repository } from 'typeorm';
 import { Student } from './entities/student.entity';
 import { CreateStudentDto, UpdateStudentDto, StudentQueryDto } from './dto/student.dto';
 import { Career } from '@modules/career/entities/career.entity';
-import { AcademicPeriod } from '@modules/academic-period/entities/academic-period.entity';
+import { Person } from '@modules/person/entities/person.entity';
 import { AcademicStatus } from '@common/enums';
 import { UserService } from '@modules/user/user.service';
 
@@ -19,20 +19,24 @@ export class StudentService {
     private readonly studentRepository: Repository<Student>,
     @InjectRepository(Career)
     private readonly careerRepository: Repository<Career>,
-    @InjectRepository(AcademicPeriod)
-    private readonly periodRepository: Repository<AcademicPeriod>,
+    @InjectRepository(Person)
+    private readonly personRepository: Repository<Person>,
     private readonly userService: UserService,
   ) {}
 
   async create(createDto: CreateStudentDto): Promise<Student> {
-    const existingCi = await this.studentRepository.findOne({ where: { ci: createDto.ci } });
-    if (existingCi) {
-      throw new ConflictException('Ya existe un estudiante con ese CI');
+    const person = await this.personRepository.findOne({
+      where: { id: createDto.personId },
+    });
+    if (!person) {
+      throw new NotFoundException('Persona no encontrada');
     }
 
-    const existingEmail = await this.studentRepository.findOne({ where: { email: createDto.email } });
-    if (existingEmail) {
-      throw new ConflictException('Ya existe un estudiante con ese correo electrónico');
+    const existingStudent = await this.studentRepository.findOne({
+      where: { personId: createDto.personId },
+    });
+    if (existingStudent) {
+      throw new ConflictException('Esta persona ya tiene una ficha de estudiante');
     }
 
     if (createDto.careerId) {
@@ -43,8 +47,11 @@ export class StudentService {
     }
 
     const student = this.studentRepository.create({
-      ...createDto,
-      ...this.deriveFullName(createDto),
+      personId: createDto.personId,
+      diplomaNumber: createDto.diplomaNumber,
+      status: createDto.status ?? AcademicStatus.PRE_ENROLLED,
+      currentLevel: createDto.currentLevel ?? 1,
+      careerId: createDto.careerId,
       studentCode: await this.generateStudentCode(),
     });
 
@@ -80,8 +87,8 @@ export class StudentService {
     const { status, careerId, search } = query || {};
     const qb = this.studentRepository
       .createQueryBuilder('student')
+      .leftJoinAndSelect('student.person', 'person')
       .leftJoinAndSelect('student.career', 'career')
-      .leftJoinAndSelect('student.currentPeriod', 'currentPeriod')
       .orderBy('student.createdAt', 'DESC');
 
     if (status) {
@@ -94,9 +101,9 @@ export class StudentService {
       qb.andWhere(
         new Brackets((sub) => {
           sub
-            .where('LOWER(student.firstName) LIKE LOWER(:search)', { search: `%${search}%` })
-            .orWhere('LOWER(student.lastName) LIKE LOWER(:search)', { search: `%${search}%` })
-            .orWhere('student.ci LIKE :search', { search: `%${search}%` })
+            .where('LOWER(person.firstName) LIKE LOWER(:search)', { search: `%${search}%` })
+            .orWhere('LOWER(person.lastName) LIKE LOWER(:search)', { search: `%${search}%` })
+            .orWhere('person.ci LIKE :search', { search: `%${search}%` })
             .orWhere('student.studentCode LIKE :search', { search: `%${search}%` });
         }),
       );
@@ -111,15 +118,15 @@ export class StudentService {
 
   async findByCi(ci: string): Promise<Student | null> {
     return this.studentRepository.findOne({
-      where: { ci },
-      relations: ['career', 'currentPeriod'],
+      where: { person: { ci } as any },
+      relations: ['person', 'career'],
     });
   }
 
   async findByStudentCode(code: string): Promise<Student | null> {
     return this.studentRepository.findOne({
       where: { studentCode: code },
-      relations: ['career', 'currentPeriod'],
+      relations: ['person', 'career'],
     });
   }
 
@@ -133,24 +140,13 @@ export class StudentService {
       }
     }
 
-    Object.assign(student, updateDto, this.deriveFullName(updateDto));
+    Object.assign(student, updateDto);
     return this.studentRepository.save(student);
   }
 
   async updateStatus(id: string, status: AcademicStatus): Promise<Student> {
     const student = await this.findStrict(id);
     student.status = status;
-    return this.studentRepository.save(student);
-  }
-
-  async assignCurrentPeriod(id: string, periodId: string): Promise<Student> {
-    const student = await this.findStrict(id);
-    const period = await this.periodRepository.findOne({ where: { id: periodId } });
-    if (!period) {
-      throw new NotFoundException('Gestión académica no encontrada');
-    }
-    student.currentPeriod = period;
-    student.currentPeriodId = periodId;
     return this.studentRepository.save(student);
   }
 
@@ -182,7 +178,7 @@ export class StudentService {
   }
 
   async getEntryYear(studentId: string): Promise<{ periodName: string; year: string } | null> {
-    const enrollment = await this.studentRepository
+    const student = await this.studentRepository
       .createQueryBuilder('student')
       .leftJoinAndSelect('student.enrollments', 'enrollment')
       .leftJoinAndSelect('enrollment.academicPeriod', 'period')
@@ -190,11 +186,11 @@ export class StudentService {
       .orderBy('enrollment.enrollmentDate', 'ASC')
       .getOne();
 
-    if (!enrollment || !enrollment.enrollments || enrollment.enrollments.length === 0) {
+    if (!student || !student.enrollments || student.enrollments.length === 0) {
       return null;
     }
 
-    const firstEnrollment = enrollment.enrollments[0];
+    const firstEnrollment = student.enrollments[0];
     if (firstEnrollment.academicPeriod?.year && firstEnrollment.academicPeriod?.periodName) {
       return {
         periodName: firstEnrollment.academicPeriod.periodName,
@@ -208,22 +204,11 @@ export class StudentService {
   private async findStrict(id: string): Promise<Student> {
     const student = await this.studentRepository.findOne({
       where: { id },
-      relations: ['career', 'currentPeriod', 'enrollments', 'deposits'],
+      relations: ['person', 'career', 'enrollments', 'deposits'],
     });
     if (!student) {
       throw new NotFoundException('Estudiante no encontrado');
     }
     return student;
-  }
-
-  private deriveFullName(
-    data: { paternalSurname?: string; maternalSurname?: string; lastName?: string },
-  ): { lastName: string } {
-    const paternal = data.paternalSurname?.trim();
-    const maternal = data.maternalSurname?.trim();
-    if (paternal || maternal) {
-      return { lastName: [paternal, maternal].filter(Boolean).join(' ').trim() };
-    }
-    return { lastName: data.lastName?.trim() ?? '' };
   }
 }

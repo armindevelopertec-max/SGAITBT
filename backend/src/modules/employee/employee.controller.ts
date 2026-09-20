@@ -33,7 +33,7 @@ export class EmployeeController {
 
   @Get('me')
   findMe(@CurrentUser() user: User) {
-    return this.employeeService.findByPersonaId(user.personaId);
+    return this.employeeService.findByPersonId(user.personId);
   }
 
   @Post()

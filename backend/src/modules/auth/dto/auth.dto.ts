@@ -11,17 +11,6 @@ export class LoginDto {
   password: string;
 }
 
-export class LoginWithIdentifierDto {
-  @IsString()
-  @IsNotEmpty()
-  identifier: string;
-
-  @IsString()
-  @IsNotEmpty()
-  @MinLength(6)
-  password: string;
-}
-
 export class RefreshTokenDto {
   @IsString()
   @IsNotEmpty()

@@ -21,6 +21,8 @@ const TYPE_LABEL: Record<string, string> = Object.fromEntries(
 
 const TYPE_ORDER: EmployeeType[] = ['DIRECTIVO', 'DOCENTE', 'ADMINISTRATIVO', 'APOYO'];
 
+const TYPES_WITH_ACCOUNT: EmployeeType[] = ['DIRECTIVO', 'DOCENTE', 'ADMINISTRATIVO'];
+
 function displayName(p?: Person): string {
   if (!p) return '—';
   return `${p.firstName} ${p.paternalSurname ?? ''} ${p.maternalSurname ?? ''}`.trim() || '—';
@@ -35,6 +37,42 @@ function initialsOf(p?: Person): string {
     .toUpperCase();
 }
 
+interface EmployeeForm {
+  personId: string;
+  ci: string;
+  ciExtension: string;
+  firstName: string;
+  paternalSurname: string;
+  maternalSurname: string;
+  lastName: string;
+  birthDate: string;
+  sex: string;
+  phone: string;
+  email: string;
+  address: string;
+  employeeType: EmployeeType;
+  position: string;
+  hireDate: string;
+}
+
+const EMPTY_FORM: EmployeeForm = {
+  personId: '',
+  ci: '',
+  ciExtension: '',
+  firstName: '',
+  paternalSurname: '',
+  maternalSurname: '',
+  lastName: '',
+  birthDate: '',
+  sex: '',
+  phone: '',
+  email: '',
+  address: '',
+  employeeType: 'ADMINISTRATIVO',
+  position: '',
+  hireDate: '',
+};
+
 export default function EmployeesPage() {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [persons, setPersons] = useState<Person[]>([]);
@@ -43,12 +81,7 @@ export default function EmployeesPage() {
   const [error, setError] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Employee | null>(null);
-  const [form, setForm] = useState({
-    personId: '',
-    employeeType: 'ADMINISTRATIVO' as EmployeeType,
-    position: '',
-    hireDate: '',
-  });
+  const [form, setForm] = useState<EmployeeForm>(EMPTY_FORM);
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState<EmployeeType | ''>('');
 
@@ -74,7 +107,7 @@ export default function EmployeesPage() {
 
   function openCreate() {
     setEditing(null);
-    setForm({ personId: '', employeeType: 'ADMINISTRATIVO', position: '', hireDate: '' });
+    setForm(EMPTY_FORM);
     setModalOpen(true);
   }
 
@@ -82,6 +115,17 @@ export default function EmployeesPage() {
     setEditing(e);
     setForm({
       personId: e.personId,
+      ci: e.person?.ci ?? '',
+      ciExtension: e.person?.ciExtension ?? '',
+      firstName: e.person?.firstName ?? '',
+      paternalSurname: e.person?.paternalSurname ?? '',
+      maternalSurname: e.person?.maternalSurname ?? '',
+      lastName: e.person?.lastName ?? '',
+      birthDate: e.person?.birthDate ? String(e.person.birthDate).slice(0, 10) : '',
+      sex: e.person?.sex ?? '',
+      phone: e.person?.phone ?? '',
+      email: e.person?.email ?? '',
+      address: e.person?.address ?? '',
       employeeType: e.employeeType,
       position: e.position ?? '',
       hireDate: e.hireDate ? String(e.hireDate).slice(0, 10) : '',
@@ -92,13 +136,41 @@ export default function EmployeesPage() {
   async function submit() {
     setSaving(true);
     try {
-      const payload = {
-        employeeType: form.employeeType,
-        position: form.position,
-        hireDate: form.hireDate || undefined,
-      };
-      if (editing) await apiPatch(`/employees/${editing.id}`, payload);
-      else await apiPost('/employees', { personId: form.personId, ...payload });
+      if (editing) {
+        await apiPatch(`/employees/${editing.id}`, {
+          employeeType: form.employeeType,
+          position: form.position,
+          hireDate: form.hireDate || undefined,
+        });
+      } else {
+        const lastName = [form.paternalSurname.trim(), form.maternalSurname.trim()].filter(Boolean).join(' ') || form.lastName.trim();
+        const person = await apiPost<{ id: string }>('/persons', {
+          ci: form.ci,
+          ciExtension: form.ciExtension || undefined,
+          firstName: form.firstName,
+          paternalSurname: form.paternalSurname || undefined,
+          maternalSurname: form.maternalSurname || undefined,
+          lastName,
+          birthDate: form.birthDate || undefined,
+          sex: form.sex || undefined,
+          phone: form.phone || undefined,
+          email: form.email,
+          address: form.address || undefined,
+        });
+        const employee = await apiPost<{ id: string }>('/employees', {
+          personId: person.id,
+          employeeType: form.employeeType,
+          position: form.position,
+          hireDate: form.hireDate || undefined,
+        });
+
+        if (TYPES_WITH_ACCOUNT.includes(form.employeeType)) {
+          const result = await apiPost<{ user: { username: string }; password: string }>(`/users/employee/${employee.id}`, {
+            roleKey: form.employeeType,
+          });
+          alert(`Cuenta creada para ${displayName({ firstName: form.firstName, paternalSurname: form.paternalSurname, maternalSurname: form.maternalSurname } as Person)}\n\nUsuario: ${result.user.username}\nContraseña: ${result.password}\n\nEntregue estas credenciales al empleado.`);
+        }
+      }
       setModalOpen(false);
       await load();
     } catch (err) {
@@ -109,9 +181,33 @@ export default function EmployeesPage() {
   }
 
   async function deactivate(e: Employee) {
-    if (!window.confirm(`¿Deshabilitar a ${displayName(e.persona)}?`)) return;
+    if (!window.confirm(`¿Deshabilitar a ${displayName(e.person)}?`)) return;
     try {
       await apiDelete(`/employees/${e.id}`);
+      await load();
+    } catch (err) {
+      setError(extractError(err));
+    }
+  }
+
+  async function createUserAccount(e: Employee) {
+    if (!window.confirm(`¿Crear cuenta de usuario para ${displayName(e.person)}?`)) return;
+    try {
+      const result = await apiPost<{ user: { username: string }; password: string }>(`/users/employee/${e.id}`, {
+        roleKey: e.employeeType,
+      });
+      alert(`Cuenta creada para ${displayName(e.person)}\n\nUsuario: ${result.user.username}\nContraseña: ${result.password}\n\nEntregue estas credenciales al empleado.`);
+      await load();
+    } catch (err) {
+      setError(extractError(err));
+    }
+  }
+
+  async function resetPassword(e: Employee) {
+    if (!window.confirm(`¿Restablecer contraseña de ${displayName(e.person)}?`)) return;
+    try {
+      const result = await apiPost<{ username: string; password: string }>(`/users/employee/${e.id}/reset-password`);
+      alert(`Contraseña restablecida para ${displayName(e.person)}\n\nUsuario: ${result.username}\nNueva contraseña: ${result.password}\n\nEntregue estas credenciales al empleado.`);
       await load();
     } catch (err) {
       setError(extractError(err));
@@ -125,7 +221,7 @@ export default function EmployeesPage() {
   const searched = search
     ? filtered.filter((e) => {
         const q = search.toLowerCase();
-        const p = e.persona;
+        const p = e.person;
         return (
           e.employeeCode.toLowerCase().includes(q) ||
           displayName(p).toLowerCase().includes(q) ||
@@ -141,12 +237,7 @@ export default function EmployeesPage() {
     return m;
   }, [employees]);
 
-  const personOptions = useMemo(
-    () => persons.filter((p) => !p.employees?.length).map((p) => ({ id: p.id, name: `${displayName(p)} — CI ${p.ci}` })),
-    [persons],
-  );
-
-  const selectedPerson = editing?.persona ?? persons.find((p) => p.id === form.personId);
+  const selectedPerson = editing?.person ?? persons.find((p) => p.id === form.personId);
 
   if (loading && employees.length === 0) return <LoadingState />;
 
@@ -235,7 +326,7 @@ export default function EmployeesPage() {
               // eslint-disable-next-line @next/next/no-img-element
               <img
                 src={selectedPerson.photoUrl}
-                alt={displayName(e.persona)}
+                alt={displayName(e.person)}
                 style={{ width: 56, height: 56, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }}
               />
             ) : (
@@ -247,22 +338,29 @@ export default function EmployeesPage() {
                   fontWeight: 800, fontSize: 18, flexShrink: 0,
                 }}
               >
-                {initialsOf(e.persona)}
+                {initialsOf(e.person)}
               </div>
             )}
             <div style={{ minWidth: 0, flex: 1 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                <strong style={{ fontSize: 14 }}>{displayName(e.persona)}</strong>
+                <strong style={{ fontSize: 14 }}>{displayName(e.person)}</strong>
                 <span className="badge badge-primary">{TYPE_LABEL[e.employeeType]}</span>
                 <StatusBadge value={e.isActive ? 'ACTIVE' : 'INACTIVE'} />
               </div>
               <div className="text-muted text-sm" style={{ marginTop: 4 }}>
-                {e.employeeCode} · CI {e.persona?.ci ?? '—'}
+                {e.employeeCode} · CI {e.person?.ci ?? '—'}
               </div>
               {e.position && <div className="text-muted text-sm">📌 {e.position}</div>}
               {e.hireDate && <div className="text-muted text-sm">📅 {String(e.hireDate).slice(0, 10)}</div>}
+              {e.user && <div className="text-muted text-sm">🔑 Cuenta: {e.user.username}</div>}
               <div className="flex gap-2" style={{ marginTop: 8 }}>
                 <button className="btn btn-soft btn-sm" onClick={() => openEdit(e)}>Editar</button>
+                {e.user && TYPES_WITH_ACCOUNT.includes(e.employeeType) && (
+                  <button className="btn btn-outline btn-sm" onClick={() => resetPassword(e)}>Restablecer contraseña</button>
+                )}
+                {!e.user && (
+                  <button className="btn btn-outline btn-sm" onClick={() => createUserAccount(e)}>Crear cuenta</button>
+                )}
                 {e.isActive && (
                   <button className="btn btn-outline btn-sm" onClick={() => deactivate(e)}>Deshabilitar</button>
                 )}
@@ -279,7 +377,7 @@ export default function EmployeesPage() {
         footer={
           <>
             <button className="btn btn-outline" onClick={() => setModalOpen(false)}>Cancelar</button>
-            <button className="btn btn-primary" onClick={submit} disabled={saving || (!editing && !form.personId)}>
+            <button className="btn btn-primary" onClick={submit} disabled={saving}>
               {saving ? 'Guardando…' : 'Guardar'}
             </button>
           </>
@@ -287,24 +385,52 @@ export default function EmployeesPage() {
       >
         <div className="form-grid">
           {!editing && (
-            <div className="form-group" style={{ gridColumn: '1 / -1' }}>
-              <label className="form-label">Persona</label>
-              <select
-                className="select"
-                value={form.personId}
-                onChange={(e) => setForm({ ...form, personId: e.target.value })}
-              >
-                <option value="">Seleccionar persona…</option>
-                {personOptions.map((p) => (
-                  <option key={p.id} value={p.id}>{p.name}</option>
-                ))}
-              </select>
-              {form.personId && selectedPerson && (
-                <span className="text-muted text-sm" style={{ marginTop: 4 }}>
-                  CI {selectedPerson.ci}{selectedPerson.ciExtension ? ` (${selectedPerson.ciExtension})` : ''} · {selectedPerson.email}
-                </span>
-              )}
-            </div>
+            <>
+              <div className="form-group">
+                <label className="form-label">Nombres</label>
+                <input className="form-control" value={form.firstName} onChange={(e) => setForm({ ...form, firstName: e.target.value })} />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Apellido paterno</label>
+                <input className="form-control" value={form.paternalSurname} onChange={(e) => setForm({ ...form, paternalSurname: e.target.value })} />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Apellido materno</label>
+                <input className="form-control" value={form.maternalSurname} onChange={(e) => setForm({ ...form, maternalSurname: e.target.value })} />
+              </div>
+              <div className="form-group">
+                <label className="form-label">CI</label>
+                <input className="form-control" value={form.ci} onChange={(e) => setForm({ ...form, ci: e.target.value })} />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Ext.</label>
+                <input className="form-control" value={form.ciExtension} onChange={(e) => setForm({ ...form, ciExtension: e.target.value })} />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Correo</label>
+                <input className="form-control" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Teléfono</label>
+                <input className="form-control" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Fecha de nacimiento</label>
+                <input className="form-control" type="date" value={form.birthDate} onChange={(e) => setForm({ ...form, birthDate: e.target.value })} />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Sexo</label>
+                <select className="select" value={form.sex} onChange={(e) => setForm({ ...form, sex: e.target.value })}>
+                  <option value="">—</option>
+                  <option value="MALE">Masculino</option>
+                  <option value="FEMALE">Femenino</option>
+                </select>
+              </div>
+              <div className="form-group" style={{ gridColumn: '1 / -1' }}>
+                <label className="form-label">Dirección</label>
+                <input className="form-control" value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} />
+              </div>
+            </>
           )}
           <div className="form-group">
             <label className="form-label">Tipo</label>

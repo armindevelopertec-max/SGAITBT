@@ -80,18 +80,6 @@ export const NAV_SECTIONS: NavSection[] = [
         permissions: ['assignments.view', 'students.view'],
       },
       {
-        label: 'Usuarios',
-        href: '/users',
-        icon: 'users',
-        permissions: ['users.view'],
-      },
-      {
-        label: 'Personas',
-        href: '/persons',
-        icon: 'person',
-        permissions: ['persons.view'],
-      },
-      {
         label: 'Empleados',
         href: '/employees',
         icon: 'employee',

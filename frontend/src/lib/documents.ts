@@ -1,7 +1,7 @@
 import { jsPDF } from 'jspdf';
 import QRCode from 'qrcode';
 import { Student, AcademicHistoryRecord, Subject, Institution, SubjectAssignment } from '@/lib/types';
-import { fullSurname, paternalOf, maternalOf, ciText, formatDate } from '@/lib/utils';
+import { fullSurname, paternalOf, maternalOf, ciText, formatDate, loadImageDataUrl } from '@/lib/utils';
 import { COLORS, INSTITUTION_SUFFIX } from '@/lib/constants';
 
 export type CertificateDocType = 'NOTES' | 'STUDIES' | 'REGULAR' | 'ENROLLMENT' | 'HISTORY' | 'ASIGNACION';
@@ -48,7 +48,11 @@ function roman(n: number): string {
 }
 
 function entryLabelFor(student: Student, history: AcademicHistoryRecord[]): string {
-  const currentYear = Number(student.currentPeriod?.year ?? new Date().getFullYear());
+  const sortedByYear = [...history].sort((a, b) =>
+    Number(b.academicPeriod?.year) - Number(a.academicPeriod?.year));
+  const currentYear = sortedByYear[0]?.academicPeriod?.year
+    ? Number(sortedByYear[0].academicPeriod.year)
+    : new Date().getFullYear();
   const entryYear = currentYear - Math.floor(((student.currentLevel ?? 1) - 1) / 2);
   const seqs = history
     .filter((hh) => Number(hh.academicPeriod?.year) === entryYear)
@@ -57,9 +61,11 @@ function entryLabelFor(student: Student, history: AcademicHistoryRecord[]): stri
   return `${roman(seq)}/${entryYear}`;
 }
 
-function boletaPeriodLabel(student: Student): string {
-  const cp = student.currentPeriod;
-  return cp?.year ? `${roman(Number(cp.sequence))}/${cp.year}` : '____';
+function boletaPeriodLabel(history: AcademicHistoryRecord[]): string {
+  const sortedByYear = [...history].sort((a, b) =>
+    Number(b.academicPeriod?.year) - Number(a.academicPeriod?.year));
+  const latest = sortedByYear[0]?.academicPeriod;
+  return latest?.year ? `${roman(Number(latest.sequence))}/${latest.year}` : '____';
 }
 
 function truncate(doc: jsPDF, text: string, width: number): string {
@@ -68,23 +74,6 @@ function truncate(doc: jsPDF, text: string, width: number): string {
   if (doc.getTextWidth(s) <= width) return s;
   const lines = doc.splitTextToSize(s, width);
   return lines.length > 1 ? `${lines.slice(0, 1).join(' ')}…` : s;
-}
-
-async function loadImageDataUrl(url?: string): Promise<string | null> {
-  if (!url) return null;
-  try {
-    const res = await fetch(url);
-    if (!res.ok) return null;
-    const blob = await res.blob();
-    return new Promise((resolve) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(reader.result as string);
-      reader.onerror = () => resolve(null);
-      reader.readAsDataURL(blob);
-    });
-  } catch {
-    return null;
-  }
 }
 
 function addLogo(doc: jsPDF, logoUrl: string | null, x: number, y: number, size: number): void {
@@ -324,8 +313,8 @@ function drawSignatures(
 function buildQrDataUrl(student: Student): Promise<string | null> {
   const payload = [
     'INSTITUTO TECNOLÓGICO \u201CBOLIVIANA DE TECNOLOGÍA\u201D',
-    `Estudiante: ${student.firstName} ${fullSurname(student)}`,
-    `CI: ${student.ci || ''}`,
+    `Estudiante: ${student.person?.firstName || ''} ${fullSurname(student.person)}`,
+    `CI: ${student.person?.ci || ''}`,
     `Código: ${student.studentCode || ''}`,
     `Carrera: ${student.career?.name || ''}`,
   ]
@@ -349,7 +338,7 @@ export async function generateInstitutionalDocument(data: CertificateData): Prom
     REGULAR: 'CERTIFICADO DE ESTUDIANTE REGULAR',
     ENROLLMENT: 'CONSTANCIA DE MATRÍCULA',
     HISTORY: 'HISTORIAL ACADÉMICO',
-    ASIGNACION: `BOLETA DE ASIGNACIÓN ${boletaPeriodLabel(student)}`,
+    ASIGNACION: `BOLETA DE ASIGNACIÓN ${boletaPeriodLabel(history)}`,
   };
 
   const logoUrl = await loadImageDataUrl(institution?.logoUrl ?? '/logo.png');
@@ -360,10 +349,12 @@ export async function generateInstitutionalDocument(data: CertificateData): Prom
   const subtitle = docType === 'ASIGNACION' ? 'ORIGINAL PARA ESTUDIANTE' : undefined;
   const pg = createFlow(doc, logoUrl, instName, titleMap[docType], subtitle);
 
-  const fullName = `${student.firstName} ${fullSurname(student)}`;
+  const fullName = `${student.person?.firstName || ''} ${fullSurname(student.person)}`;
   const docNumber = `DOC-${String(Math.floor(Math.random() * 9000) + 1000)}-SGA`;
 
   if (docType === 'ASIGNACION') {
+    const latestPeriod = [...history].sort((a, b) =>
+      Number(b.academicPeriod?.year) - Number(a.academicPeriod?.year))[0]?.academicPeriod;
     drawBoleta(doc, pg, {
       student,
       history,
@@ -371,7 +362,7 @@ export async function generateInstitutionalDocument(data: CertificateData): Prom
       address,
       phone,
       instName,
-      year: student.currentPeriod?.year || String(new Date().getFullYear()),
+      year: latestPeriod?.year || String(new Date().getFullYear()),
       entryLabel: entryLabelFor(student, history),
       qrUrl,
       credentials,
@@ -423,11 +414,11 @@ function drawBoleta(
 
   sectionTitle(doc, pg, 'DATOS DEL ESTUDIANTE');
   drawDataGrid(doc, pg, [
-    { label: 'C.I.:', value: ciText(student) },
+    { label: 'C.I.:', value: ciText(student.person) },
     { label: 'FILIAL:', value: 'Central El Alto' },
-    { label: 'APELLIDO PATERNO:', value: paternalOf(student) },
-    { label: 'APELLIDO MATERNO:', value: maternalOf(student) },
-    { label: 'NOMBRES:', value: student.firstName || '—' },
+    { label: 'APELLIDO PATERNO:', value: paternalOf(student.person) },
+    { label: 'APELLIDO MATERNO:', value: maternalOf(student.person) },
+    { label: 'NOMBRES:', value: student.person?.firstName || '—' },
     { label: 'NRO. FOLDER:', value: student.studentCode || '—' },
     { label: 'CARRERA:', value: student.career?.name || '—' },
     { label: 'GESTIÓN DE INGRESO:', value: entryLabel },
@@ -436,7 +427,7 @@ function drawBoleta(
   ], pg.getY());
 
   sectionTitle(doc, pg, 'DATOS DE ACCESO POR SISTEMA');
-  const accountLabel = credentials?.username || `AUT${student.ci || '—'}`;
+  const accountLabel = credentials?.username || `AUT${student.person?.ci || '—'}`;
   const passwordLabel = credentials?.password || 'Consultar en secretaría';
   drawDataGrid(doc, pg, [
     { label: 'CUENTA:', value: accountLabel },
@@ -467,19 +458,22 @@ function drawBoleta(
   sectionTitle(doc, pg, 'MATERIAS INSCRITAS');
   
   // Use assignments if provided, otherwise fall back to history filtering
-  let currentAssignments: Array<{ subject?: Subject; semester: number; parallel?: string; parallelEntity?: { shift?: string }; employee?: { persona?: { firstName?: string; paternalSurname?: string } } }> = [];
+  let currentAssignments: Array<{ subject?: Subject; semester: number; parallel?: string; parallelEntity?: { shift?: string }; employee?: { person?: { firstName?: string; paternalSurname?: string } } }> = [];
 
   if (assignments && assignments.length > 0) {
     currentAssignments = assignments.map((a) => ({
       subject: a.subject,
       semester: a.semester,
-      parallel: a.parallel,
+      parallel: a.parallelEntity?.code,
       parallelEntity: a.parallelEntity,
       employee: a.employee,
     }));
   } else {
-    // Fallback: filter history by current period
-    const cp = student.currentPeriod;
+    // Fallback: filter history by most recent period
+    const sortedHistory = [...history].sort((a, b) =>
+      Number(b.academicPeriod?.year) - Number(a.academicPeriod?.year) ||
+      Number(b.academicPeriod?.sequence) - Number(a.academicPeriod?.sequence));
+    const cp = sortedHistory[0]?.academicPeriod;
     currentAssignments = history
       .filter(
         (h) =>
@@ -607,9 +601,9 @@ function drawHistorial(
 
   sectionTitle(doc, pg, 'DATOS DEL ESTUDIANTE');
   drawDataGrid(doc, pg, [
-    { label: 'Nombre:', value: `${student.firstName} ${fullSurname(student)}` },
-    { label: 'C.I.:', value: ciText(student) },
-    { label: 'Celular:', value: student.phone || '—' },
+    { label: 'Nombre:', value: `${student.person?.firstName || ''} ${fullSurname(student.person)}` },
+    { label: 'C.I.:', value: ciText(student.person) },
+    { label: 'Celular:', value: student.person?.phone || '—' },
     { label: 'Ingreso:', value: entryLabelFor(student, history) },
     { label: 'Matrícula:', value: student.studentCode || '—' },
     { label: 'Plan:', value: student.career?.code || '—' },
@@ -627,7 +621,11 @@ function drawHistorial(
   );
   const maxSemester = subjects.length > 0 ? Math.max(...subjects.map((s) => s.semester)) : 4;
   const numYears = Math.max(1, Math.ceil(maxSemester / 2));
-  const currentYear = Number(student.currentPeriod?.year ?? new Date().getFullYear());
+  const sortedHistory = [...history].sort((a, b) =>
+    Number(b.academicPeriod?.year) - Number(a.academicPeriod?.year));
+  const currentYear = sortedHistory[0]?.academicPeriod?.year
+    ? Number(sortedHistory[0].academicPeriod.year)
+    : new Date().getFullYear();
   const entryYear = currentYear - Math.floor(((student.currentLevel ?? 1) - 1) / 2);
   const years = Array.from({ length: numYears }, (_, i) => entryYear + i);
 
@@ -794,16 +792,21 @@ function drawCertificado(
   const approved = history.filter((h) => h.status === 'APPROVED').length;
   const failed = history.filter((h) => h.status === 'FAILED').length;
 
+  const sortedHistory = [...history].sort((a, b) =>
+    Number(b.academicPeriod?.year) - Number(a.academicPeriod?.year) ||
+    Number(b.academicPeriod?.sequence) - Number(a.academicPeriod?.sequence));
+  const currentPeriodName = sortedHistory[0]?.academicPeriod?.periodName || '2026';
+
   drawDataGrid(doc, pg, [
     { label: 'Nº de documento:', value: docNumber },
     { label: 'Estudiante:', value: fullName },
-    { label: 'CI:', value: ciText(student) },
+    { label: 'CI:', value: ciText(student.person) },
     { label: 'Código de estudiante:', value: student.studentCode || '—' },
     { label: 'Carrera:', value: student.career?.name || '—' },
     { label: 'Nivel actual:', value: `${student.currentLevel}º semestre` },
     { label: 'Estado académico:', value: student.status },
     ...(docType === 'ENROLLMENT' || docType === 'REGULAR'
-      ? [{ label: 'Gestión:', value: student.currentPeriod?.periodName || '2026' }]
+      ? [{ label: 'Gestión:', value: currentPeriodName }]
       : []),
   ], pg.getY());
 
@@ -865,7 +868,7 @@ function drawCertificado(
     pg.down(10);
   } else if (docType === 'STUDIES') {
     const lines = doc.splitTextToSize(
-      `Se certifica que el (la) estudiante ${fullName}, con CI ${student.ci}, es estudiante regular de la carrera de ${student.career?.name ?? '—'} en el nivel ${student.currentLevel}º semestre, habiendo aprobado ${approved} materias y reprobado ${failed} de un total de ${history.length} materias cursadas, con un promedio general de ${avg} sobre 100.`,
+      `Se certifica que el (la) estudiante ${fullName}, con CI ${student.person?.ci || ''}, es estudiante regular de la carrera de ${student.career?.name ?? '—'} en el nivel ${student.currentLevel}º semestre, habiendo aprobado ${approved} materias y reprobado ${failed} de un total de ${history.length} materias cursadas, con un promedio general de ${avg} sobre 100.`,
       pageW(doc) - MARGIN_X * 2,
     );
     for (const line of lines) {
@@ -876,8 +879,8 @@ function drawCertificado(
   } else {
     const cuerpo =
       docType === 'REGULAR'
-        ? `Se certifica que el (la) estudiante ${fullName}, portador(a) del CI ${student.ci}, código ${student.studentCode}, cursa la carrera de ${student.career?.name ?? '—'} durante la gestión ${student.currentPeriod?.periodName ?? '2026'}, encontrándose en situación regular.`
-        : `Se hace constar que el (la) estudiante ${fullName}, CI ${student.ci}, código ${student.studentCode}, está matriculado(a) en la carrera de ${student.career?.name ?? '—'}, en el ${student.currentLevel}º semestre, correspondiente a la gestión académica ${student.currentPeriod?.periodName ?? '2026'}, en la modalidad vigente de la institución.`;
+        ? `Se certifica que el (la) estudiante ${fullName}, portador(a) del CI ${student.person?.ci || ''}, código ${student.studentCode}, cursa la carrera de ${student.career?.name ?? '—'} durante la gestión ${currentPeriodName}, encontrándose en situación regular.`
+        : `Se hace constar que el (la) estudiante ${fullName}, CI ${student.person?.ci || ''}, código ${student.studentCode}, está matriculado(a) en la carrera de ${student.career?.name ?? '—'}, en el ${student.currentLevel}º semestre, correspondiente a la gestión académica ${currentPeriodName}, en la modalidad vigente de la institución.`;
     const lines = doc.splitTextToSize(cuerpo, pageW(doc) - MARGIN_X * 2);
     for (const line of lines) {
       pg.ensure(5);

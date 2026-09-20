@@ -79,7 +79,7 @@ export default function CentralizersPage() {
             <option value="">Seleccionar asignación…</option>
             {assignments.map((a) => (
               <option key={a.id} value={a.id}>
-                {a.subject?.name} — {a.academicPeriod?.periodName ?? a.academicPeriod?.year ?? ''} — Paralelo {a.parallel}
+                {a.subject?.name} — {a.academicPeriod?.periodName ?? a.academicPeriod?.year ?? ''} — Paralelo {a.parallelEntity?.code}
               </option>
             ))}
           </select>
@@ -107,8 +107,8 @@ export default function CentralizersPage() {
               <tr><td style={{ fontWeight: 600 }}>Gestión:</td><td>{selected.academicPeriod?.periodName ?? selected.academicPeriod?.year ?? '—'}</td></tr>
               <tr><td style={{ fontWeight: 600 }}>Semestre:</td><td>{selected.semester}º</td></tr>
               <tr><td style={{ fontWeight: 600 }}>Materia:</td><td>{selected.subject?.name ?? '—'}</td></tr>
-              <tr><td style={{ fontWeight: 600 }}>Docente:</td><td>{selected.employee ? personName(selected.employee.persona) : '———'}</td></tr>
-              <tr><td style={{ fontWeight: 600 }}>Paralelo:</td><td>{selected.parallel}</td></tr>
+              <tr><td style={{ fontWeight: 600 }}>Docente:</td><td>{selected.employee ? personName(selected.employee.person) : '———'}</td></tr>
+              <tr><td style={{ fontWeight: 600 }}>Paralelo:</td><td>{selected.parallelEntity?.code}</td></tr>
             </tbody>
           </table>
 
@@ -133,8 +133,8 @@ export default function CentralizersPage() {
               {assignGrades.map((g, i) => (
                 <tr key={g.id}>
                   <td>{i + 1}</td>
-                  <td>{g.student?.firstName} {g.student?.lastName}</td>
-                  <td>{g.student?.ci}</td>
+                  <td>{g.student?.person?.firstName} {g.student?.person?.lastName}</td>
+                  <td>{g.student?.person?.ci}</td>
                   <td>{g.firstPartial ?? '-'}</td>
                   <td>{g.secondPartial ?? '-'}</td>
                   <td>{g.practices ?? '-'}</td>

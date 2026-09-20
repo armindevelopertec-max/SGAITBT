@@ -74,16 +74,16 @@ export class EnrollmentService {
         studentId: createDto.studentId,
         status: DepositStatus.APPROVED,
       });
-      if (approvedDeposit.length === 0 && student.personaId) {
+      if (approvedDeposit.length === 0 && student.personId) {
         // Depósito hecho como aspirante (ligado a la persona, sin ficha aún).
         const aspirantVerified = await this.depositService.findAll({
-          personId: student.personaId,
+          personId: student.personId,
           status: DepositStatus.VERIFIED,
         });
         const aspirantApproved =
           aspirantVerified.length === 0
             ? await this.depositService.findAll({
-                personId: student.personaId,
+                personId: student.personId,
                 status: DepositStatus.APPROVED,
               })
             : [];
@@ -100,18 +100,23 @@ export class EnrollmentService {
     }
 
     const enrollment = this.enrollmentRepository.create({
-      ...createDto,
+      studentId: createDto.studentId,
+      careerId: createDto.careerId,
+      academicPeriodId: createDto.academicPeriodId,
       enrollmentNumber: await this.generateEnrollmentNumber(createDto.academicPeriodId),
+      enrollmentDate: new Date(createDto.enrollmentDate),
       status: EnrollmentStatus.ACTIVE,
+      totalAmount: createDto.totalAmount,
+      observations: createDto.observations,
     });
 
     const saved = await this.enrollmentRepository.save(enrollment);
 
+    const semester = student.currentLevel ?? 1;
     await this.studentRepository.update(student.id, {
       status: AcademicStatus.ACTIVE,
       careerId: createDto.careerId,
-      currentLevel: createDto.semester,
-      currentPeriodId: createDto.academicPeriodId,
+      currentLevel: semester,
     });
 
     return saved;
@@ -136,7 +141,8 @@ export class EnrollmentService {
       careerId: student.career.id,
       academicPeriodId: dto.academicPeriodId,
       enrollmentDate: new Date().toISOString(),
-      semester,
+      totalAmount: undefined,
+      observations: undefined,
     });
   }
 
@@ -172,7 +178,7 @@ export class EnrollmentService {
 
     return this.enrollmentRepository.find({
       where,
-      relations: ['student', 'career', 'academicPeriod'],
+      relations: ['student', 'student.person', 'career', 'academicPeriod'],
       order: { createdAt: 'DESC' },
     });
   }
@@ -180,7 +186,7 @@ export class EnrollmentService {
   async findOne(id: string): Promise<Enrollment> {
     const enrollment = await this.enrollmentRepository.findOne({
       where: { id },
-      relations: ['student', 'career', 'academicPeriod'],
+      relations: ['student', 'student.person', 'career', 'academicPeriod'],
     });
     if (!enrollment) {
       throw new NotFoundException('Matrícula no encontrada');
@@ -191,7 +197,7 @@ export class EnrollmentService {
   async findByNumber(enrollmentNumber: string): Promise<Enrollment | null> {
     return this.enrollmentRepository.findOne({
       where: { enrollmentNumber },
-      relations: ['student', 'career', 'academicPeriod'],
+      relations: ['student', 'student.person', 'career', 'academicPeriod'],
     });
   }
 

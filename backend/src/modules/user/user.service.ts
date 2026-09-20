@@ -16,6 +16,7 @@ import {
 } from './dto/user.dto';
 import { UserStatus } from '@common/enums';
 import { Student } from '@modules/student/entities/student.entity';
+import { Employee } from '@modules/employee/entities/employee.entity';
 import { DEFAULT_ROLE_KEYS, LEGACY_ROLE_MAP, RbacService } from '@modules/rbac/rbac.service';
 import { generateRandomPassword } from '@common/utils/password.util';
 
@@ -26,6 +27,8 @@ export class UserService {
     private readonly userRepository: Repository<User>,
     @InjectRepository(Student)
     private readonly studentRepository: Repository<Student>,
+    @InjectRepository(Employee)
+    private readonly employeeRepository: Repository<Employee>,
     private readonly rbacService: RbacService,
   ) {}
 
@@ -64,7 +67,6 @@ export class UserService {
     const user = this.userRepository.create({
       username: createDto.username,
       email: createDto.email,
-      fullName: createDto.fullName,
       passwordHash,
       status: UserStatus.ACTIVE,
       studentId: createDto.studentId,
@@ -93,22 +95,74 @@ export class UserService {
     }
 
     const plainPassword = generateRandomPassword();
-    const username = `AUT${student.ci}`;
+    const username = `AUT${student.person?.ci}`;
     const passwordHash = await bcrypt.hash(plainPassword, 10);
 
     const user = this.userRepository.create({
       username,
-      email: student.email,
-      fullName: `${student.firstName} ${student.lastName}`,
+      email: student.person?.email,
       passwordHash,
       status: UserStatus.ACTIVE,
       studentId: student.id,
-      photoUrl: student.photoUrl,
+      photoUrl: student.person?.photoUrl,
     });
 
     const saved = await this.userRepository.save(user);
     await this.rbacService.assignRole(saved.id, DEFAULT_ROLE_KEYS.ESTUDIANTE);
     return { user: saved, password: plainPassword };
+  }
+
+  async createEmployeeUser(employeeId: string, roleKey: string = 'DOCENTE'): Promise<{ user: User; password: string }> {
+    const employee = await this.employeeRepository.findOne({
+      where: { id: employeeId },
+      relations: ['person'],
+    });
+    if (!employee) {
+      throw new NotFoundException('Empleado no encontrado');
+    }
+
+    const existing = await this.userRepository.findOne({
+      where: { employeeId },
+    });
+    if (existing) {
+      throw new ConflictException('El empleado ya tiene un usuario');
+    }
+
+    const plainPassword = generateRandomPassword();
+    const ciPart = employee.person?.ci?.substring(0, 6) || 'EMP';
+    const username = `EMP${ciPart}`;
+    const passwordHash = await bcrypt.hash(plainPassword, 10);
+
+    const user = this.userRepository.create({
+      username,
+      email: employee.person?.email,
+      passwordHash,
+      status: UserStatus.ACTIVE,
+      employeeId: employee.id,
+      photoUrl: employee.person?.photoUrl,
+    });
+
+    const saved = await this.userRepository.save(user);
+    await this.rbacService.assignRole(saved.id, roleKey);
+    return { user: saved, password: plainPassword };
+  }
+
+  async resetEmployeePassword(employeeId: string): Promise<{ username: string; password: string }> {
+    const user = await this.userRepository.findOne({
+      where: { employeeId },
+    });
+    if (!user) {
+      throw new NotFoundException('Usuario no encontrado para este empleado');
+    }
+
+    const plainPassword = generateRandomPassword();
+    const passwordHash = await bcrypt.hash(plainPassword, 10);
+
+    user.passwordHash = passwordHash;
+    user.mustChangePassword = true;
+    await this.userRepository.save(user);
+
+    return { username: user.username, password: plainPassword };
   }
 
   async resetStudentPassword(studentId: string): Promise<{ username: string; password: string }> {
@@ -132,7 +186,7 @@ export class UserService {
   async findByUsername(username: string): Promise<User | null> {
     return this.userRepository.findOne({
       where: { username },
-      relations: ['student'],
+      relations: ['student', 'person'],
     });
   }
 
@@ -140,8 +194,9 @@ export class UserService {
     return this.userRepository
       .createQueryBuilder('user')
       .leftJoinAndSelect('user.student', 'student')
+      .leftJoinAndSelect('student.person', 'person')
       .where('user.username = :identifier OR user.email = :identifier', { identifier })
-      .orWhere('student.ci = :ci', { ci: identifier })
+      .orWhere('person.ci = :ci', { ci: identifier })
       .getOne();
   }
 
@@ -160,7 +215,7 @@ export class UserService {
   async findOne(id: string): Promise<User> {
     const user = await this.userRepository.findOne({
       where: { id },
-      relations: ['student'],
+      relations: ['student', 'person'],
     });
     if (!user) {
       throw new NotFoundException('Usuario no encontrado');
@@ -173,6 +228,7 @@ export class UserService {
     const qb = this.userRepository
       .createQueryBuilder('user')
       .leftJoinAndSelect('user.student', 'student')
+      .leftJoinAndSelect('user.person', 'person')
       .leftJoinAndSelect('user.userRoles', 'userRoles')
       .leftJoinAndSelect('userRoles.role', 'assignedRole')
       .orderBy('user.createdAt', 'DESC');
@@ -180,16 +236,19 @@ export class UserService {
     if (status) qb.andWhere('user.status = :status', { status });
     if (search) {
       qb.andWhere(
-        '(LOWER(user.fullName) LIKE LOWER(:search) OR user.username LIKE :search OR user.email LIKE :search)',
+        '(LOWER(student.person.firstName) LIKE LOWER(:search) OR LOWER(student.person.lastName) LIKE LOWER(:search) OR LOWER(person.firstName) LIKE LOWER(:search) OR LOWER(person.lastName) LIKE LOWER(:search) OR user.username LIKE :search OR user.email LIKE :search)',
         { search: `%${search}%` },
       );
     }
 
     const users = await qb.getMany();
-    return users.map((u) => ({
-      ...u,
-      roles: u.userRoles?.map((ur) => ur.role.name) ?? [],
-    }) as User);
+    return users.map((u) => {
+      const { userRoles, ...rest } = u;
+      return {
+        ...rest,
+        roles: userRoles?.map((ur) => ur.role.name) ?? [],
+      };
+    }) as unknown as User[];
   }
 
   async findByRole(role: string): Promise<User[]> {

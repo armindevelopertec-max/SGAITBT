@@ -139,7 +139,7 @@ export default function AttendancePage() {
                 <tr key={a.id}>
                   <td><strong>{a.subject?.name}</strong></td>
                   <td>{a.academicPeriod?.periodName ?? '—'}</td>
-                  <td>{a.parallel}</td>
+                  <td>{a.parallelEntity?.code}</td>
                   <td>{(a.enrollments ?? []).length}</td>
                   <td>
                     <div className="flex gap-2">
@@ -241,8 +241,8 @@ export default function AttendancePage() {
               )}
               {rows.map((r) => (
                 <tr key={r.studentId}>
-                  <td>{students.find((s) => s.id === r.studentId)?.firstName}{' '}
-                      {students.find((s) => s.id === r.studentId)?.lastName}</td>
+                  <td>{students.find((s) => s.id === r.studentId)?.person?.firstName}{' '}
+                      {students.find((s) => s.id === r.studentId)?.person?.lastName}</td>
                   <td><Change sid={r.studentId} /></td>
                 </tr>
               ))}

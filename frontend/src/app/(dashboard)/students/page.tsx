@@ -27,7 +27,7 @@ const EMPTY = {
 };
 
 function fullName(s: Student): string {
-  return `${s.firstName} ${s.lastName}`.trim();
+  return `${s.person?.firstName || ''} ${s.person?.lastName || ''}`.trim();
 }
 
 function initialsOf(s: Student): string {
@@ -81,18 +81,18 @@ export default function StudentsPage() {
   function openEdit(s: Student) {
     setEditing(s);
     setForm({
-      firstName: s.firstName,
-      paternalSurname: s.paternalSurname ?? '',
-      maternalSurname: s.maternalSurname ?? '',
-      lastName: s.lastName,
+      firstName: s.person?.firstName || '',
+      paternalSurname: s.person?.paternalSurname ?? '',
+      maternalSurname: s.person?.maternalSurname ?? '',
+      lastName: s.person?.lastName ?? '',
       diplomaNumber: s.diplomaNumber ?? '',
-      ci: s.ci,
-      ciExtension: s.ciExtension ?? '',
-      birthDate: s.birthDate,
-      sex: s.sex ?? '',
-      phone: s.phone ?? '',
-      address: s.address ?? '',
-      email: s.email,
+      ci: s.person?.ci ?? '',
+      ciExtension: s.person?.ciExtension ?? '',
+      birthDate: s.person?.birthDate ?? '',
+      sex: s.person?.sex ?? '',
+      phone: s.person?.phone ?? '',
+      address: s.person?.address ?? '',
+      email: s.person?.email ?? '',
       careerId: s.careerId ?? '',
       currentLevel: s.currentLevel,
     });
@@ -101,15 +101,34 @@ export default function StudentsPage() {
 
   async function submit() {
     try {
-      const payload = {
-        ...form,
-        lastName:
-          form.paternalSurname.trim() || form.maternalSurname.trim()
-            ? [form.paternalSurname.trim(), form.maternalSurname.trim()].filter(Boolean).join(' ')
-            : form.lastName.trim(),
-      };
-      if (editing) await apiPatch(`/students/${editing.id}`, payload);
-      else await apiPost('/students', payload);
+      if (editing) {
+        await apiPatch(`/students/${editing.id}`, {
+          diplomaNumber: form.diplomaNumber,
+          currentLevel: form.currentLevel,
+          careerId: form.careerId || undefined,
+        });
+      } else {
+        const lastName = [form.paternalSurname.trim(), form.maternalSurname.trim()].filter(Boolean).join(' ') || form.lastName.trim();
+        const person = await apiPost<{ id: string }>('/persons', {
+          ci: form.ci,
+          ciExtension: form.ciExtension || undefined,
+          firstName: form.firstName,
+          paternalSurname: form.paternalSurname || undefined,
+          maternalSurname: form.maternalSurname || undefined,
+          lastName,
+          birthDate: form.birthDate || undefined,
+          sex: form.sex || undefined,
+          phone: form.phone || undefined,
+          email: form.email,
+          address: form.address || undefined,
+        });
+        await apiPost('/students', {
+          personId: person.id,
+          diplomaNumber: form.diplomaNumber || undefined,
+          currentLevel: form.currentLevel,
+          careerId: form.careerId || undefined,
+        });
+      }
       setModalOpen(false);
       await load();
     } catch (err) {
@@ -117,9 +136,11 @@ export default function StudentsPage() {
     }
   }
 
-  async function createUser(s: Student) {
+  async function resetPassword(s: Student) {
+    if (!window.confirm(`¿Restablecer la contraseña de ${fullName(s)}?`)) return;
     try {
-      await apiPost(`/users/student/${s.id}`);
+      const result = await apiPost<{ username: string; password: string }>(`/users/student/${s.id}/reset-password`);
+      alert(`Contraseña restablecida para ${fullName(s)}\n\nUsuario: ${result.username}\nNueva contraseña: ${result.password}\n\nEntregue estas credenciales al estudiante.`);
       await load();
     } catch (err) {
       setError(extractError(err));
@@ -148,9 +169,9 @@ export default function StudentsPage() {
     const q = search.toLowerCase();
     const matchesSearch =
       !q ||
-      s.firstName.toLowerCase().includes(q) ||
-      s.lastName.toLowerCase().includes(q) ||
-      s.ci.includes(search) ||
+      (s.person?.firstName?.toLowerCase().includes(q) ?? false) ||
+      (s.person?.lastName?.toLowerCase().includes(q) ?? false) ||
+      (s.person?.ci?.includes(search) ?? false) ||
       s.studentCode.toLowerCase().includes(q);
     const matchesStatus = !statusFilter || s.status === statusFilter;
     return matchesSearch && matchesStatus;
@@ -278,9 +299,9 @@ export default function StudentsPage() {
               gap: 12,
             }}
           >
-            {s.photoUrl ? (
+            {s.person?.photoUrl ? (
               <img
-                src={s.photoUrl}
+                src={s.person.photoUrl}
                 alt={fullName(s)}
                 style={{ width: 56, height: 56, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }}
               />
@@ -312,16 +333,14 @@ export default function StudentsPage() {
                 <Badge label={s.studentCode} color="info" />
               </div>
               <div className="text-muted text-sm" style={{ marginTop: 4 }}>
-                CI {s.ci}{s.ciExtension ? ` (${s.ciExtension})` : ''} · {s.currentLevel}º nivel
+                CI {s.person?.ci}{s.person?.ciExtension ? ` (${s.person?.ciExtension})` : ''} · {s.currentLevel}º nivel
               </div>
               {!careerFilter && (
                 <div className="text-muted text-sm">{s.career?.name ?? '—'}</div>
               )}
               <div className="flex gap-2" style={{ marginTop: 8 }}>
                 <button className="btn btn-soft btn-sm" onClick={() => openEdit(s)}>Editar</button>
-                <button className="btn btn-outline btn-sm" onClick={() => createUser(s)} title="Crear cuenta de usuario">
-                  Usuario
-                </button>
+                <button className="btn btn-outline btn-sm" onClick={() => resetPassword(s)}>Restablecer contraseña</button>
               </div>
             </div>
           </div>

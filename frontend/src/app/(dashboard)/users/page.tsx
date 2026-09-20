@@ -1,21 +1,13 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { apiGet, apiPatch, apiPost, extractError } from '@/lib/api';
-import { RoleItem, User, Student } from '@/lib/types';
+import { apiGet, apiPatch, extractError } from '@/lib/api';
+import { RoleItem, User } from '@/lib/types';
 import { PageHeader } from '@/components/ui/page-header';
 import { Modal } from '@/components/ui/modal';
 import { StatusBadge } from '@/components/ui/badge';
 import { LoadingState, ErrorState } from '@/components/ui/state';
 import { MICROLEGEND } from '@/lib/nav';
-
-const EMPTY = {
-  username: '',
-  fullName: '',
-  email: '',
-  password: 'estudiante2026',
-  roleKeys: ['ESTUDIANTE'],
-};
 
 function roleKeyLabel(key?: string): string {
   return key ? (MICROLEGEND[key] ?? key) : '—';
@@ -32,28 +24,22 @@ function initialsOf(name?: string): string {
 
 export default function UsersPage() {
   const [users, setUsers] = useState<User[]>([]);
-  const [students, setStudents] = useState<Student[]>([]);
   const [roleOptions, setRoleOptions] = useState<RoleItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [modalOpen, setModalOpen] = useState(false);
-  const [form, setForm] = useState(EMPTY);
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState('');
-  const [studentQuery, setStudentQuery] = useState('');
   const [roleTarget, setRoleTarget] = useState<User | null>(null);
   const [roleChoice, setRoleChoice] = useState('');
 
   async function load() {
     setLoading(true);
     try {
-      const [u, s, rs] = await Promise.all([
+      const [u, rs] = await Promise.all([
         apiGet<User[]>('/users'),
-        apiGet<Student[]>('/students'),
         apiGet<RoleItem[]>('/users/roles'),
       ]);
       setUsers(u);
-      setStudents(s);
       setRoleOptions(rs);
     } catch (err) {
       setError(extractError(err));
@@ -71,25 +57,6 @@ export default function UsersPage() {
       await apiPatch(`/users/${u.id}/roles`, { roleKeys: [roleKey] });
       setRoleTarget(null);
       setRoleChoice('');
-      await load();
-    } catch (err) {
-      setError(extractError(err));
-    }
-  }
-
-  async function submit() {
-    try {
-      await apiPost('/users', form);
-      setModalOpen(false);
-      await load();
-    } catch (err) {
-      setError(extractError(err));
-    }
-  }
-
-  async function createFromStudent(studentId: string) {
-    try {
-      await apiPost(`/users/student/${studentId}`);
       await load();
     } catch (err) {
       setError(extractError(err));
@@ -140,18 +107,6 @@ export default function UsersPage() {
 
   const activeCount = users.filter((u) => u.status === 'ACTIVE').length;
 
-  const studentsWithoutUser = useMemo(() => {
-    const q = studentQuery.trim().toLowerCase();
-    const base = students.filter((s) => !users.some((u) => u.studentId === s.id));
-    if (!q) return base;
-    return base.filter(
-      (s) =>
-        s.studentCode.toLowerCase().includes(q) ||
-        s.ci.toLowerCase().includes(q) ||
-        `${s.firstName} ${s.lastName}`.toLowerCase().includes(q),
-    );
-  }, [students, users, studentQuery]);
-
   if (loading) return <LoadingState />;
 
   return (
@@ -159,11 +114,6 @@ export default function UsersPage() {
       <PageHeader
         title="Usuarios"
         subtitle="Gestión de cuentas y roles del sistema"
-        actions={
-          <button className="btn btn-primary" onClick={() => { setForm(EMPTY); setModalOpen(true); }}>
-            Nuevo usuario
-          </button>
-        }
       />
 
       {error && <ErrorState message={error} />}
@@ -179,10 +129,6 @@ export default function UsersPage() {
         <div className="stat-card">
           <div className="stat-value">{activeCount}</div>
           <div className="stat-label">Activos</div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-value">{studentsWithoutUser.length}</div>
-          <div className="stat-label">Estudiantes sin cuenta</div>
         </div>
       </div>
 
@@ -320,79 +266,6 @@ export default function UsersPage() {
           );
         })}
       </div>
-
-      <div className="card">
-        <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-          <div className="card-title">Generar cuenta de estudiante ({studentsWithoutUser.length})</div>
-        </div>
-        <div className="card-pad">
-          <p className="text-muted text-sm mb-3">
-            Crea automáticamente una cuenta (rol Estudiante). La contraseña inicial será el CI del estudiante.
-          </p>
-          <input
-            className="form-control mb-3"
-            placeholder="Buscar estudiante por código, CI o nombre…"
-            value={studentQuery}
-            onChange={(e) => setStudentQuery(e.target.value)}
-          />
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 4, maxHeight: 320, overflowY: 'auto' }}>
-            {studentsWithoutUser.slice(0, 30).map((s) => (
-              <div
-                key={s.id}
-                className="flex justify-between items-center"
-                style={{ gap: 8, padding: '6px 8px', border: '1px solid var(--border)', borderRadius: 8 }}
-              >
-                <span style={{ fontSize: 13 }}>
-                  <strong>{s.studentCode}</strong> — {s.firstName} {s.lastName}
-                  <span className="text-muted"> · {s.career?.name ?? '—'}</span>
-                </span>
-                <button className="btn btn-soft btn-sm" onClick={() => createFromStudent(s.id)}>
-                  Crear usuario
-                </button>
-              </div>
-            ))}
-            {studentsWithoutUser.length === 0 && (
-              <span className="text-muted text-sm">Todos los estudiantes ya tienen cuenta.</span>
-            )}
-          </div>
-        </div>
-      </div>
-
-      <Modal open={modalOpen} title="Nuevo usuario" onClose={() => setModalOpen(false)}
-        footer={
-          <>
-            <button className="btn btn-outline" onClick={() => setModalOpen(false)}>Cancelar</button>
-            <button className="btn btn-primary" onClick={submit}>Guardar</button>
-          </>
-        }
-      >
-        <div className="form-grid">
-          <div className="form-group">
-            <label className="form-label">Nombre de usuario</label>
-            <input className="form-control" value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} />
-          </div>
-          <div className="form-group">
-            <label className="form-label">Nombre completo</label>
-            <input className="form-control" value={form.fullName} onChange={(e) => setForm({ ...form, fullName: e.target.value })} />
-          </div>
-          <div className="form-group">
-            <label className="form-label">Correo</label>
-            <input className="form-control" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
-          </div>
-          <div className="form-group">
-            <label className="form-label">Contraseña inicial</label>
-            <input className="form-control" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
-          </div>
-          <div className="form-group">
-            <label className="form-label">Rol</label>
-            <select className="select" value={form.roleKeys[0]} onChange={(e) => setForm({ ...form, roleKeys: [e.target.value] })}>
-              {roleOptions.map((r) => (
-                <option key={r.id} value={r.name}>{roleKeyLabel(r.name)}</option>
-              ))}
-            </select>
-          </div>
-        </div>
-      </Modal>
 
       <Modal
         open={!!roleTarget}

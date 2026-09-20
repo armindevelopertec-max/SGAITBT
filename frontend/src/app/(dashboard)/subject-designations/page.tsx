@@ -367,7 +367,7 @@ export default function SubjectDesignationsPage() {
           </select>
           <select className="select" style={{ width: 200 }} value={filterTeacher} onChange={(e) => setFilterTeacher(e.target.value)}>
             <option value="">Todos los docentes</option>
-            {teachers.map((t) => <option key={t.id} value={t.id}>{personName(t.persona)}</option>)}
+            {teachers.map((t) => <option key={t.id} value={t.id}>{personName(t.person)}</option>)}
           </select>
           <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 13, fontWeight: 500, color: onlyWithoutTeacher ? 'var(--danger)' : 'var(--text-muted)' }}>
             <input type="checkbox" checked={onlyWithoutTeacher} onChange={(e) => setOnlyWithoutTeacher(e.target.checked)} />
@@ -518,7 +518,7 @@ export default function SubjectDesignationsPage() {
                                           </span>
                                           {teacher ? (
                                             <span style={{ color: 'var(--text)', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
-                                              {personName(teacher.persona)}
+                                              {personName(teacher.person)}
                                             </span>
                                           ) : (
                                             <span style={{ color: 'var(--text-muted)', fontStyle: 'italic', flex: 1 }}>
@@ -614,7 +614,7 @@ export default function SubjectDesignationsPage() {
               <option value="">— Sin docente —</option>
               {teachers.map((t) => (
                 <option key={t.id} value={t.id}>
-                  {personName(t.persona)} {t.employeeCode ? `(${t.employeeCode})` : ''}
+                  {personName(t.person)} {t.employeeCode ? `(${t.employeeCode})` : ''}
                 </option>
               ))}
             </select>
@@ -623,10 +623,10 @@ export default function SubjectDesignationsPage() {
               return t ? (
                 <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', background: 'var(--success-soft)', borderRadius: 8 }}>
                   <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'var(--success)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 13 }}>
-                    {initialsOf(t.persona)}
+                    {initialsOf(t.person)}
                   </div>
                   <div>
-                    <div style={{ fontWeight: 700, fontSize: 13 }}>{personName(t.persona)}</div>
+                    <div style={{ fontWeight: 700, fontSize: 13 }}>{personName(t.person)}</div>
                     <div style={{ fontSize: 11.5, color: 'var(--text-muted)' }}>{t.position ?? t.employeeType}</div>
                   </div>
                 </div>

@@ -5,7 +5,7 @@ import { apiGet, apiPost, extractError } from '@/lib/api';
 import { Student, AcademicPeriod, Institution, Enrollment, SubjectAssignment, Subject, AcademicHistoryRecord, Employee, Parallel } from '@/lib/types';
 import { PageHeader } from '@/components/ui/page-header';
 import { LoadingState, ErrorState } from '@/components/ui/state';
-import { fullName, initialsOf } from '@/lib/utils';
+import { fullName, initialsOf, fullSurname } from '@/lib/utils';
 
 export default function StudentSubjectAssignmentsPage() {
   const [students, setStudents] = useState<Student[]>([]);
@@ -157,14 +157,14 @@ export default function StudentSubjectAssignmentsPage() {
   }, [eligibleStudents, periodAssignments, periodId]);
 
   const filteredStudents = useMemo(() => {
-    if (!searchQuery.trim()) return eligibleStudents.slice(0, 10);
+    if (!searchQuery.trim()) return eligibleStudents.slice(0, 5);
     const q = searchQuery.toLowerCase();
     return eligibleStudents.filter(
       (s) =>
-        fullName(s).toLowerCase().includes(q) ||
-        s.ci.toLowerCase().includes(q) ||
+        fullName(s.person).toLowerCase().includes(q) ||
+        s.person?.ci?.toLowerCase().includes(q) ||
         s.studentCode.toLowerCase().includes(q),
-    ).slice(0, 10);
+    ).slice(0, 5);
   }, [searchQuery, eligibleStudents]);
 
   const selectedPeriod = useMemo(
@@ -317,8 +317,8 @@ export default function StudentSubjectAssignmentsPage() {
         }}
       />
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 420px', gap: 16 }}>
-        <div className="card" style={{ background: '#fff', padding: 24 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 420px', gap: 16, alignItems: 'stretch', minHeight: 'calc(100vh - 180px)' }}>
+        <div className="card" style={{ background: '#fff', padding: 24, display: 'flex', flexDirection: 'column' }}>
           {student && previewData ? (
             <>
               <div className="flex justify-between items-center mb-3">
@@ -375,8 +375,8 @@ export default function StudentSubjectAssignmentsPage() {
 
                   <div style={{ display: 'flex', gap: 8 }}>
                     <div style={{ width: '35mm', height: '35mm', border: '1px solid #999', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f8f8f8', flexShrink: 0 }}>
-                      {student.photoUrl ? (
-                        <img src={student.photoUrl} alt="Foto" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      {student.person?.photoUrl ? (
+                        <img src={student.person.photoUrl} alt="Foto" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                       ) : (
                         <svg width="30" height="30" viewBox="0 0 24 24" fill="#ccc">
                           <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
@@ -388,25 +388,25 @@ export default function StudentSubjectAssignmentsPage() {
                         <tbody>
                           <tr>
                             <td style={{ fontWeight: 'bold', color: '#333', padding: '2px 8px 2px 0', width: '35%', borderBottom: '1px solid #ddd' }}>CI:</td>
-                            <td style={{ color: '#333', padding: '2px 0', borderBottom: '1px solid #ddd' }}>{(student.ci || '—').toUpperCase()}</td>
+                            <td style={{ color: '#333', padding: '2px 0', borderBottom: '1px solid #ddd' }}>{(student.person?.ci || '—').toUpperCase()}</td>
                             <td style={{ fontWeight: 'bold', color: '#333', padding: '2px 8px 2px 16px', width: '25%', borderBottom: '1px solid #ddd' }}>FILIAL:</td>
                             <td style={{ color: '#333', padding: '2px 0', borderBottom: '1px solid #ddd' }}>CENTRAL EL ALTO</td>
                           </tr>
                           <tr>
                             <td style={{ fontWeight: 'bold', color: '#333', padding: '2px 8px 2px 0', borderBottom: '1px solid #ddd' }}>AP. PATERNO:</td>
-                            <td style={{ color: '#333', padding: '2px 0', borderBottom: '1px solid #ddd' }}>{(student.paternalSurname || '—').toUpperCase()}</td>
+                            <td style={{ color: '#333', padding: '2px 0', borderBottom: '1px solid #ddd' }}>{(student.person?.paternalSurname || '—').toUpperCase()}</td>
                             <td style={{ fontWeight: 'bold', color: '#333', padding: '2px 8px 2px 16px', borderBottom: '1px solid #ddd' }}>CARRERA:</td>
                             <td style={{ color: '#333', padding: '2px 0', borderBottom: '1px solid #ddd' }}>{(student.career?.name || '—').toUpperCase()}</td>
                           </tr>
                           <tr>
                             <td style={{ fontWeight: 'bold', color: '#333', padding: '2px 8px 2px 0', borderBottom: '1px solid #ddd' }}>AP. MATERNO:</td>
-                            <td style={{ color: '#333', padding: '2px 0', borderBottom: '1px solid #ddd' }}>{(student.maternalSurname || '—').toUpperCase()}</td>
+                            <td style={{ color: '#333', padding: '2px 0', borderBottom: '1px solid #ddd' }}>{(student.person?.maternalSurname || '—').toUpperCase()}</td>
                             <td style={{ fontWeight: 'bold', color: '#333', padding: '2px 8px 2px 16px', borderBottom: '1px solid #ddd' }}>NRO. FOLDER:</td>
                             <td style={{ color: '#333', padding: '2px 0', borderBottom: '1px solid #ddd' }}>{(student.studentCode || '—').toUpperCase()}</td>
                           </tr>
                           <tr>
                             <td style={{ fontWeight: 'bold', color: '#333', padding: '2px 8px 2px 0', borderBottom: '1px solid #ddd' }}>NOMBRES:</td>
-                            <td style={{ color: '#333', padding: '2px 0', borderBottom: '1px solid #ddd' }}>{(student.firstName || '—').toUpperCase()}</td>
+                            <td style={{ color: '#333', padding: '2px 0', borderBottom: '1px solid #ddd' }}>{(student.person?.firstName || '—').toUpperCase()}</td>
                             <td style={{ fontWeight: 'bold', color: '#333', padding: '2px 8px 2px 16px', borderBottom: '1px solid #ddd' }}>GESTIÓN INGRESO:</td>
                             <td style={{ color: '#333', padding: '2px 0', borderBottom: '1px solid #ddd' }}>{(student.entryYear || '—').toUpperCase()}</td>
                           </tr>
@@ -423,7 +423,7 @@ export default function StudentSubjectAssignmentsPage() {
                         <div style={{ flex: 1, border: '1px solid #999', padding: 4, background: '#f8f8f8', textAlign: 'center' }}>
                           <div style={{ fontSize: '6px', color: '#666', marginBottom: 2 }}>CUENTA</div>
                           <strong style={{ fontSize: '9px', color: '#333' }}>
-                            {previewData.credentials?.username || `AUT${student.ci || '—'}`}
+                            {previewData.credentials?.username || `AUT${student.person?.ci || '—'}`}
                           </strong>
                         </div>
                         <div style={{ flex: 1, border: '1px solid #999', padding: 4, background: '#f8f8f8', textAlign: 'center' }}>
@@ -479,7 +479,7 @@ export default function StudentSubjectAssignmentsPage() {
                                 <td style={{ padding: '2px 4px', border: '1px solid #999', fontWeight: 'bold' }}>{(a.subject?.code || '—').toUpperCase()}</td>
                                 <td style={{ padding: '2px 4px', border: '1px solid #999' }}>{(a.subject?.name || '—').toUpperCase()}</td>
                                 <td style={{ padding: '2px 4px', textAlign: 'center', border: '1px solid #999' }}>{a.semester}</td>
-                                <td style={{ padding: '2px 4px', textAlign: 'center', border: '1px solid #999' }}>{(a.parallel || 'A').toUpperCase()}</td>
+                                <td style={{ padding: '2px 4px', textAlign: 'center', border: '1px solid #999' }}>{(a.parallelEntity?.code || 'A').toUpperCase()}</td>
                                 <td style={{ padding: '2px 4px', textAlign: 'center', border: '1px solid #999' }}>{shiftLabel}</td>
                               </tr>
                             );
@@ -500,7 +500,7 @@ export default function StudentSubjectAssignmentsPage() {
               </div>
             </>
           ) : (
-            <div className="empty-state" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 400 }}>
+            <div className="empty-state" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', flex: 1 }}>
               <div style={{ fontSize: 48, marginBottom: 16 }}>📋</div>
               <div style={{ textAlign: 'center', color: 'var(--text-muted)' }}>
                 Seleccione un estudiante para ver la boleta de asignación
@@ -509,7 +509,7 @@ export default function StudentSubjectAssignmentsPage() {
           )}
         </div>
 
-        <div className="card card-pad" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <div className="card card-pad" style={{ display: 'flex', flexDirection: 'column', gap: 12, flex: 1 }}>
           <div>
             <div className="form-label" style={{ marginBottom: 8 }}>
               Gestión académica
@@ -539,70 +539,10 @@ export default function StudentSubjectAssignmentsPage() {
           </div>
 
           <div className="form-label">
-            Estudiante matriculado
+            Estudiante habilitado
           </div>
 
-          <div
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 4,
-              maxHeight: 280,
-              overflowY: 'auto',
-            }}
-          >
-            {filteredStudents.map((s) => (
-              <button
-                key={s.id}
-                className={`btn btn-sm ${studentId === s.id ? 'btn-primary' : 'btn-outline'}`}
-                style={{ justifyContent: 'space-between', textAlign: 'left', gap: 8 }}
-                onClick={() => selectStudent(s.id)}
-              >
-                <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  {s.photoUrl ? (
-                    <img src={s.photoUrl} alt="" style={{ width: 28, height: 28, borderRadius: '50%', objectFit: 'cover' }} />
-                  ) : (
-                    <span
-                      style={{
-                        width: 28,
-                        height: 28,
-                        borderRadius: '50%',
-                        background: 'var(--primary)',
-                        color: '#fff',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        fontWeight: 800,
-                        fontSize: 11,
-                        flexShrink: 0,
-                      }}
-                    >
-                      {initialsOf(s.firstName, s.lastName)}
-                    </span>
-                  )}
-                  <span>
-                    {s.studentCode} — {fullName(s)}
-                  </span>
-                </span>
-                {studentAssignStatus[s.id]?.assigned ? (
-                  <span className="badge badge-success" style={{ whiteSpace: 'nowrap' }}>
-                    ✓ {studentAssignStatus[s.id].count}
-                  </span>
-                ) : (
-                  <span className="badge badge-warning" style={{ whiteSpace: 'nowrap' }}>
-                    Sin
-                  </span>
-                )}
-              </button>
-            ))}
-            {filteredStudents.length === 0 && (
-              <span className="text-muted text-sm">
-                {searchQuery ? 'Sin resultados' : 'Sin estudiantes en esta gestión'}
-              </span>
-            )}
-          </div>
-
-          {student && (
+          {student ? (
             <div
               className="card card-pad"
               style={{
@@ -612,13 +552,13 @@ export default function StudentSubjectAssignmentsPage() {
               }}
             >
               <div className="flex items-center" style={{ gap: 10, marginBottom: 8 }}>
-                {student.photoUrl ? (
-                  <img src={student.photoUrl} alt="" style={{ width: 48, height: 48, borderRadius: '50%', objectFit: 'cover' }} />
+                {student.person?.photoUrl ? (
+                  <img src={student.person.photoUrl} alt="" style={{ width: 44, height: 44, borderRadius: '50%', objectFit: 'cover' }} />
                 ) : (
                   <div
                     style={{
-                      width: 48,
-                      height: 48,
+                      width: 44,
+                      height: 44,
                       borderRadius: '50%',
                       background: 'var(--primary)',
                       color: '#fff',
@@ -626,41 +566,102 @@ export default function StudentSubjectAssignmentsPage() {
                       alignItems: 'center',
                       justifyContent: 'center',
                       fontWeight: 800,
-                      fontSize: 16,
+                      fontSize: 15,
                     }}
                   >
-                    {initialsOf(student.firstName, student.lastName)}
+                    {initialsOf(student.person?.firstName, student.person?.lastName)}
                   </div>
                 )}
                 <div>
                   <strong style={{ fontSize: 14 }}>
-                    {student.studentCode} — {fullName(student)}
+                    {student.studentCode} — {student.person?.firstName} {fullSurname(student.person)}
                   </strong>
                   <div className="text-muted text-sm">
-                    CI {student.ci}
+                    CI {student.person?.ci} · {student.currentLevel}º semestre
                   </div>
                 </div>
               </div>
               <div className="flex gap-2" style={{ flexWrap: 'wrap', fontSize: 12 }}>
-                <span className="text-muted">{student.currentLevel}º semestre</span>
-                <span className="text-muted">·</span>
                 <span className="text-muted">{student.career?.name ?? '—'}</span>
               </div>
-              <div className="flex gap-2 mt-2" style={{ flexWrap: 'wrap', fontSize: 12 }}>
-                <span className="text-muted">Materias: <strong>{studentAssignments.length}</strong></span>
-                <span className="text-muted">·</span>
-                <span className="text-muted">Plan: <strong>{studentCareerSubjects.length}</strong></span>
+              <div className="flex gap-2 mt-2">
+                {!previewData ? (
+                  <button
+                    className="btn btn-primary btn-sm"
+                    onClick={() => selectStudent(student.id)}
+                  >
+                    Asignar materias
+                  </button>
+                ) : (
+                  <span className="badge badge-success">✓ Con materias</span>
+                )}
+                <button
+                  className="btn btn-outline btn-sm"
+                  onClick={() => { setStudentId(''); setSearchQuery(''); }}
+                >
+                  Cambiar
+                </button>
               </div>
-              <button
-                className="btn btn-outline btn-sm mt-2"
-                onClick={() => setStudentId('')}
-                style={{ width: '100%' }}
-              >
-                Cambiar estudiante
-              </button>
             </div>
-          )}
+          ) : (
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 4,
+                maxHeight: 280,
+                overflowY: 'auto',
+              }}
+            >
+              {filteredStudents.map((s) => (
+                <button
+                  key={s.id}
+                  className={`btn btn-sm ${studentId === s.id ? 'btn-primary' : 'btn-outline'}`}
+                  style={{ justifyContent: 'space-between', textAlign: 'left', gap: 8 }}
+                  onClick={() => selectStudent(s.id)}
+                >
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    {s.person?.photoUrl ? (
+                      <img src={s.person.photoUrl} alt="" style={{ width: 28, height: 28, borderRadius: '50%', objectFit: 'cover' }} />
+                    ) : (
+                      <span
+                        style={{
+                          width: 28,
+                          height: 28,
+                          borderRadius: '50%',
+                          background: 'var(--primary)',
+                          color: '#fff',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontWeight: 800,
+                          fontSize: 11,
+                          flexShrink: 0,
+                        }}
+                      >
+                        {initialsOf(s.person?.firstName, s.person?.lastName)}
+                      </span>
+                    )}
+                    <span>
+                      {s.studentCode} — {s.person?.firstName} {fullSurname(s.person)}
+                    </span>
+                  </span>
+                  {studentAssignStatus[s.id]?.assigned ? (
+                    <span className="badge badge-success" style={{ whiteSpace: 'nowrap' }}>
+                      ✓
+                    </span>
+                  ) : null}
+                </button>
+              ))}
+              {filteredStudents.length === 0 && (
+                <span className="text-muted text-sm">
+                  {searchQuery ? 'Sin resultados' : 'Sin estudiantes en esta gestión'}
+                </span>
+              )}
+            </div>
+)}
         </div>
+
       </div>
     </div>
   );

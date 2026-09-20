@@ -1,75 +1,21 @@
 import {
-  IsDateString,
-  IsEmail,
   IsEnum,
   IsInt,
   IsNotEmpty,
   IsOptional,
   IsString,
   IsUUID,
-  MaxLength,
 } from 'class-validator';
-import { AcademicStatus, Sex } from '@common/enums';
+import { AcademicStatus } from '@common/enums';
 
 export class CreateStudentDto {
-  @IsString()
   @IsNotEmpty()
-  @MaxLength(150)
-  firstName: string;
+  @IsUUID()
+  personId: string;
 
   @IsOptional()
   @IsString()
-  @MaxLength(150)
-  paternalSurname?: string;
-
-  @IsOptional()
-  @IsString()
-  @MaxLength(150)
-  maternalSurname?: string;
-
-  @IsString()
-  @IsNotEmpty()
-  @MaxLength(150)
-  lastName: string;
-
-  @IsString()
-  @IsNotEmpty()
-  @MaxLength(30)
-  diplomaNumber: string;
-
-  @IsString()
-  @IsNotEmpty()
-  @MaxLength(30)
-  ci: string;
-
-  @IsOptional()
-  @IsString()
-  @MaxLength(20)
-  ciExtension?: string;
-
-  @IsDateString()
-  birthDate: string;
-
-  @IsOptional()
-  @IsEnum(Sex)
-  sex?: Sex;
-
-  @IsOptional()
-  @IsString()
-  @MaxLength(30)
-  phone?: string;
-
-  @IsOptional()
-  @IsString()
-  address?: string;
-
-  @IsEmail()
-  @IsNotEmpty()
-  email: string;
-
-  @IsOptional()
-  @IsString()
-  photoUrl?: string;
+  diplomaNumber?: string;
 
   @IsOptional()
   @IsEnum(AcademicStatus)
@@ -80,73 +26,14 @@ export class CreateStudentDto {
   currentLevel?: number;
 
   @IsOptional()
-  careerId?: string;
-
-  @IsOptional()
   @IsUUID()
-  personaId?: string;
+  careerId?: string;
 }
 
 export class UpdateStudentDto {
   @IsOptional()
   @IsString()
-  @MaxLength(150)
-  firstName?: string;
-
-  @IsOptional()
-  @IsString()
-  @MaxLength(150)
-  paternalSurname?: string;
-
-  @IsOptional()
-  @IsString()
-  @MaxLength(150)
-  maternalSurname?: string;
-
-  @IsOptional()
-  @IsString()
-  @MaxLength(150)
-  lastName?: string;
-
-  @IsOptional()
-  @IsString()
-  @MaxLength(30)
   diplomaNumber?: string;
-
-  @IsOptional()
-  @IsString()
-  @MaxLength(30)
-  ci?: string;
-
-  @IsOptional()
-  @IsString()
-  @MaxLength(20)
-  ciExtension?: string;
-
-  @IsOptional()
-  @IsDateString()
-  birthDate?: Date;
-
-  @IsOptional()
-  @IsEnum(Sex)
-  sex?: Sex;
-
-  @IsOptional()
-  @IsString()
-  @MaxLength(30)
-  phone?: string;
-
-  @IsOptional()
-  @IsString()
-  address?: string;
-
-  @IsOptional()
-  @IsEmail()
-  email?: string;
-
-  @IsOptional()
-  @IsString()
-  photoUrl?: string;
 
   @IsOptional()
   @IsEnum(AcademicStatus)
@@ -157,6 +44,7 @@ export class UpdateStudentDto {
   currentLevel?: number;
 
   @IsOptional()
+  @IsUUID()
   careerId?: string;
 }
 

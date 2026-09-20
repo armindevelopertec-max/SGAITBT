@@ -15,6 +15,8 @@ const EMPTY = {
   weeklyHours: 4,
   totalHours: 68,
   careerId: '',
+  prerequisites: [] as string[],
+  isElective: false,
 };
 
 const ROMAN = ['', 'I', 'II', 'III', 'IV', 'V', 'VI'];
@@ -82,6 +84,8 @@ export default function SubjectsPage() {
       weeklyHours: s.weeklyHours,
       totalHours: s.totalHours,
       careerId: s.careerId,
+      prerequisites: s.prerequisites ?? [],
+      isElective: s.isElective ?? false,
     });
     setModalOpen(true);
   }
@@ -333,6 +337,27 @@ export default function SubjectsPage() {
           <div className="form-group">
             <label className="form-label">Carga horaria total</label>
             <input className="form-control" type="number" min={0} value={form.totalHours} onChange={(e) => setForm({ ...form, totalHours: Number(e.target.value) })} />
+          </div>
+          <div className="form-group">
+            <label className="form-label">Prerrequisitos</label>
+            <input
+              className="form-control"
+              value={(form.prerequisites ?? []).join(', ')}
+              onChange={(e) => setForm({ ...form, prerequisites: e.target.value.split(',').map(s => s.trim()).filter(Boolean) })}
+              placeholder="Ej: MAT-101, MAT-102"
+            />
+            <span className="text-muted text-sm">Códigos separados por coma</span>
+          </div>
+          <div className="form-group">
+            <label className="form-label">¿Es electiva?</label>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 6 }}>
+              <input
+                type="checkbox"
+                checked={form.isElective}
+                onChange={(e) => setForm({ ...form, isElective: e.target.checked })}
+              />
+              Materia electiva
+            </label>
           </div>
         </div>
       </Modal>

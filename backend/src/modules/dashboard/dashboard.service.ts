@@ -135,7 +135,7 @@ export class DashboardService {
   async getStudentDashboard(studentId: string) {
     const student = await this.studentRepository.findOne({
       where: { id: studentId },
-      relations: ['career', 'currentPeriod'],
+      relations: ['career', 'person'],
     });
     if (!student) {
       throw new NotFoundException('Estudiante no encontrado');
@@ -159,12 +159,12 @@ export class DashboardService {
     return {
       student: {
         id: student.id,
-        firstName: student.firstName,
-        lastName: student.lastName,
+        firstName: student.person?.firstName,
+        lastName: student.person?.lastName,
         studentCode: student.studentCode,
         career: student.career?.name,
         currentLevel: student.currentLevel,
-        currentPeriod: student.currentPeriod?.periodName,
+        currentPeriod: enrollment?.academicPeriod?.periodName,
         status: student.status,
       },
       enrollment: enrollment

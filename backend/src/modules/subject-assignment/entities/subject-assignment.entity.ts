@@ -18,9 +18,6 @@ import { Parallel } from '@modules/parallel/entities/parallel.entity';
 @Entity('subject_assignments')
 @Index('IDX_assignment_subject_period', ['subjectId', 'academicPeriodId'])
 export class SubjectAssignment extends BaseEntity {
-  @Column({ name: 'parallel', type: 'varchar', length: 20, default: 'A' })
-  parallel: string;
-
   @Column({ name: 'classroom', type: 'varchar', length: 50, nullable: true })
   classroom?: string;
 
