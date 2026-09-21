@@ -1,7 +1,9 @@
 import {
   ConflictException,
   Injectable,
+  Inject,
   NotFoundException,
+  forwardRef,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Brackets, Repository } from 'typeorm';
@@ -11,6 +13,7 @@ import { Career } from '@modules/career/entities/career.entity';
 import { Person } from '@modules/person/entities/person.entity';
 import { AcademicStatus } from '@common/enums';
 import { UserService } from '@modules/user/user.service';
+import { StudentStatusHistoryService } from '@modules/student-status-history/student-status-history.service';
 
 @Injectable()
 export class StudentService {
@@ -22,6 +25,8 @@ export class StudentService {
     @InjectRepository(Person)
     private readonly personRepository: Repository<Person>,
     private readonly userService: UserService,
+    @Inject(forwardRef(() => StudentStatusHistoryService))
+    private readonly studentStatusHistoryService: StudentStatusHistoryService,
   ) {}
 
   async create(createDto: CreateStudentDto): Promise<Student> {
@@ -133,6 +138,9 @@ export class StudentService {
   async update(id: string, updateDto: UpdateStudentDto): Promise<Student> {
     const student = await this.findStrict(id);
 
+    const statusChanged = updateDto.status && updateDto.status !== student.status;
+    const careerChanged = updateDto.careerId && updateDto.careerId !== student.careerId;
+
     if (updateDto.careerId && updateDto.careerId !== student.careerId) {
       const career = await this.careerRepository.findOne({ where: { id: updateDto.careerId } });
       if (!career) {
@@ -141,7 +149,25 @@ export class StudentService {
     }
 
     Object.assign(student, updateDto);
-    return this.studentRepository.save(student);
+    const saved = await this.studentRepository.save(student);
+
+    if (statusChanged || careerChanged) {
+      await this.studentStatusHistoryService.create(
+        student.id,
+        {
+          status: student.status,
+          careerId: student.careerId,
+          level: student.currentLevel,
+        },
+        {
+          status: updateDto.status ?? student.status,
+          careerId: updateDto.careerId ?? student.careerId,
+          level: updateDto.currentLevel ?? student.currentLevel,
+        },
+      );
+    }
+
+    return saved;
   }
 
   async updateStatus(id: string, status: AcademicStatus): Promise<Student> {

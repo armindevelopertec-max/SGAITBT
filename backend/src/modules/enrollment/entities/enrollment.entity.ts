@@ -6,7 +6,7 @@ import {
   Index,
 } from 'typeorm';
 import { BaseEntity } from '@common/entities/base.entity';
-import { EnrollmentStatus } from '@common/enums';
+import { AcademicStatus, EnrollmentStatus, EnrollmentType } from '@common/enums';
 import { Student } from '@modules/student/entities/student.entity';
 import { Career } from '@modules/career/entities/career.entity';
 import { AcademicPeriod } from '@modules/academic-period/entities/academic-period.entity';
@@ -28,6 +28,22 @@ export class Enrollment extends BaseEntity {
     default: EnrollmentStatus.ACTIVE,
   })
   status: EnrollmentStatus;
+
+  @Column({
+    name: 'enrollment_type',
+    type: 'enum',
+    enum: EnrollmentType,
+    default: EnrollmentType.REGULAR,
+  })
+  enrollmentType: EnrollmentType;
+
+  @Column({
+    name: 'student_status',
+    type: 'enum',
+    enum: AcademicStatus,
+    nullable: true,
+  })
+  studentStatus?: AcademicStatus;
 
   @Column({ name: 'total_amount', type: 'numeric', precision: 12, scale: 2, nullable: true })
   totalAmount?: number;

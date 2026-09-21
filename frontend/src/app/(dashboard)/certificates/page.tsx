@@ -1,8 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { apiGet, extractError } from '@/lib/api';
-import { Student, AcademicHistoryRecord, Subject, Institution } from '@/lib/types';
+import { apiGet, apiPost, extractError } from '@/lib/api';
+import { Student, AcademicHistoryRecord, Subject, Institution, Certificate, CertificateType } from '@/lib/types';
 import { generateInstitutionalDocument } from '@/lib/documents';
 import { PageHeader } from '@/components/ui/page-header';
 import { LoadingState, ErrorState } from '@/components/ui/state';
@@ -17,6 +17,15 @@ const DOC_TYPES: Array<{ key: DocType; label: string }> = [
   { key: 'HISTORY', label: 'Historial académico' },
   { key: 'ASIGNACION', label: 'Boleta de asignación' },
 ];
+
+const CERTIFICATE_TYPE_LABELS: Record<CertificateType, string> = {
+  NOTES: 'Certificado de notas',
+  STUDIES: 'Certificado de estudios',
+  REGULAR: 'Certificado de estudiante regular',
+  ENROLLMENT: 'Constancia de matrícula',
+  HISTORY: 'Historial académico',
+  DIPLOMA: 'Diploma',
+};
 
 function roman(n: number): string {
   const map: Array<[number, string]> = [
@@ -42,6 +51,7 @@ export default function CertificatesPage() {
   const [history, setHistory] = useState<AcademicHistoryRecord[]>([]);
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [institution, setInstitution] = useState<Institution | undefined>(undefined);
+  const [certificates, setCertificates] = useState<Certificate[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [studentId, setStudentId] = useState('');
@@ -51,16 +61,27 @@ export default function CertificatesPage() {
   async function load() {
     setLoading(true);
     try {
-      const [st, inst] = await Promise.all([
+      const [st, inst, certs] = await Promise.all([
         apiGet<Student[]>('/students'),
         apiGet<Institution[]>('/institutions'),
+        apiGet<Certificate[]>('/certificates'),
       ]);
       setStudents(st);
       setInstitution(inst[0]);
+      setCertificates(certs);
     } catch (err) {
       setError(extractError(err));
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function loadCertificates() {
+    try {
+      const certs = await apiGet<Certificate[]>('/certificates');
+      setCertificates(certs);
+    } catch (err) {
+      setError(extractError(err));
     }
   }
 
@@ -169,13 +190,23 @@ export default function CertificatesPage() {
     if (!student) return;
     setGenerating(true);
     try {
+      const backendCert = await apiPost<Certificate>('/certificates', {
+        certificateType: docType === 'ASIGNACION' ? 'NOTES' : docType,
+        studentId: student.id,
+        metadata: { docType },
+      });
+
       await generateInstitutionalDocument({
         docType,
         student,
         history,
         subjects,
         institution,
+        verificationCode: backendCert.verificationCode,
+        documentNumber: backendCert.documentNumber,
       });
+
+      await loadCertificates();
     } catch (err) {
       setError(extractError(err));
     } finally {
@@ -547,6 +578,42 @@ export default function CertificatesPage() {
         )}
         </div>
       )}
+
+      <div style={{ marginTop: 40, padding: '20px 0', borderTop: '2px solid var(--border)' }}>
+        <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 16 }}>Certificados Emitidos</h3>
+        {certificates.length === 0 ? (
+          <p style={{ color: 'var(--text-muted)', fontSize: 13 }}>No hay certificados emitidos todavía.</p>
+        ) : (
+          <table className="table" style={{ fontSize: 13 }}>
+            <thead>
+              <tr>
+                <th>Tipo</th>
+                <th>Nº Documento</th>
+                <th>Estudiante</th>
+                <th>Código Verificación</th>
+                <th>Estado</th>
+                <th>Fecha de Emisión</th>
+              </tr>
+            </thead>
+            <tbody>
+              {certificates.map((cert) => (
+                <tr key={cert.id}>
+                  <td>{CERTIFICATE_TYPE_LABELS[cert.certificateType] || cert.certificateType}</td>
+                  <td><code style={{ fontSize: 11 }}>{cert.documentNumber}</code></td>
+                  <td>{cert.student?.person?.firstName} {cert.student?.person?.lastName}</td>
+                  <td><code style={{ fontSize: 10 }}>{cert.verificationCode}</code></td>
+                  <td>
+                    <span className={`badge badge-${cert.status === 'ACTIVE' ? 'success' : cert.status === 'REVOKED' ? 'error' : 'neutral'}`}>
+                      {cert.status === 'ACTIVE' ? 'Activo' : cert.status === 'REVOKED' ? 'Revocado' : 'Expirado'}
+                    </span>
+                  </td>
+                  <td>{new Date(cert.issuedAt).toLocaleDateString('es-BO')}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
 
       <style
         dangerouslySetInnerHTML={{

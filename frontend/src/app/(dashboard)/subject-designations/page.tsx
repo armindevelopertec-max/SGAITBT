@@ -509,12 +509,10 @@ export default function SubjectDesignationsPage() {
                                           <span style={{
                                             fontWeight: 800,
                                             color: hasAssignment ? shiftColor : 'var(--text-muted)',
-                                            width: 12,
+                                            width: 20,
+                                            fontSize: 9,
                                           }}>
-                                            {p.code}
-                                          </span>
-                                          <span style={{ fontSize: 8, color: 'var(--text-muted)', marginLeft: -2 }}>
-                                            {SHIFT_LABELS[p.shift]?.slice(0, 3)}
+                                            {p.shift.charAt(0)}-{p.code}
                                           </span>
                                           {teacher ? (
                                             <span style={{ color: 'var(--text)', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
@@ -656,57 +654,81 @@ export default function SubjectDesignationsPage() {
             </button>
           </div>
 
-          {parallels.length === 0 ? (
-            <div style={{ padding: '20px', textAlign: 'center', background: 'var(--bg)', borderRadius: 8, border: '1px dashed var(--border)' }}>
-              <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: 12 }}>
-                No hay paralelos configurados. Crea al menos uno.
-              </p>
-            </div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {parallels.map((p) => (
-                <div key={p.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 12px', background: 'var(--bg)', borderRadius: 8, border: '1px solid var(--border)' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <span style={{
-                      width: 32, height: 32, borderRadius: 6,
-                      background: `${SHIFT_COLORS[p.shift]}20`,
-                      color: SHIFT_COLORS[p.shift],
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      fontWeight: 800, fontSize: 14,
-                    }}>
-                      {p.code}
-                    </span>
-                    <div>
-                      <div style={{ fontWeight: 600, fontSize: 12 }}>{SHIFT_LABELS[p.shift]}</div>
-                      <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>{p.shift}</div>
+          {(() => {
+            const grouped = {
+              MANANA: parallels.filter(p => p.shift === 'MANANA'),
+              TARDE: parallels.filter(p => p.shift === 'TARDE'),
+              NOCHE: parallels.filter(p => p.shift === 'NOCHE'),
+            };
+            const hasAny = parallels.length > 0;
+            if (!hasAny) return (
+              <div style={{ padding: '20px', textAlign: 'center', background: 'var(--bg)', borderRadius: 8, border: '1px dashed var(--border)' }}>
+                <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: 12 }}>
+                  No hay paralelos configurados. Crea al menos uno.
+                </p>
+              </div>
+            );
+            return (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                {(['MANANA', 'TARDE', 'NOCHE'] as const).map((shift) => {
+                  const items = grouped[shift];
+                  if (items.length === 0) return null;
+                  return (
+                    <div key={shift}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                        <span style={{
+                          padding: '2px 10px', borderRadius: 999,
+                          background: `${SHIFT_COLORS[shift]}20`,
+                          color: SHIFT_COLORS[shift],
+                          fontSize: 11, fontWeight: 700,
+                        }}>
+                          {SHIFT_LABELS[shift]}
+                        </span>
+                        <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>{shift}</span>
+                      </div>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                        {items.map((p) => (
+                          <div key={p.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', background: 'var(--bg)', borderRadius: 8, border: `1px solid ${SHIFT_COLORS[shift]}40`, minWidth: 120 }}>
+                            <span style={{
+                              width: 28, height: 28, borderRadius: 6,
+                              background: `${SHIFT_COLORS[shift]}20`,
+                              color: SHIFT_COLORS[shift],
+                              display: 'flex', alignItems: 'center', justifyContent: 'center',
+                              fontWeight: 800, fontSize: 14,
+                            }}>
+                              {p.code}
+                            </span>
+                            <div style={{ display: 'flex', gap: 2 }}>
+                              <button
+                                className="btn btn-soft btn-sm"
+                                onClick={() => openParallelEdit(p)}
+                                style={{ padding: '4px 6px' }}
+                              >
+                                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                                </svg>
+                              </button>
+                              <button
+                                className="btn btn-outline btn-sm"
+                                onClick={() => removeParallel(p)}
+                                style={{ padding: '4px 6px', color: 'var(--danger)' }}
+                              >
+                                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                  <polyline points="3 6 5 6 21 6" />
+                                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+                                </svg>
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                  <div style={{ display: 'flex', gap: 4 }}>
-                    <button
-                      className="btn btn-soft btn-sm"
-                      onClick={() => openParallelEdit(p)}
-                      style={{ padding: '4px 8px' }}
-                    >
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-                      </svg>
-                    </button>
-                    <button
-                      className="btn btn-outline btn-sm"
-                      onClick={() => removeParallel(p)}
-                      style={{ padding: '4px 8px', color: 'var(--danger)' }}
-                    >
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <polyline points="3 6 5 6 21 6" />
-                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
-                      </svg>
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+                  );
+                })}
+              </div>
+            );
+          })()}
         </div>
 
         {showParallelForm && (

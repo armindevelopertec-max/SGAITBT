@@ -9,6 +9,7 @@ import { AcademicHistory } from '@modules/academic-history/entities/academic-his
 import { Student } from '@modules/student/entities/student.entity';
 import { Career } from '@modules/career/entities/career.entity';
 import { GradeStatus } from '@common/enums';
+import { GradeHistoryService } from '@modules/grade-history/grade-history.service';
 
 const assignment = {
   id: 'a-1',
@@ -46,6 +47,9 @@ function createMocks(overrides: Record<string, unknown> = {}) {
     careerRepository: {
       findOne: jest.fn(),
     },
+    gradeHistoryService: {
+      create: jest.fn().mockResolvedValue({}),
+    },
     ...overrides,
   };
   return repos;
@@ -66,6 +70,7 @@ describe('GradeService', () => {
         { provide: getRepositoryToken(AcademicHistory), useValue: mocks.historyRepository },
         { provide: getRepositoryToken(Student), useValue: mocks.studentRepository },
         { provide: getRepositoryToken(Career), useValue: mocks.careerRepository },
+        { provide: GradeHistoryService, useValue: mocks.gradeHistoryService },
       ],
     }).compile();
 

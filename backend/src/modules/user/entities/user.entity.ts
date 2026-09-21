@@ -74,10 +74,16 @@ export class User extends BaseEntity {
 
   get fullName(): string {
     if (this.student?.person) {
-      return `${this.student.person.firstName} ${this.student.person.lastName}`.trim();
+      const p = this.student.person;
+      const paternal = p.paternalSurname || '';
+      const maternal = p.maternalSurname || '';
+      return [p.firstName, paternal, maternal].filter(Boolean).join(' ').trim() || this.username;
     }
     if (this.person) {
-      return `${this.person.firstName} ${this.person.lastName}`.trim();
+      const p = this.person;
+      const paternal = p.paternalSurname || '';
+      const maternal = p.maternalSurname || '';
+      return [p.firstName, paternal, maternal].filter(Boolean).join(' ').trim() || this.username;
     }
     return this.username;
   }

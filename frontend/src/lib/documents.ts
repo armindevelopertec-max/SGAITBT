@@ -14,6 +14,8 @@ export interface CertificateData {
   institution?: Institution;
   assignments?: SubjectAssignment[];
   credentials?: { username: string; password: string };
+  verificationCode?: string;
+  documentNumber?: string;
 }
 
 const { NAVY } = COLORS;
@@ -310,16 +312,56 @@ function drawSignatures(
   doc.text(right, cx2, yLabel, { align: 'center' });
 }
 
-function buildQrDataUrl(student: Student): Promise<string | null> {
-  const payload = [
+function drawSignaturesWithRector(
+  doc: jsPDF,
+  pg: PageFlow,
+  left: string,
+  center: string,
+  right: string,
+  recto?: string,
+): void {
+  const W = pg.W;
+  const yTop = pg.getY() + 8;
+  const yLine = pg.H - 40;
+  const yLabel = pg.H - 33;
+
+  if (recto) {
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    doc.setTextColor(40, 40, 40);
+    doc.text(recto, MARGIN_X, yTop);
+  }
+
+  const cx1 = W / 5;
+  const cx2 = W / 2;
+  const cx3 = (W * 4) / 5;
+  const lineW = 45;
+  doc.setDrawColor(60, 60, 60);
+  doc.setLineWidth(0.4);
+  doc.line(cx1 - lineW / 2, yLine, cx1 + lineW / 2, yLine);
+  doc.line(cx2 - lineW / 2, yLine, cx2 + lineW / 2, yLine);
+  doc.line(cx3 - lineW / 2, yLine, cx3 + lineW / 2, yLine);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(9);
+  doc.setTextColor(40, 40, 40);
+  doc.text(left, cx1, yLabel, { align: 'center' });
+  doc.text(center, cx2, yLabel, { align: 'center' });
+  doc.text(right, cx3, yLabel, { align: 'center' });
+}
+
+function buildQrDataUrl(student: Student, verificationCode?: string): Promise<string | null> {
+  const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://sga-itbt.edu.bo';
+  const verifyUrl = verificationCode
+    ? `${baseUrl}/api/certificates/verify/${verificationCode}`
+    : null;
+
+  const payload = verifyUrl || [
     'INSTITUTO TECNOLÓGICO \u201CBOLIVIANA DE TECNOLOGÍA\u201D',
     `Estudiante: ${student.person?.firstName || ''} ${fullSurname(student.person)}`,
     `CI: ${student.person?.ci || ''}`,
     `Código: ${student.studentCode || ''}`,
     `Carrera: ${student.career?.name || ''}`,
-  ]
-    .filter((line) => line.trim())
-    .join('\n');
+  ].filter((line) => line.trim()).join('\n');
 
   return QRCode.toDataURL(payload, { errorCorrectionLevel: 'M', margin: 1, width: 300 }).catch(
     () => null,
@@ -327,7 +369,7 @@ function buildQrDataUrl(student: Student): Promise<string | null> {
 }
 
 export async function generateInstitutionalDocument(data: CertificateData): Promise<void> {
-  const { docType, student, history, subjects, institution, assignments, credentials } = data;
+  const { docType, student, history, subjects, institution, assignments, credentials, verificationCode, documentNumber } = data;
   const instName = institution?.name || 'Instituto Tecnológico \u201CBoliviana de Tecnología\u201D';
   const address = institution?.address || 'El Alto, Av. de los Héroes, Z. Ferropetrol N.º 11';
   const phone = institution?.phone || institution?.phoneSecondary || '75252479';
@@ -342,7 +384,7 @@ export async function generateInstitutionalDocument(data: CertificateData): Prom
   };
 
   const logoUrl = await loadImageDataUrl(institution?.logoUrl ?? '/logo.png');
-  const qrUrl = docType === 'ASIGNACION' ? await buildQrDataUrl(student) : null;
+  const qrUrl = docType === 'ASIGNACION' ? await buildQrDataUrl(student, verificationCode) : null;
 
   const orientation = docType === 'HISTORY' ? 'landscape' : 'portrait';
   const doc = new jsPDF({ orientation, unit: 'mm', format: 'a4' });
@@ -350,7 +392,7 @@ export async function generateInstitutionalDocument(data: CertificateData): Prom
   const pg = createFlow(doc, logoUrl, instName, titleMap[docType], subtitle);
 
   const fullName = `${student.person?.firstName || ''} ${fullSurname(student.person)}`;
-  const docNumber = `DOC-${String(Math.floor(Math.random() * 9000) + 1000)}-SGA`;
+  const docNumber = documentNumber || `DOC-${String(Math.floor(Math.random() * 9000) + 1000)}-SGA`;
 
   if (docType === 'ASIGNACION') {
     const latestPeriod = [...history].sort((a, b) =>
@@ -368,15 +410,17 @@ export async function generateInstitutionalDocument(data: CertificateData): Prom
       credentials,
     });
   } else if (docType === 'HISTORY') {
-    drawHistorial(doc, pg, { student, history, subjects, docNumber });
+    drawHistorial(doc, pg, { student, history, subjects, docNumber, verificationCode, institution });
   } else {
-    drawCertificado(doc, pg, {
+    await drawCertificado(doc, pg, {
       docType,
       student,
       history,
       fullName,
       docNumber,
       instName,
+      verificationCode,
+      institution,
     });
   }
 
@@ -595,9 +639,16 @@ function drawBoleta(
 function drawHistorial(
   doc: jsPDF,
   pg: PageFlow,
-  data: { student: Student; history: AcademicHistoryRecord[]; subjects: Subject[]; docNumber: string },
+  data: {
+    student: Student;
+    history: AcademicHistoryRecord[];
+    subjects: Subject[];
+    docNumber: string;
+    verificationCode?: string;
+    institution?: Institution;
+  },
 ): void {
-  const { student, history, subjects, docNumber } = data;
+  const { student, history, subjects, docNumber, verificationCode, institution } = data;
 
   sectionTitle(doc, pg, 'DATOS DEL ESTUDIANTE');
   drawDataGrid(doc, pg, [
@@ -772,7 +823,7 @@ function drawHistorial(
 // ---------------------------------------------------------------------------
 // Certificados / constancias
 // ---------------------------------------------------------------------------
-function drawCertificado(
+async function drawCertificado(
   doc: jsPDF,
   pg: PageFlow,
   data: {
@@ -782,9 +833,11 @@ function drawCertificado(
     fullName: string;
     docNumber: string;
     instName: string;
+    verificationCode?: string;
+    institution?: Institution;
   },
-): void {
-  const { docType, student, history, fullName, docNumber, instName } = data;
+): Promise<void> {
+  const { docType, student, history, fullName, docNumber, instName, verificationCode, institution } = data;
   const avg =
     history.length > 0
       ? (history.reduce((acc, h) => acc + (h.finalGrade ?? 0), 0) / history.length).toFixed(2)
@@ -895,11 +948,45 @@ function drawCertificado(
   pg.ensure(14);
   doc.text(`${instName} — ${INSTITUTION_SUFFIX}`, MARGIN_X, pg.getY() + 6);
   pg.down(8);
-  drawSignatures(
-    doc,
-    pg,
-    'Secretaría Académica',
-    'Dirección Académica',
-    `Lugar y fecha: El Alto, ${formatDate(String(new Date()))}.`,
-  );
+
+  const secretaryLabel = institution?.rectorName ? 'Secretaría Académica' : 'Secretaría Académica';
+  const directorLabel = 'Dirección Académica';
+  const rectorLabel = institution?.rectorName || undefined;
+
+  if (verificationCode) {
+    const qrUrl = await buildQrDataUrl(student, verificationCode);
+    if (qrUrl) {
+      const qrSize = 25;
+      const qrX = pg.W - MARGIN_X - qrSize;
+      const qrY = 15;
+      try {
+        doc.addImage(qrUrl, 'PNG', qrX, qrY, qrSize, qrSize);
+        doc.setFont('helvetica', 'italic');
+        doc.setFontSize(6);
+        doc.setTextColor(100, 100, 100);
+        doc.text('Verificar', qrX + qrSize / 2, qrY + qrSize + 3, { align: 'center' });
+      } catch {
+        /* QR no disponible */
+      }
+    }
+  }
+
+  if (rectorLabel) {
+    drawSignaturesWithRector(
+      doc,
+      pg,
+      secretaryLabel,
+      directorLabel,
+      rectorLabel,
+      `Lugar y fecha: El Alto, ${formatDate(String(new Date()))}.`,
+    );
+  } else {
+    drawSignatures(
+      doc,
+      pg,
+      secretaryLabel,
+      directorLabel,
+      `Lugar y fecha: El Alto, ${formatDate(String(new Date()))}.`,
+    );
+  }
 }

@@ -16,6 +16,7 @@ const EMPTY = {
   phone: '',
   email: '',
   rectorName: '',
+  rectorSignature: '',
 };
 
 export default function InstitutionPage() {
@@ -62,6 +63,7 @@ export default function InstitutionPage() {
       phone: inst.phone ?? '',
       email: inst.email ?? '',
       rectorName: inst.rectorName ?? '',
+      rectorSignature: inst.rectorSignature ?? '',
     });
     setModalOpen(true);
   }
@@ -307,6 +309,24 @@ export default function InstitutionPage() {
                         </div>
                       </div>
                     )}
+                    {inst.rectorSignature && (
+                      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+                        <div style={{
+                          width: 32, height: 32, borderRadius: 8,
+                          background: 'var(--purple-soft)', color: 'var(--purple)',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0
+                        }}>
+                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                            <polyline points="14 2 14 8 20 8" />
+                          </svg>
+                        </div>
+                        <div>
+                          <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 2 }}>Firma del Rector</div>
+                          <img src={inst.rectorSignature} alt="Firma del rector" style={{ maxHeight: 40, maxWidth: 150, objectFit: 'contain' }} />
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -362,6 +382,10 @@ export default function InstitutionPage() {
           <div className="form-group">
             <label className="form-label">Nombre del rector</label>
             <input className="form-control" value={form.rectorName} onChange={(e) => setForm({ ...form, rectorName: e.target.value })} placeholder="Ej: MSc. Juan Pérez" />
+          </div>
+          <div className="form-group">
+            <label className="form-label">Firma del rector (URL)</label>
+            <input className="form-control" value={form.rectorSignature} onChange={(e) => setForm({ ...form, rectorSignature: e.target.value })} placeholder="https://example.com/firma.png" />
           </div>
           <div className="form-group" style={{ gridColumn: '1 / -1' }}>
             <label className="form-label">Dirección</label>

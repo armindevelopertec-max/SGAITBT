@@ -77,7 +77,6 @@ describe('EnrollmentService', () => {
           careerId: 'c-1',
           academicPeriodId: 'p-1',
           enrollmentDate: '2026-02-02',
-          semester: 1,
         }),
       ).rejects.toThrow(BadRequestException);
     });
@@ -101,7 +100,6 @@ describe('EnrollmentService', () => {
         careerId: 'c-1',
         academicPeriodId: 'p-1',
         enrollmentDate: '2026-02-02',
-        semester: 1,
       });
 
       expect(enrollment.status).toBe(EnrollmentStatus.ACTIVE);
@@ -118,7 +116,6 @@ describe('EnrollmentService', () => {
           careerId: 'c-1',
           academicPeriodId: 'p-1',
           enrollmentDate: '2026-02-02',
-          semester: 1,
         }),
       ).rejects.toThrow(ConflictException);
     });

@@ -50,6 +50,7 @@ export default function StudentsPage() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [careerFilter, setCareerFilter] = useState('');
+  const [studentTypeFilter, setStudentTypeFilter] = useState('');
 
   async function load() {
     setLoading(true);
@@ -174,7 +175,11 @@ export default function StudentsPage() {
       (s.person?.ci?.includes(search) ?? false) ||
       s.studentCode.toLowerCase().includes(q);
     const matchesStatus = !statusFilter || s.status === statusFilter;
-    return matchesSearch && matchesStatus;
+    const matchesType =
+      !studentTypeFilter ||
+      (studentTypeFilter === 'NEW' && s.currentLevel === 1) ||
+      (studentTypeFilter === 'OLD' && s.currentLevel > 1);
+    return matchesSearch && matchesStatus && matchesType;
   });
 
   const activeCareer = careers.find((c) => c.id === careerFilter);
@@ -248,6 +253,27 @@ export default function StudentsPage() {
           <div className="stat-value">{filtered.length}</div>
           <div className="stat-label">En vista</div>
         </div>
+      </div>
+
+      <div className="flex gap-2 mb-3">
+        <button
+          className={`btn ${studentTypeFilter === '' ? 'btn-primary' : 'btn-outline'}`}
+          onClick={() => setStudentTypeFilter('')}
+        >
+          Todos
+        </button>
+        <button
+          className={`btn ${studentTypeFilter === 'NEW' ? 'btn-primary' : 'btn-outline'}`}
+          onClick={() => setStudentTypeFilter('NEW')}
+        >
+          Estudiantes Nuevos
+        </button>
+        <button
+          className={`btn ${studentTypeFilter === 'OLD' ? 'btn-primary' : 'btn-outline'}`}
+          onClick={() => setStudentTypeFilter('OLD')}
+        >
+          Estudiantes Antiguos
+        </button>
       </div>
 
       <div className="card card-pad mb-3">

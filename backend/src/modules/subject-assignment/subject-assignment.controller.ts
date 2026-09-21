@@ -23,6 +23,8 @@ import { JwtAuthGuard } from '@common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '@common/guards/permissions.guard';
 import { RequirePermission } from '@common/decorators/require-permission.decorator';
 import { PERMISSIONS } from '@common/permissions';
+import { CurrentUser } from '@common/decorators/current-user.decorator';
+import { User } from '@modules/user/entities/user.entity';
 
 @ApiTags('Subject Assignments')
 @Controller('subject-assignments')
@@ -47,6 +49,11 @@ export class SubjectAssignmentController {
   @RequirePermission(PERMISSIONS.ASSIGNMENTS_UPDATE)
   autoEnrollStudent(@Body() dto: AutoEnrollStudentDto) {
     return this.assignmentService.autoEnrollStudent(dto);
+  }
+
+  @Get('teacher/me')
+  findMyAssignments(@CurrentUser() user: User) {
+    return this.assignmentService.findByTeacherUser(user);
   }
 
   @Get('teacher/:employeeId')

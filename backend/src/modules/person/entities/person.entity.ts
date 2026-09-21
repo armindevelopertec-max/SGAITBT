@@ -23,8 +23,8 @@ export class Person extends BaseEntity {
   @Column({ name: 'maternal_surname', type: 'varchar', length: 150, nullable: true })
   maternalSurname?: string;
 
-  @Column({ name: 'last_name', type: 'varchar', length: 150 })
-  lastName: string;
+  @Column({ name: 'last_name', type: 'varchar', length: 150, nullable: true })
+  lastName?: string;
 
   @Column({ name: 'birth_date', type: 'date', nullable: true })
   birthDate?: Date;
@@ -60,4 +60,10 @@ export class Person extends BaseEntity {
 
   @OneToMany(() => Employee, (employee) => employee.person)
   employees?: Employee[];
+
+  get fullName(): string {
+    const paternal = this.paternalSurname || '';
+    const maternal = this.maternalSurname || '';
+    return [this.firstName, paternal, maternal].filter(Boolean).join(' ').trim() || this.ci;
+  }
 }

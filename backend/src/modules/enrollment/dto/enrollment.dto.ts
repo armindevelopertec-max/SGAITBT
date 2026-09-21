@@ -7,7 +7,7 @@ import {
   IsOptional,
   IsString,
 } from 'class-validator';
-import { EnrollmentStatus } from '@common/enums';
+import { AcademicStatus, EnrollmentStatus, EnrollmentType } from '@common/enums';
 
 export class CreateEnrollmentDto {
   @IsNotEmpty()
@@ -29,6 +29,14 @@ export class CreateEnrollmentDto {
   @IsOptional()
   @IsString()
   observations?: string;
+
+  @IsOptional()
+  @IsEnum(EnrollmentType)
+  enrollmentType?: EnrollmentType;
+
+  @IsOptional()
+  @IsEnum(AcademicStatus)
+  studentStatus?: AcademicStatus;
 }
 
 export class UpdateEnrollmentDto {
@@ -43,6 +51,14 @@ export class UpdateEnrollmentDto {
   @IsOptional()
   @IsNumber()
   totalAmount?: number;
+
+  @IsOptional()
+  @IsEnum(EnrollmentType)
+  enrollmentType?: EnrollmentType;
+
+  @IsOptional()
+  @IsEnum(AcademicStatus)
+  studentStatus?: AcademicStatus;
 }
 
 export class EnrollStudentDto {
@@ -70,4 +86,8 @@ export class EnrollmentQueryDto {
 
   @IsOptional()
   careerId?: string;
+
+  @IsOptional()
+  @IsEnum(EnrollmentType)
+  enrollmentType?: EnrollmentType;
 }

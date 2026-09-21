@@ -9,6 +9,9 @@ export type AttendanceStatus = 'PRESENT' | 'ABSENT' | 'LATE' | 'JUSTIFIED';
 export type Sex = 'MALE' | 'FEMALE';
 export type PersonStatus = 'ACTIVE' | 'INACTIVE';
 export type EmployeeType = 'DIRECTIVO' | 'DOCENTE' | 'ADMINISTRATIVO' | 'APOYO';
+export type CertificateType = 'NOTES' | 'STUDIES' | 'REGULAR' | 'ENROLLMENT' | 'HISTORY' | 'DIPLOMA';
+export type CertificateStatus = 'ACTIVE' | 'REVOKED' | 'EXPIRED';
+export type OfficialType = 'RECTOR' | 'VICE_RECTOR' | 'SECRETARY' | 'ACCOUNTANT' | 'CAREER_DIRECTOR' | 'VOCATIONAL_DIRECTOR' | 'ACADEMIC_DIRECTOR';
 
 export interface Institution {
   id: string;
@@ -21,6 +24,7 @@ export interface Institution {
   phoneSecondary?: string;
   email?: string;
   rectorName?: string;
+  rectorSignature?: string;
   logoUrl?: string;
   academicRegulation?: string;
   documentConfig?: Record<string, unknown>;
@@ -301,4 +305,147 @@ export interface AuditLog {
   newValue?: Record<string, unknown> | null;
   ip?: string;
   description?: string;
+}
+
+export interface Certificate {
+  id: string;
+  certificateType: CertificateType;
+  studentId: string;
+  enrollmentId?: string;
+  verificationCode: string;
+  documentNumber: string;
+  issuedAt: string;
+  issuedBy: string;
+  validUntil?: string;
+  status: CertificateStatus;
+  revokedAt?: string;
+  revokedReason?: string;
+  revokedBy?: string;
+  pdfUrl?: string;
+  metadata?: Record<string, unknown>;
+  contentHash?: string;
+  student?: Student;
+  enrollment?: Enrollment;
+}
+
+export interface GradeHistory {
+  id: string;
+  gradeId: string;
+  studentId: string;
+  assignmentId: string;
+  previousValue: number | null;
+  newValue: number | null;
+  previousStatus: GradeStatus | null;
+  newStatus: GradeStatus;
+  changedBy: string;
+  changedAt: string;
+  reason?: string;
+  student?: Student;
+  assignment?: SubjectAssignment;
+}
+
+export interface StudentStatusHistory {
+  id: string;
+  studentId: string;
+  enrollmentId: string;
+  previousStatus: AcademicStatus | null;
+  newStatus: AcademicStatus;
+  careerId?: string;
+  previousCareerId?: string;
+  academicPeriodId: string;
+  changedBy: string;
+  changedAt: string;
+  reason?: string;
+  student?: Student;
+  enrollment?: Enrollment;
+  career?: Career;
+  academicPeriod?: AcademicPeriod;
+}
+
+export interface PersonHistory {
+  id: string;
+  personId: string;
+  fieldName: string;
+  previousValue: string | null;
+  newValue: string | null;
+  changedBy: string;
+  changedAt: string;
+  person?: Person;
+}
+
+export interface InstitutionalOfficialHistory {
+  id: string;
+  officialType: OfficialType;
+  personId?: string;
+  employeeId?: string;
+  careerId?: string;
+  fullName: string;
+  startDate: string;
+  endDate?: string;
+  startGestion: string;
+  endGestion?: string;
+  observations?: string;
+  isVacant: boolean;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+  person?: Person;
+  employee?: Employee;
+  career?: Career;
+}
+
+export interface EmployeeHistory {
+  id: string;
+  employeeId: string;
+  careerId?: string;
+  academicPeriodId: string;
+  employeeType: EmployeeType;
+  position?: string;
+  subjectsTaught: number;
+  parallelsTaught: number;
+  totalHours: number;
+  observations?: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+  employee?: Employee;
+  career?: Career;
+  academicPeriod?: AcademicPeriod;
+}
+
+export interface TeacherAssignment {
+  id: string;
+  subjectId: string;
+  employeeId?: string;
+  academicPeriodId: string;
+  parallelId?: string;
+  parallelEntity?: Parallel;
+  subject?: Subject;
+  academicPeriod?: AcademicPeriod;
+  studentsCount?: number;
+}
+
+export interface AttendanceRecord {
+  studentId: string;
+  status: AttendanceStatus;
+  observations?: string;
+}
+
+export interface AttendanceBulkDto {
+  assignmentId: string;
+  attendanceDate: string;
+  records: AttendanceRecord[];
+}
+
+export interface GradeRecord {
+  studentId: string;
+  firstPartial?: number;
+  secondPartial?: number;
+  practices?: number;
+  finalExam?: number;
+}
+
+export interface GradeBulkDto {
+  assignmentId: string;
+  records: GradeRecord[];
 }

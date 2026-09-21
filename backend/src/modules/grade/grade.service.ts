@@ -1,7 +1,9 @@
 import {
   Injectable,
+  Inject,
   NotFoundException,
   BadRequestException,
+  forwardRef,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -18,6 +20,7 @@ import { SubjectEnrollment } from '@modules/subject-assignment/entities/subject-
 import { AcademicHistory } from '@modules/academic-history/entities/academic-history.entity';
 import { Student } from '@modules/student/entities/student.entity';
 import { Career } from '@modules/career/entities/career.entity';
+import { GradeHistoryService } from '@modules/grade-history/grade-history.service';
 
 export const MIN_PASSING_GRADE = 51;
 
@@ -36,6 +39,8 @@ export class GradeService {
     private readonly studentRepository: Repository<Student>,
     @InjectRepository(Career)
     private readonly careerRepository: Repository<Career>,
+    @Inject(forwardRef(() => GradeHistoryService))
+    private readonly gradeHistoryService: GradeHistoryService,
   ) {}
 
   async create(createDto: GradeInputDto & { assignmentId: string }): Promise<Grade> {
@@ -150,9 +155,32 @@ export class GradeService {
 
   async update(id: string, updateDto: UpdateGradeDto): Promise<Grade> {
     const grade = await this.findOne(id);
+
+    const previousData = {
+      previousFirstPartial: grade.firstPartial,
+      previousSecondPartial: grade.secondPartial,
+      previousPractices: grade.practices,
+      previousFinalExam: grade.finalExam,
+      previousFinalGrade: grade.finalGrade,
+      previousStatus: grade.status,
+    };
+
     Object.assign(grade, updateDto);
     this.calculateFinalGrade(grade);
     const saved = await this.gradeRepository.save(grade);
+
+    await this.gradeHistoryService.create(
+      grade.id,
+      previousData,
+      {
+        newFirstPartial: grade.firstPartial,
+        newSecondPartial: grade.secondPartial,
+        newPractices: grade.practices,
+        newFinalExam: grade.finalExam,
+        newFinalGrade: grade.finalGrade,
+        newStatus: grade.status,
+      },
+    );
 
     const assignment = await this.assignmentRepository.findOne({
       where: { id: saved.assignmentId },

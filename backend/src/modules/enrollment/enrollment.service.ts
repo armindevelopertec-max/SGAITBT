@@ -106,6 +106,7 @@ export class EnrollmentService {
       enrollmentNumber: await this.generateEnrollmentNumber(createDto.academicPeriodId),
       enrollmentDate: new Date(createDto.enrollmentDate),
       status: EnrollmentStatus.ACTIVE,
+      enrollmentType: createDto.enrollmentType,
       totalAmount: createDto.totalAmount,
       observations: createDto.observations,
     });
@@ -169,12 +170,13 @@ export class EnrollmentService {
   }
 
   async findAll(query?: EnrollmentQueryDto): Promise<Enrollment[]> {
-    const { status, studentId, academicPeriodId, careerId } = query || {};
+    const { status, studentId, academicPeriodId, careerId, enrollmentType } = query || {};
     const where: Record<string, unknown> = {};
     if (status) where.status = status;
     if (studentId) where.studentId = studentId;
     if (academicPeriodId) where.academicPeriodId = academicPeriodId;
     if (careerId) where.careerId = careerId;
+    if (enrollmentType) where.enrollmentType = enrollmentType;
 
     return this.enrollmentRepository.find({
       where,

@@ -26,6 +26,12 @@ import { EmployeeModule } from './modules/employee/employee.module';
 import { RbacModule } from './modules/rbac/rbac.module';
 import { AuditModule } from './modules/audit/audit.module';
 import { ParallelModule } from './modules/parallel/parallel.module';
+import { InstitutionalOfficialHistoryModule } from './modules/institutional-official-history/institutional-official-history.module';
+import { EmployeeHistoryModule } from './modules/employee-history/employee-history.module';
+import { CertificateModule } from './modules/certificate/certificate.module';
+import { GradeHistoryModule } from './modules/grade-history/grade-history.module';
+import { StudentStatusHistoryModule } from './modules/student-status-history/student-status-history.module';
+import { PersonHistoryModule } from './modules/person-history/person-history.module';
 
 @Module({
   imports: [
@@ -64,6 +70,12 @@ import { ParallelModule } from './modules/parallel/parallel.module';
     AcademicHistoryModule,
     DashboardModule,
     MinioModule,
+    InstitutionalOfficialHistoryModule,
+    EmployeeHistoryModule,
+    CertificateModule,
+    GradeHistoryModule,
+    StudentStatusHistoryModule,
+    PersonHistoryModule,
   ],
   providers: [
     AppConfigService,

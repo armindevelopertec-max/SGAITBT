@@ -145,6 +145,40 @@ export class SubjectAssignmentService {
     });
   }
 
+  async findByTeacherUser(user: { personId?: string; id?: string }): Promise<SubjectAssignment[]> {
+    if (!user.personId) {
+      return [];
+    }
+
+    const employee = await this.employeeRepository.findOne({
+      where: { personId: user.personId, employeeType: EmployeeType.DOCENTE },
+    });
+
+    if (!employee) {
+      return [];
+    }
+
+    const assignments = await this.assignmentRepository.find({
+      where: { employeeId: employee.id },
+      relations: ['subject', 'academicPeriod', 'parallelEntity'],
+      order: { createdAt: 'DESC' },
+    });
+
+    const assignmentsWithCounts = await Promise.all(
+      assignments.map(async (assignment) => {
+        const studentCount = await this.enrollmentRepository.count({
+          where: { assignmentId: assignment.id },
+        });
+        return {
+          ...assignment,
+          studentsCount: studentCount,
+        };
+      }),
+    );
+
+    return assignmentsWithCounts;
+  }
+
   async update(id: string, updateDto: UpdateSubjectAssignmentDto): Promise<SubjectAssignment> {
     const assignment = await this.findOne(id);
     if (updateDto.employeeId) {

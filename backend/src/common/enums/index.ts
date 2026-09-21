@@ -28,6 +28,12 @@ export enum EnrollmentStatus {
   CANCELLED = 'CANCELLED',
 }
 
+export enum EnrollmentType {
+  REGULAR = 'REGULAR',
+  COMPLEMENTARIA = 'COMPLEMENTARIA',
+  EXTRAORDINARIA = 'EXTRAORDINARIA',
+}
+
 export enum PeriodStatus {
   PLANNED = 'PLANNED',
   OPEN = 'OPEN',
@@ -109,4 +115,29 @@ export enum ShiftType {
   MANANA = 'MANANA',
   TARDE = 'TARDE',
   NOCHE = 'NOCHE',
+}
+
+export enum OfficialType {
+  RECTOR = 'RECTOR',
+  VICE_RECTOR = 'VICE_RECTOR',
+  SECRETARY = 'SECRETARY',
+  ACCOUNTANT = 'ACCOUNTANT',
+  CAREER_DIRECTOR = 'CAREER_DIRECTOR',
+  VOCATIONAL_DIRECTOR = 'VOCATIONAL_DIRECTOR',
+  ACADEMIC_DIRECTOR = 'ACADEMIC_DIRECTOR',
+}
+
+export enum CertificateType {
+  NOTES = 'NOTES',
+  STUDIES = 'STUDIES',
+  REGULAR = 'REGULAR',
+  ENROLLMENT = 'ENROLLMENT',
+  HISTORY = 'HISTORY',
+  DIPLOMA = 'DIPLOMA',
+}
+
+export enum CertificateStatus {
+  ACTIVE = 'ACTIVE',
+  REVOKED = 'REVOKED',
+  EXPIRED = 'EXPIRED',
 }

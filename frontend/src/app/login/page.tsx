@@ -55,7 +55,7 @@ export default function LoginPage() {
         </div>
 
         <div style={{ fontSize: 12, color: '#a5b4fc' }}>
-          Instituto Tecnológico &quot;Boliviana de Tecnología&quot; · Pasantía 2026
+          Instituto Tecnológico &quot;Boliviana de Tecnología&quot;
         </div>
       </div>
 

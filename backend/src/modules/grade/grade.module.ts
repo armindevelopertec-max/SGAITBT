@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Grade } from './entities/grade.entity';
 import { GradeService } from './grade.service';
@@ -8,6 +8,7 @@ import { SubjectEnrollment } from '@modules/subject-assignment/entities/subject-
 import { AcademicHistory } from '@modules/academic-history/entities/academic-history.entity';
 import { Student } from '@modules/student/entities/student.entity';
 import { Career } from '@modules/career/entities/career.entity';
+import { GradeHistoryModule } from '@modules/grade-history/grade-history.module';
 
 @Module({
   imports: [
@@ -19,6 +20,7 @@ import { Career } from '@modules/career/entities/career.entity';
       Student,
       Career,
     ]),
+    forwardRef(() => GradeHistoryModule),
   ],
   controllers: [GradeController],
   providers: [GradeService],

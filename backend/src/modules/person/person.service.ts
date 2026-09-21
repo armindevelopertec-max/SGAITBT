@@ -1,19 +1,25 @@
 import {
   ConflictException,
   Injectable,
+  Inject,
   NotFoundException,
+  forwardRef,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Person } from './entities/person.entity';
 import { CreatePersonDto, PersonQueryDto, UpdatePersonDto } from './dto/person.dto';
 import { PersonStatus } from '@common/enums';
+import { PersonHistoryService } from '@modules/person-history/person-history.service';
+import { PERSON_TRACKED_FIELDS } from '@modules/person-history/dto/person-history.dto';
 
 @Injectable()
 export class PersonService {
   constructor(
     @InjectRepository(Person)
     private readonly personRepository: Repository<Person>,
+    @Inject(forwardRef(() => PersonHistoryService))
+    private readonly personHistoryService: PersonHistoryService,
   ) {}
 
   async create(createDto: CreatePersonDto): Promise<Person> {
@@ -88,10 +94,32 @@ export class PersonService {
   async update(id: string, updateDto: UpdatePersonDto): Promise<Person> {
     const person = await this.findOne(id);
     const { birthDate, ...rest } = updateDto;
+
+    const changes: Array<{ fieldChanged: string; previousValue: string | null; newValue: string | null }> = [];
+
+    for (const field of PERSON_TRACKED_FIELDS) {
+      if (field in updateDto && (person as any)[field] !== (updateDto as any)[field]) {
+        changes.push({
+          fieldChanged: field,
+          previousValue: String((person as any)[field] ?? ''),
+          newValue: String((updateDto as any)[field] ?? ''),
+        });
+      }
+    }
+
     Object.assign(person, rest, {
       birthDate: birthDate ? new Date(birthDate) : person.birthDate,
     });
-    return this.personRepository.save(person);
+    const saved = await this.personRepository.save(person);
+
+    if (changes.length > 0) {
+      await this.personHistoryService.createBulk(
+        person.id,
+        changes,
+      );
+    }
+
+    return saved;
   }
 
   async deactivate(id: string): Promise<Person> {

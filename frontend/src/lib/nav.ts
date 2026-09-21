@@ -39,45 +39,22 @@ export const NAV_SECTIONS: NavSection[] = [
         permissions: ['subjects.view'],
       },
       {
-        label: 'Gestión Académica',
-        href: '/academic-management',
+        label: 'Periodos Académicos',
+        href: '/academic-periods',
         icon: 'calendar',
         permissions: ['periods.view'],
       },
       {
-        label: 'Designación de Materias',
+        label: 'Calendario Institucional',
+        href: '/calendar',
+        icon: 'calendar',
+        permissions: ['calendar.view'],
+      },
+      {
+        label: 'Docentes por Materia',
         href: '/subject-designations',
         icon: 'assignment',
         permissions: ['assignments.view'],
-      },
-    ],
-  },
-  {
-    title: 'Académica',
-    items: [
-      {
-        label: 'Estudiantes',
-        href: '/students',
-        icon: 'students',
-        permissions: ['students.view'],
-      },
-      {
-        label: 'Depósitos',
-        href: '/deposits',
-        icon: 'deposit',
-        permissions: ['deposits.view'],
-      },
-      {
-        label: 'Matrículas',
-        href: '/enrollments',
-        icon: 'enrollment',
-        permissions: ['enrollments.view'],
-      },
-      {
-        label: 'Asignación de Materias (Boletas)',
-        href: '/student-subject-assignments',
-        icon: 'student-assignment',
-        permissions: ['assignments.view', 'students.view'],
       },
       {
         label: 'Empleados',
@@ -91,34 +68,40 @@ export const NAV_SECTIONS: NavSection[] = [
         icon: 'role',
         permissions: ['roles.view'],
       },
+    ],
+  },
+  {
+    title: 'Académica',
+    items: [
+      {
+        label: 'Depósitos',
+        href: '/deposits',
+        icon: 'deposit',
+        permissions: ['deposits.view'],
+      },
+      {
+        label: 'Estudiantes',
+        href: '/students',
+        icon: 'students',
+        permissions: ['students.view'],
+      },
+      {
+        label: 'Credencial',
+        href: '/enrollments',
+        icon: 'enrollment',
+        permissions: ['enrollments.view'],
+      },
+      {
+        label: 'Boleta de Asignación',
+        href: '/student-subject-assignments',
+        icon: 'student-assignment',
+        permissions: ['assignments.view', 'students.view'],
+      },
       {
         label: 'Auditoría',
         href: '/audit',
         icon: 'audit',
         permissions: ['audit.view'],
-      },
-    ],
-  },
-  {
-    title: 'Evaluación',
-    items: [
-      {
-        label: 'Asistencia',
-        href: '/attendance',
-        icon: 'attendance',
-        permissions: ['attendance.view', 'attendance.create'],
-      },
-      {
-        label: 'Calificaciones',
-        href: '/grades',
-        icon: 'grades',
-        permissions: ['grades.view'],
-      },
-      {
-        label: 'Historial Académico',
-        href: '/academic-history',
-        icon: 'history',
-        permissions: ['history.view'],
       },
     ],
   },
@@ -132,23 +115,12 @@ export const NAV_SECTIONS: NavSection[] = [
         permissions: ['reports.view'],
       },
       {
-        label: 'Centralizadores',
-        href: '/centralizers',
-        icon: 'centralizer',
-        permissions: ['grades.view', 'reports.view'],
-      },
-      {
         label: 'Certificados',
         href: '/certificates',
         icon: 'certificate',
         permissions: ['reports.view'],
       },
-      {
-        label: 'Conclusión de Estudios',
-        href: '/graduation',
-        icon: 'graduation',
-        permissions: ['reports.view'],
-      },
+
     ],
   },
 ];
